@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""External MCP client proof for the First Mate full-coverage server (stdlib only)."""
+"""External MCP client proof for the First Mate smarts-only server (stdlib only)."""
 import json
 import os
 import subprocess
@@ -9,7 +9,7 @@ from pathlib import Path
 
 SERVER = Path(__file__).resolve().parent / "fm_mcp_server.py"
 CHECKS = []
-APPROVAL = "I authorize full-coverage PoC use"
+APPROVAL = "I authorize smarts-only PoC use"
 
 
 def check(name, cond, detail=""):
@@ -117,19 +117,26 @@ def main():
     finally:
         client.close()
 
-    sandbox = tempfile.mkdtemp(prefix="fm-mcp-full-")
+    sandbox = tempfile.mkdtemp(prefix="fm-mcp-smarts-")
     boxed = Client(env={"FM_HOME": sandbox})
     try:
         boxed.notify("notifications/initialized")
         resp = boxed.request("tools/list")
         names = {t["name"] for t in resp["result"]["tools"]}
-        check("full server lists 24 tools", len(names) == 24, sorted(names))
-        for required in ("lifecycle_interrupt", "spawn_crew", "scaffold_brief",
-                         "promote_scout", "teardown_crew", "arm_pr_check",
-                         "merge_pr", "merge_local", "decision_hold",
-                         "decision_resolve", "review_decision", "relay_reply",
+        check("smarts server lists 19 tools", len(names) == 19, sorted(names))
+        for required in ("lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch",
+                         "lifecycle_suspend", "lifecycle_resume", "spawn_crew", "scaffold_brief",
+                         "decision_hold", "decision_resolve", "review_decision", "relay_reply",
                          "relay_dismiss", "relay_followup", "fleet_poll"):
             check(f"tool present: {required}", required in names)
+        for forbidden in ("promote_scout", "teardown_crew", "arm_pr_check",
+                          "merge_pr", "merge_local"):
+            check(f"code-forbidden absent: {forbidden}", forbidden not in names)
+        for forbidden in ("promote_scout", "teardown_crew", "arm_pr_check",
+                          "merge_pr", "merge_local"):
+            fresp = boxed.call(forbidden, {})
+            check(f"code-forbidden refused: {forbidden}",
+                  "error" in fresp and fresp["error"]["code"] == -32602, str(fresp)[:200])
         check("every authority tool schema requires approval", all(
             "approval" in (t.get("inputSchema", {}).get("required", []) or [])
             for t in resp["result"]["tools"]
@@ -176,30 +183,6 @@ def main():
         resp = boxed.call("scaffold_brief", {"task_id": "no-such-id", "project": "no-such-project",
                                              "mode": "bogus", "approval": APPROVAL})
         check("brief rejects bad mode", is_error(resp))
-
-        resp = boxed.call("promote_scout", {"task_id": "no-such-id", "mode": "local-only", "yolo": "off"})
-        check("promote refuses without approval", is_error(resp) and "approval" in payload(resp).get("error", ""))
-        resp = boxed.call("promote_scout", {"task_id": "no-such-id", "mode": "local-only",
-                                            "yolo": "off", "approval": APPROVAL})
-        check("promote unknown id stays structured", is_error(resp))
-
-        resp = boxed.call("teardown_crew", {"task_id": "../escape", "approval": APPROVAL})
-        check("teardown rejects traversal", is_error(resp))
-        resp = boxed.call("teardown_crew", {"task_id": "no-such-id", "approval": APPROVAL})
-        check("teardown unknown id stays structured", is_error(resp))
-
-        resp = boxed.call("arm_pr_check", {"task_id": "no-such-id",
-                                           "pr_url": "https://github.com/trillium/firstmate/pull/1",
-                                           "approval": APPROVAL})
-        check("pr check unknown id stays structured", is_error(resp))
-        resp = boxed.call("arm_pr_check", {"task_id": "no-such-id", "pr_url": "not-a-url", "approval": APPROVAL})
-        check("pr check rejects bad url", is_error(resp))
-
-        resp = boxed.call("merge_pr", {"task_id": "no-such-id",
-                                       "pr_url": "https://github.com/trillium/firstmate/pull/1"})
-        check("merge refuses without approval", is_error(resp) and "approval" in payload(resp).get("error", ""))
-        resp = boxed.call("merge_local", {"task_id": "no-such-id", "approval": APPROVAL})
-        check("local merge unknown id stays structured", is_error(resp))
 
         resp = boxed.call("decision_hold", {"origin_id": "no-such-id", "decision_key": "k1",
                                             "title": "t", "reason": "r"})

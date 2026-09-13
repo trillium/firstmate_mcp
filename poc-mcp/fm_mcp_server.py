@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""First Mate MCP full-coverage server (stdlib only, no dependencies)."""
+"""First Mate MCP smarts-only server (stdlib only, no dependencies)."""
 import json
 import os
 import re
@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 SERVER_NAME = "firstmate-mcp-poc"
-SERVER_VERSION = "0.2.0"
+SERVER_VERSION = "0.3.0"
 SUPPORTED_PROTOCOL_VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18")
 SNAPSHOT_SCHEMA = "fm-fleet-snapshot.v1"
 CHECKOUT_ROOT = Path(__file__).resolve().parent.parent
@@ -22,7 +22,6 @@ SEND_TEXT_MAX_CHARS = 500
 APPROVAL_PREFIX = "I authorize"
 ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}")
 PROJECT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_./-]{0,199}")
-PR_URL_RE = re.compile(r"https://\S{1,500}")
 MODES = ("no-mistakes", "direct-PR", "local-only")
 BRIEF_MODES = ("no-mistakes", "direct-PR", "local-only", "scout")
 VERDICTS = ("approve", "decline", "comment")
@@ -47,10 +46,6 @@ def valid_project(value):
     if ".." in value or value.startswith("/"):
         return False
     return True
-
-
-def valid_pr_url(value):
-    return isinstance(value, str) and PR_URL_RE.fullmatch(value) is not None
 
 
 def valid_note(value, cap=500):
@@ -316,98 +311,6 @@ def tool_scaffold_brief(args):
     if not is_error:
         payload = dict(payload)
         payload.update({"task_id": task_id, "project": project, "mode": mode})
-    return payload, is_error
-
-
-def tool_promote_scout(args):
-    task_id = args.get("task_id")
-    mode = args.get("mode")
-    yolo = args.get("yolo")
-    if not valid_id(task_id):
-        return {"error": "invalid task_id", "expect": "short task id, no slashes or traversal"}, True
-    if mode not in MODES:
-        return {"error": "invalid mode", "expect": "one of no-mistakes, direct-PR, local-only"}, True
-    if yolo not in ("on", "off"):
-        return {"error": "invalid yolo", "expect": "one of on, off"}, True
-    if not valid_approval(args.get("approval")):
-        return approval_error(), True
-    payload, is_error = owned_call(
-        [BIN / "fm-promote.sh", task_id, "--mode", mode, "--yolo", yolo],
-        "promote refused or failed",
-    )
-    if not is_error:
-        payload = dict(payload)
-        payload.update({"task_id": task_id, "mode": mode})
-    return payload, is_error
-
-
-def tool_teardown_crew(args):
-    task_id = args.get("task_id")
-    if not valid_id(task_id):
-        return {"error": "invalid task_id", "expect": "short task id, no slashes or traversal"}, True
-    if not valid_approval(args.get("approval")):
-        return approval_error(), True
-    payload, is_error = owned_call(
-        [BIN / "fm-teardown.sh", task_id],
-        "teardown refused or failed",
-    )
-    if not is_error:
-        payload = dict(payload)
-        payload.update({"task_id": task_id})
-    return payload, is_error
-
-
-def tool_arm_pr_check(args):
-    task_id = args.get("task_id")
-    pr_url = args.get("pr_url")
-    if not valid_id(task_id):
-        return {"error": "invalid task_id", "expect": "short task id, no slashes or traversal"}, True
-    if not valid_pr_url(pr_url):
-        return {"error": "invalid pr_url", "expect": "https:// PR or MR url, no spaces"}, True
-    if not valid_approval(args.get("approval")):
-        return approval_error(), True
-    payload, is_error = owned_call(
-        [BIN / "fm-pr-check.sh", task_id, pr_url],
-        "pr check arming refused or failed",
-    )
-    if not is_error:
-        payload = dict(payload)
-        payload.update({"task_id": task_id})
-    return payload, is_error
-
-
-def tool_merge_pr(args):
-    task_id = args.get("task_id")
-    pr_url = args.get("pr_url")
-    if not valid_id(task_id):
-        return {"error": "invalid task_id", "expect": "short task id, no slashes or traversal"}, True
-    if not valid_pr_url(pr_url):
-        return {"error": "invalid pr_url", "expect": "https:// PR url, no spaces"}, True
-    if not valid_approval(args.get("approval")):
-        return approval_error(), True
-    payload, is_error = owned_call(
-        [BIN / "fm-pr-merge.sh", task_id, pr_url],
-        "pr merge refused or failed",
-    )
-    if not is_error:
-        payload = dict(payload)
-        payload.update({"task_id": task_id})
-    return payload, is_error
-
-
-def tool_merge_local(args):
-    task_id = args.get("task_id")
-    if not valid_id(task_id):
-        return {"error": "invalid task_id", "expect": "short task id, no slashes or traversal"}, True
-    if not valid_approval(args.get("approval")):
-        return approval_error(), True
-    payload, is_error = owned_call(
-        [BIN / "fm-merge-local.sh", task_id],
-        "local merge refused or failed",
-    )
-    if not is_error:
-        payload = dict(payload)
-        payload.update({"task_id": task_id})
     return payload, is_error
 
 
@@ -704,41 +607,6 @@ TOOLS = {
             "mode": {"type": "string", "enum": list(BRIEF_MODES)},
         }),
         tool_scaffold_brief,
-    ),
-    "promote_scout": (
-        "Authority write: promote one scout to a ship in place with its delivery contract.",
-        approval_schema({
-            "task_id": {"type": "string"},
-            "mode": {"type": "string", "enum": list(MODES)},
-            "yolo": {"type": "string", "enum": ["on", "off"]},
-        }),
-        tool_promote_scout,
-    ),
-    "teardown_crew": (
-        "Authority write: clean up one task via fm-teardown.sh; never force-discards through MCP.",
-        id_approval_schema("task_id"),
-        tool_teardown_crew,
-    ),
-    "arm_pr_check": (
-        "Authority write: arm the watcher merge poll for one task PR via fm-pr-check.sh.",
-        approval_schema({
-            "task_id": {"type": "string"},
-            "pr_url": {"type": "string", "description": "https:// PR or MR url"},
-        }),
-        tool_arm_pr_check,
-    ),
-    "merge_pr": (
-        "Authority write: merge one task PR through merge guards via fm-pr-merge.sh.",
-        approval_schema({
-            "task_id": {"type": "string"},
-            "pr_url": {"type": "string", "description": "https:// PR url"},
-        }),
-        tool_merge_pr,
-    ),
-    "merge_local": (
-        "Authority write: fast-forward the default branch for one local-only task via fm-merge-local.sh.",
-        id_approval_schema("task_id"),
-        tool_merge_local,
     ),
     "decision_hold": (
         "Authority write: record one durable captain-held decision via fm-decision-hold.sh hold.",
