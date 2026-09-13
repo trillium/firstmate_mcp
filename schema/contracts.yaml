@@ -1,0 +1,118 @@
+# Firstmate depended-on contract map (seed).
+# This file declares which firstmate surfaces the MCP superset depends on and how strictly.
+# Behavior owners stay the script headers; this file is the dependency declaration only.
+# Tiers and the observed-vs-depended-on rule are explained in README.md and schema/matrix.md.
+version: v1
+contracts:
+  - name: fleet_snapshot
+    command: bin/fm-fleet-snapshot.sh
+    flags: ["--json"]
+    output:
+      format: json
+      schema_id: fm-fleet-snapshot.v1
+      fields: ["schema", "generated", "backlog", "tasks"]
+    exits:
+      zero: prints one JSON object with schema fm-fleet-snapshot.v1
+      nonzero: snapshot refused or failed; stderr carries the reason
+    stability: stable
+    pinned: fm-fleet-snapshot.v1
+    evidence:
+      header: bin/fm-fleet-snapshot.sh:1-40
+      doc: poc-mcp/INVENTORY.md
+    notes: Canonical whole-fleet read; backlog and fleet_poll derive from it.
+  - name: backlog
+    command: "derived: fleet_snapshot"
+    flags: ["--json"]
+    output:
+      format: json
+      schema_id: fm-fleet-snapshot.v1
+      fields: ["generated", "backlog", "task_counts"]
+    exits:
+      zero: returns backlog records plus per-state task counts
+      nonzero: inherits the fleet_snapshot failure
+    stability: stable
+    pinned: fm-fleet-snapshot.v1
+    evidence:
+      header: bin/fm-fleet-snapshot.sh:1-40
+      doc: poc-mcp/INVENTORY.md
+    notes: Dispatch read; derives records from the snapshot instead of reimplementing a backend.
+  - name: crew_state
+    command: bin/fm-crew-state.sh
+    flags: ["<id>"]
+    output:
+      format: line
+      schema_id: fm-crew-state.v1
+      fields: ["state", "source", "detail"]
+    exits:
+      zero: prints one stable line; never infers state from the status log tail
+      nonzero: unknown id or unreadable endpoint; stderr carries the reason
+    stability: stable
+    pinned: fm-crew-state.v1
+    evidence:
+      header: bin/fm-crew-state.sh:1-30
+      doc: poc-mcp/INVENTORY.md
+    notes: Deterministic current-state read; the status log tail is wake-event history only.
+  - name: status_tail
+    command: "file: state/<id>.status"
+    flags: ["<id>", "lines=1..50"]
+    output:
+      format: text
+      schema_id: status-log.v1
+      fields: ["events", "warning"]
+    exits:
+      zero: returns the last lines with id validation and path confinement
+      nonzero: no status log for id, or unreadable log
+    stability: stable
+    pinned: status-log.v1
+    evidence:
+      header: bin/fm-crew-state.sh:1-30
+      doc: poc-mcp/INVENTORY.md
+    notes: Dispatch read; history only, never current state; 50-line cap.
+  - name: send_message
+    command: bin/fm-send.sh
+    flags: ["<target>", "<text>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["delivered", "target"]
+    exits:
+      zero: verified submit per the fm-send contract; delivery is not reply
+      nonzero: steer refused or failed, including swallowed Enter and slash commands
+    stability: stable
+    pinned: fm-send.plain-text.v1
+    evidence:
+      header: bin/fm-send.sh:1-30
+      doc: poc-mcp/INVENTORY.md
+    notes: Plain-text path only; --key, --raw, and lifecycle verbs are out of scope.
+  - name: spawn_crew
+    command: bin/fm-spawn.sh
+    flags: ["<task-id>", "<project>", "--mode", "--yolo"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["task_id", "project", "mode"]
+    exits:
+      zero: direct report spawned under an explicit delivery contract
+      nonzero: spawn refused, including mode mismatch with the brief
+    stability: evolving
+    pinned: fm-spawn.safe-subset.v1
+    evidence:
+      header: bin/fm-spawn.sh:1-30
+      doc: poc-mcp/INVENTORY.md
+    notes: Dispatch write; safe flag subset only with no repo-mutation options.
+  - name: scaffold_brief
+    command: bin/fm-brief.sh
+    flags: ["<task-id>", "<repo>", "--mode/--scout"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["task_id", "project", "mode"]
+    exits:
+      zero: brief scaffolded; launches nothing
+      nonzero: brief refused, including unrecognized flags
+    stability: evolving
+    pinned: fm-brief.safe-subset.v1
+    evidence:
+      header: bin/fm-brief.sh:1-30
+      doc: poc-mcp/INVENTORY.md
+    notes: Dispatch write; scaffolds instructions without launching.

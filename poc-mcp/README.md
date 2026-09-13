@@ -31,3 +31,13 @@ Launch-authorized writes (approval required): lifecycle verbs, `spawn_crew`, `sc
 External sends (approval required): `relay_reply`, `relay_dismiss`, and `relay_followup`.
 Read-only poller: `fleet_poll` over `fleet_snapshot`; see `AUTH.md` for the tier list.
 Code-forbidden with no tool: `promote_scout`, `teardown_crew`, `arm_pr_check`, `merge_pr`, and `merge_local`.
+
+## Contract map
+
+The superset depends on a declared subset of firstmate surfaces, and `schema/` owns that declaration.
+Observed means visible but never depended on: the superset may read it for context and must not break when it changes.
+Depended-on means load-bearing: the entry pins a command plus flags, an output shape, exit behavior, a stability tier, and a tested version, and a stale pin fails validation naming the contract and the current pin.
+Stable means the output schema is frozen and breaking changes need a new pin.
+Evolving means the safe flag subset is pinned while the owning script may still grow outside it.
+Experimental means observed-only with no pin and no dependence.
+Validate with `python3 schema/validate.py`, read the matrix view in `schema/matrix.md`, and run `bash tests/mcp-schema.test.sh` for the proof.
