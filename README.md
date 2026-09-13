@@ -7,6 +7,7 @@
 - [Tools](#tools)
 - [Authorization tiers](#authorization-tiers)
 - [Contract map](#contract-map)
+- [Conformance](#conformance)
 - [Drift detection](#drift-detection)
 - [Design choices](#design-choices)
 - [Layout](#layout)
@@ -113,6 +114,27 @@ still grow outside it.
 Experimental means observed-only with no pin and no dependence.
 Validate with `python3 schema/validate.py`, read the matrix view in
 `schema/matrix.md`, and run `bash tests/mcp-schema.test.sh` for the proof.
+
+## Conformance
+
+`tests/conformance/` proves the adapter behaves like firstmate: the same
+read inputs through the adapter and through firstmate's real `bin/fm-*.sh`
+scripts agree.
+
+```sh
+bash tests/conformance/conformance.sh
+FIRSTMATE_HOME=/path/to/firstmate bash tests/conformance/conformance.sh
+```
+
+Equivalence means the adapter's typed projection equals the owning
+script's observable output (modulo the envelope wrap and the `generated`
+timestamp). The adapter may be stricter than the script — traversal ids
+are refused before any process starts while the raw script answers a lax
+`unknown` — and the suite pins that direction; the reverse fails.
+Conformance is side-effect-free by construction: only read tools dispatch,
+every subprocess runs under a scratch `FM_HOME`, and each invocation is
+captured carrying that scratch home. Without a firstmate checkout the
+suite skips cleanly; see `tests/conformance/README.md`.
 
 ## Drift detection
 
