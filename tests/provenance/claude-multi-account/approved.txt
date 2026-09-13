@@ -1,3 +1,0 @@
-error: <N> must be a positive integer account index
----exit---
-1

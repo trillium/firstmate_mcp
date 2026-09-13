@@ -1,3 +1,0 @@
-error: --raw cannot be combined with --key; a raw key send already works via '--key' alone (it never verifies a composer)
----exit---
-1

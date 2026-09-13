@@ -1,239 +1,135 @@
-<h1 align="center">firstmate</h1>
-<p align="center">
-  <a
-    href="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-blue?style=flat-square"
-    ><img
-      alt="Platform"
-      src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-blue?style=flat-square"
-  /></a>
-  <a href="https://x.com/kunchenguid"
-    ><img
-      alt="X"
-      src="https://img.shields.io/badge/X-@kunchenguid-black?style=flat-square"
-  /></a>
-  <a href="https://discord.gg/Wsy2NpnZDu"
-    ><img
-      alt="Discord"
-      src="https://img.shields.io/discord/1439901831038763092?style=flat-square&label=discord"
-  /></a>
-</p>
+# Firstmate MCP — smarts layer over firstmate
 
-<h3 align="center">Talk to one agent. Ship with a crew.</h3>
+## Contents
 
-<p align="center">
-  <img alt="firstmate - talk to one agent, ship with a crew" src="assets/banner.png" width="100%" />
-</p>
+- [What this is](#what-this-is)
+- [Quickstart](#quickstart)
+- [Tools](#tools)
+- [Authorization tiers](#authorization-tiers)
+- [Design choices](#design-choices)
+- [Layout](#layout)
+- [History](#history)
 
-## What it is
+## What this is
 
-You can run one coding agent easily.
-But the moment you want three project tasks done in parallel - fixes, investigations, plans, audits - you become a tab-juggler: babysitting sessions, copy-pasting context between repos, forgetting which terminal had the failing test.
+Typed [Model Context Protocol](https://modelcontextprotocol.io) tools over
+firstmate. The server exposes reads, steering, and launch control as
+JSON-Schema-typed tools that shell out to firstmate's own scripts — it never
+reimplements firstmate behavior.
 
-firstmate flips the model.
-You talk to a single agent - the first mate - and it runs the crew for you: spawning autonomous agents in a visible session backend, giving each a clean git worktree, supervising them to completion, and handing you finished PRs, approved local merges, or standalone investigation reports.
-For larger fleets, you can opt in to persistent secondmates: second mates that are still ordinary direct reports, but run from their own isolated firstmate homes on this machine or another SSH-reachable host.
+The smarts-only line: **launch ability yes, development ability no.** This
+layer may observe the fleet, steer workers, and launch or control crews. It
+has no code-writing surface: no edit, commit, merge, or PR tools, no direct
+repo mutation, no teardown that discards work, no promote-to-ship paths.
+Firstmate stays the implementation; this repo is only the typed doorway.
 
-firstmate is not a model, not a harness, not a skill, not an MCP server, and not a CLI.
-firstmate is an agent distro for running a crew of agents.
-An agent distro is a portable directory of instructions, skills, tooling, policies, and state conventions that turns a general-purpose agent into a specialized one.
-There is no app to install: the cloned repo is the distro - `AGENTS.md`, bundled firstmate skills, and helper scripts that any terminal coding agent can follow.
-Launching a supported harness inside it instantiates your first mate - and makes you the captain.
+## Quickstart
 
-## Features
+Requirements: Python 3, stdlib only, no dependencies.
 
-- **One liaison** - you talk only to the first mate; it dispatches, supervises, escalates only real decisions, and reports plain outcomes.
-- **A visible crew** - every crewmate works in its own tmux window, experimental herdr/zellij tab, cmux workspace, or Orca terminal you can watch or type into; the first mate reconciles.
-- **Disposable worktrees** - each task runs in a clean [treehouse](https://github.com/kunchenguid/treehouse) git worktree, or an Orca-managed worktree when `backend=orca`, so parallel work on one repo never collides.
-- **Two task shapes** - ship tasks deliver authorized changes; scout tasks leave standalone investigation reports when the intake contract warrants separate research.
-- **Explicit project modes** - each project ships via `no-mistakes`, `direct-PR`, or `local-only`, with an optional `+yolo` autonomy flag.
-- **Optional secondmates** - opt in to persistent second mates that run from isolated firstmate homes with their own `FM_HOME`, state, projects, and session lock, either locally or as a whole home on an SSH-reachable host, with guarded updates and recovery that never turns an unavailable remote route into a local replacement.
-- **Event-driven, zero-token supervision** - a bash watcher sleeps on the fleet and wakes the first mate only when something needs you; verified primary harnesses also get a turn-end backstop that blocks or follows up on a blind stop when work is under way and supervision is not live.
-- **Optional Relay** - opt in with one local `.env` pairing token so firstmate can answer your public mentions on X and Discord alike, act on normal reversible mention requests through the same lifecycle as chat requests, acknowledge spawned work, and post up to three public-safe completion follow-ups within seven days for genuine milestones and the final outcome without changing non-Relay behavior; a final reply promised in a thread becomes durable state that is reconciled from disk, so a restart or a compacted conversation cannot lose it; dry-run preview records would-be replies and dismissals locally before go-live.
-- **Strict project boundary** - the first mate is read-only over your projects except for the narrow guarded and captain-approved operations authorized by [hard rule 1](AGENTS.md#1-identity-and-prime-directives), including fleet sync's guarded safe branch pruning; crewmates make every other project change behind the configured merge authority.
-- **Restart-proof** - all state lives on disk and in the active session backend (tmux by hard default, herdr or cmux when selected or auto-detected, zellij/orca when explicitly selected); kill the session anytime and the next one reconciles, including confirmed-dead secondmate agents, and carries on.
-
-Full detail on every feature lives in [docs/architecture.md](docs/architecture.md).
-
-## Quick Start
-
-### Requirements
-
-- A verified primary agent harness: Claude Code, Grok, Pi, `pi-signed`, Codex, or OpenCode.
-- Git and the GitHub CLI, authenticated through `gh auth login`.
-- The CLI and dependencies for your selected runtime backend; tmux is the reference default.
-
-The first mate detects and offers to install supported missing tools after you approve.
-Backend-specific setup is linked in [Documentation](#documentation).
-
-### Recommended harnesses
-
-**Claude Code, Grok, and Pi are equal co-primary recommendations** for running the primary firstmate session, with `pi-signed` supported as Pi's distinct signed-wrapper identity.
-Claude Code uses a tracked Stop hook for tokenless watcher re-arm and rewake, Grok uses background-notify wake cycles, and Pi uses its tracked primary watcher extension.
-All three have verified turn-end guard paths when launched with their documented setup.
-Pick whichever one matches your subscription and workflow.
-
-Codex and OpenCode are also verified and supported as primary harnesses; Codex uses bounded foreground checkpoints, and OpenCode uses a TUI plugin, so both carry more harness-specific supervision tradeoffs than the three co-primaries.
-
-### Install and launch
+Run the server (newline-delimited JSON-RPC on stdio, logs on stderr):
 
 ```sh
-gh auth login
-git clone https://github.com/kunchenguid/firstmate
-cd firstmate
+python3 fm_mcp_server.py
 ```
 
-Then launch one of the co-primary harnesses; AGENTS.md takes over from there:
-
-**Claude Code**
+Point it at a firstmate checkout to wire the live tools:
 
 ```sh
-claude
+FM_HOME=/path/to/firstmate python3 fm_mcp_server.py
 ```
 
-**Grok**
+Without a firstmate checkout beside it, the server resolves its tool scripts
+from `$FM_HOME/bin` and tool calls fail closed with `executable not found`.
+
+Run the end-to-end proof (67 checks, self-contained — no checkout needed):
 
 ```sh
-grok --trust
+python3 test_client.py
 ```
 
-**Pi**
+The suite handshakes, lists tools, exercises every read, proves traversal and
+validation refusals, proves approval gating on every authority-bearing tool,
+and proves every removed code-writing surface answers unknown-tool.
 
-```sh
-pi
-# or, when the signed wrapper is installed
-FM_PI_HARNESS=pi-signed pi-signed
-```
+## Tools
 
-For Grok, `--trust` is needed once per clone so project hooks and the turn-end guard load; `/hooks-trust` inside Grok works too.
-For Pi, approve the project trust prompt once per clone on first launch so the tracked `.pi/extensions/*.ts` files auto-load.
-Pi's `/calm` toggle hides supported transcript chrome, including canonically classified Firstmate operational user rows, and uses a Calm-only animated working boat during active runs while preserving all model context and session data.
-The hidden operational inputs remain ordinary user-role messages with unchanged delivery, ordering, authority, persistence, and exports.
-The preference persists for the effective Firstmate home, and toggling it off restores ordinary rendering.
-[Calm's current behavior and supported limits](docs/calm.md) are separate from its [version-scoped maintainer evidence](docs/calm-mode-feasibility.md).
+Reads (open, no side effects): `fleet_snapshot`, `backlog`, `crew_state`,
+`status_tail`.
 
-### Talk to it
+Single safe write: `send_message` — one verified plain-text line to one crew
+(500-char cap, single line, slash commands refused).
 
-```sh
-> ahoy! look at my github project xyz, then fix the flaky login test and add dark mode
+Launch-authorized writes (approval required): `lifecycle_interrupt`,
+`lifecycle_exit`, `lifecycle_relaunch`, `lifecycle_suspend`,
+`lifecycle_resume`, `spawn_crew`, `scaffold_brief`, `decision_hold`,
+`decision_resolve`, `review_decision`.
 
-# firstmate checks its toolchain (asking your consent before installing anything),
-# clones the project under projects/ and spawns two isolated workers in the active backend.
-# Minutes later:
+External sends (approval required, inert without relay consent):
+`relay_reply`, `relay_dismiss`, `relay_followup`.
 
-  PR ready for review, captain: https://github.com/you/xyz/pull/42
-  (fix flaky login test - risk: low - CI green)
+Read-only poller: `fleet_poll`, a bounded convenience poll over
+`fleet_snapshot`, which stays canonical.
 
-> alright merge it
-```
+Code-forbidden (no tool, refused as unknown): `promote_scout`,
+`teardown_crew`, `arm_pr_check`, `merge_pr`, `merge_local`.
 
-### More backends
+See `INVENTORY.md` for the full capability inventory and typed mapping.
 
-Setup guides for tmux (the default) and every other supported backend (herdr, zellij, Orca, cmux) are linked in [Documentation](#documentation) below.
+## Authorization tiers
 
-### Isolated launch
+Every authority-bearing or externally visible tool takes an explicit
+`approval` string starting with `I authorize` and refuses without it. Reads
+stay open because they change nothing.
 
-To run firstmate with none of your global harness config (no global CLAUDE.md, hooks, skills/agents, or auto-memory) - useful for testing this repo in isolation or running a clean persona - launch through `bin/fm-isolated-launch.sh` instead of the harness binary directly:
+- Tier 1 — open reads, no approval.
+- Tier 2 — reversible steers (`send_message`), no approval, validated text.
+- Tier 3 — launch-authorized writes, approval required.
+- Tier 4 — external sends, approval required plus relay consent in the owning
+  script.
 
-```sh
-bin/fm-isolated-launch.sh
-```
+See `AUTH.md` for the tier list and the code-forbidden list.
 
-This repo's own project-level CLAUDE.md/AGENTS.md and `.agents/skills/` still load normally, and the isolated session runs with the same bypass-permissions autonomy as an ordinary crewmate.
-On macOS it reuses your existing login by copying the OAuth token read-only out of your Keychain, so no re-login is needed; it only falls back to a login prompt when that isn't possible (non-macOS, or no stored credential).
-See [docs/configuration.md](docs/configuration.md#isolated-launch-binfm-isolated-launchsh) for the full mechanics and the `FM_ISOLATED_HOME`, `FM_ISOLATED_CWD`, and `FM_ROOT_OVERRIDE` overrides.
+## Design choices
 
-## How It Works
+**Why typed tools, not shell.** Raw shell passes strings to scripts; the MCP
+schema narrows every call to the safe subset up front (typed ids, bounded
+text, no `--key`/`--raw` flags, no repo-mutation options). The server then
+revalidates ids, paths, and approval strings, and the owning firstmate script
+still fails closed. Three layers — schema, server, owning script — instead of
+one.
 
-```
-            you (the captain)
-                  │  chat: requests, decisions, "merge it"
-                  ▼
- ┌─────────────────────────────────────┐
- │ firstmate            (this repo)    │
- │ reads projects/ + firstmate routes  │
- │ writes guarded backlog/briefs/state │
- └──┬──────────────┬───────────────┬───┘
-    │ backend sends / status files │
-    ▼              ▼               ▼
- ┌────────┐   ┌────────┐      ┌────────┐
- │fm-task1│   │fm-task2│  ... │fm-taskN│   tmux windows, herdr/zellij tabs, cmux workspaces, or Orca terminals
- │crewmate│   │crewmate│      │crewmate│   one autonomous agent each
- └───┬────┘   └───┬────┘      └───┬────┘
-     ▼            ▼               ▼
-  treehouse worktree, Orca worktree, or isolated secondmate home
-     │
-     ├─ ship: project mode ► PR/local merge ► teardown
-     │
-     └─ scout: report at data/<id>/report.md ► decision inventory ► relay findings ► teardown
-```
+**Why approval tiers.** Reads are free; anything authority-bearing or
+externally visible costs an explicit per-action `I authorize` string, so a
+convenient launch tool never feels routine while its downstream work may be
+destructive. External sends additionally inherit relay consent and budgets
+from the owning scripts.
 
-You chat with the first mate.
-It routes each request to a crewmate in its own session endpoint and git worktree, supervises the fleet with a zero-token event-driven watcher, and brings you finished PRs, approved local merges, or investigation reports.
-Optional secondmates extend this to persistent local or whole-home remote second mates, dispatch profiles let you steer which harness handles which task, and opt-in Relay lets the same fleet answer public mentions.
-`codex-app` is not a runtime backend yet; [docs/codex-app-backend.md](docs/codex-app-backend.md) owns the Codex App boundary.
+**Why firstmate stays the implementation.** Duplicating fleet logic in this
+layer would rot on every firstmate update. Every tool shells to the owning
+`bin/` script, so policy lives in exactly one place and this repo tracks the
+contract, not the code. See `FINDINGS.md` for the residual risks
+(authority laundering chief among them) and the recommended local-only,
+pinned-`FM_HOME` posture.
 
-Full architecture - the supervision engine, worktree isolation, secondmates, dispatch profiles, project modes, optional Relay, fleet sync, and self-update - is in [docs/architecture.md](docs/architecture.md).
+**The smarts-only line.** The owner order of 2026-09-13 drew this boundary:
+launch yes, code no. The full-coverage prototype bundled dev-adjacent tools
+and was trimmed to the 19 smarts-only tools shipped here. Rationale and the
+ready-vs-not-ready ledger live in the notes of epic `task-5x79b`.
 
-## Built-in skills
+## Layout
 
-Firstmate ships these user-invocable built-in skills.
-Claude and grok use the slash form shown here; codex uses the same names with `$`, such as `$afk`.
+- `fm_mcp_server.py` — stdio MCP server, stdlib only.
+- `test_client.py` — 67-check end-to-end proof with a stub-home harness.
+- `INVENTORY.md` — capability inventory and typed mapping.
+- `FINDINGS.md` — smarts-only results and residual risks.
+- `AUTH.md` — authorization tiers and the code-forbidden list.
+- `LICENSE` — MIT.
 
-| Skill              | What it does                                                                                                                                  |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/afk`             | Enter away-mode supervision: the sub-supervisor self-handles routine notifications in bash, escalates captain-relevant events and bounded declared-external-wait rechecks as batched digests, and actively alerts if delivery gets stuck while you step away |
-| `/ahoy`            | Recap visible session events since the prior real captain message plus visibly unanswered captain decisions, falling back to Bearings when invoked as the session's first real captain message |
-| `/bearings`        | Generate a concise four-section chat digest from bounded local fleet and registered-secondmate state; use `/bearings file` to also replace today's dated report in `data/`, and add `include PRs` when live PR enrichment is wanted |
-| `/updatefirstmate` | Self-update the running firstmate and its secondmates to the latest from origin with fast-forward-only pulls, then re-read instructions and nudge secondmates |
-| `/stow`            | Sweep the session for uncaptured durable knowledge, curate tiered startup memory with decay and cold archival, propose captain-gated offloads when still over budget, cascade to registered second mates, and report what is safe to reset |
+## History
 
-Bearings invocation examples:
-
-- `/bearings` returns the fresh four-section digest in chat only.
-- `/bearings include PRs` keeps chat-only mode and opts into live PR enrichment.
-- `/bearings file` replaces today's `data/status-report-<YYYY-MM-DD>.md` from scratch and links it from the four-section chat digest.
-- `/bearings file include PRs` combines the dated report with live PR enrichment.
-
-Agent-only reference skills live under `.agents/skills/` and are loaded by firstmate at the trigger points named in [`AGENTS.md`](AGENTS.md).
-
-### Two-tier skill layout
-
-Firstmate's skills live in two separate places with different audiences:
-
-- `.agents/skills/` - agent-loaded skills (this section's table, plus firstmate's agent-only reference skills). Every one of these assumes a live firstmate home and is meaningless, or actively misleading, installed anywhere else, so each carries `metadata.internal: true` in its frontmatter. That flag hides them from installer discovery (tools like the [skills.sh](https://skills.sh) `npx skills add` installer) without affecting how firstmate itself loads them - frontmatter metadata is inert to the agent's own skill loader.
-- `skills/` - public, installer-facing skills meant to be installed standalone into any project, independent of firstmate.
-  Each one is a self-contained skill with no dependency on firstmate's paths, tools, or vocabulary.
-  Today that is `skills/stow`, a generic session-knowledge-sweep skill that routes findings by explicit instruction first, then existing local conventions, then a private `.stow-notes.md` fallback, and curates tiered entries through decay, local archival, and user-approved on-demand offload proposals.
-  It intentionally shares no code with the firstmate-internal `.agents/skills/stow` it is named after, so the two can evolve independently.
-
-## Documentation
-
-- [docs/architecture.md](docs/architecture.md) - maintainer architecture for the crew, supervision, worktrees, secondmates, and project modes.
-- [docs/configuration.md](docs/configuration.md) - environment variables, `FM_HOME`, runtime backend selection, optional Relay and its X and Discord setup steps, the files you set, and harness support.
-- [docs/remote-secondmates.md](docs/remote-secondmates.md) - current setup, routing, transfer, recovery, and safety behavior for whole-home remote second mates.
-- [docs/calm.md](docs/calm.md) - current Pi `/calm` behavior and supported presentation limits.
-- [docs/wedge-alarm.md](docs/wedge-alarm.md) - configure the active alert for an away-mode escalation delivery that gets stuck.
-- [docs/tmux-backend.md](docs/tmux-backend.md) - current setup and limits for the tmux reference backend.
-- [docs/herdr-backend.md](docs/herdr-backend.md) - current setup, safety boundaries, and limits for the experimental Herdr backend.
-- [docs/zellij-backend.md](docs/zellij-backend.md) - current setup and limits for the experimental Zellij backend.
-- [docs/orca-backend.md](docs/orca-backend.md) - current setup and limits for the experimental Orca backend.
-- [docs/cmux-backend.md](docs/cmux-backend.md) - current setup, socket security, and limits for the experimental cmux backend.
-- [docs/codex-app-backend.md](docs/codex-app-backend.md) - the current blocked Codex App backend boundary and rollout contract.
-- [docs/verification/runtime-backends.md](docs/verification/runtime-backends.md) - active maintainer verification for runtime backend guarantees.
-- [docs/verification/dispatch-auth.md](docs/verification/dispatch-auth.md) - active maintainer verification for quota-aware dispatch's quota, runway, and credential judgment.
-- [docs/gitlab-merge-watch.md](docs/gitlab-merge-watch.md) - maintainer verification for GitLab merge watching on arbitrary instances.
-- [docs/turnend-guard.md](docs/turnend-guard.md) - the primary session's current "no turn ends blind" backstop, scope, loop safety, and compatibility limits.
-- [docs/verification/supervision.md](docs/verification/supervision.md) - active maintainer verification for session-start, guard, continuity, and wedge integrations.
-- [docs/supervision-protocols/](docs/supervision-protocols/) - rendered primary-harness watcher protocols for Claude, Codex, OpenCode, Pi and `pi-signed`, Grok, and unknown harness fallback.
-- [docs/scripts.md](docs/scripts.md) - the `bin/` toolbelt reference.
-- [docs/documentation-audiences.md](docs/documentation-audiences.md) - documentation audiences and the machine-checked placement boundary.
-- [`AGENTS.md`](AGENTS.md) - the distro's always-loaded operating contract and routing index for conditional procedures.
-- [CONTRIBUTING.md](CONTRIBUTING.md) - how to contribute, including the dev/test commands.
-
-## Contributing
-
-Contributions are welcome - see [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, repo conventions, and how to run the tests.
-
-## License
-
-MIT - see [LICENSE](LICENSE).
+This root was rebuilt clean: the repo's initial seeding held a full firstmate
+checkout by mistake, and branch `fm/clean-root` replaced the tree with the
+MCP project only. Adaptations on the way: server resolves tool scripts from
+`$FM_HOME/bin` when no checkout sits beside it, and the test client builds
+stub firstmate homes so the proof runs standalone.
