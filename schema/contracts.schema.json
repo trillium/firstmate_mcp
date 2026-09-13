@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/trillium/firstmate_mcp/blob/main/schema/contracts.schema.json",
+  "title": "Firstmate depended-on contract map",
+  "description": "Declares which firstmate surfaces the MCP superset depends on and how strictly. Script headers own behavior; this file owns the dependency declaration.",
+  "type": "object",
+  "required": ["version", "contracts"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Contract-map format version, e.g. v1.",
+      "minLength": 1
+    },
+    "contracts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/contract" }
+    }
+  },
+  "$defs": {
+    "contract": {
+      "type": "object",
+      "required": ["name", "command", "flags", "output", "exits", "stability", "pinned", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Surface name, e.g. fleet_snapshot.",
+          "minLength": 1
+        },
+        "command": {
+          "type": "string",
+          "description": "Owning command: a bin/ script path, a file: path for direct file reads, or a derived: reference.",
+          "minLength": 1
+        },
+        "flags": {
+          "type": "array",
+          "description": "Depended-on flag and argument subset only, never the full CLI.",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "output": {
+          "type": "object",
+          "required": ["format", "schema_id", "fields"],
+          "additionalProperties": false,
+          "properties": {
+            "format": {
+              "type": "string",
+              "enum": ["json", "line", "text"]
+            },
+            "schema_id": {
+              "type": "string",
+              "description": "Stable output schema id, or 'none' for free text.",
+              "minLength": 1
+            },
+            "fields": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "exits": {
+          "type": "object",
+          "required": ["zero", "nonzero"],
+          "additionalProperties": false,
+          "properties": {
+            "zero": { "type": "string", "minLength": 1 },
+            "nonzero": { "type": "string", "minLength": 1 }
+          }
+        },
+        "stability": {
+          "type": "string",
+          "enum": ["stable", "evolving", "experimental"]
+        },
+        "pinned": {
+          "type": "string",
+          "description": "Version pin the superset was verified against, e.g. fm-fleet-snapshot.v1.",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "object",
+          "required": ["header", "doc"],
+          "additionalProperties": false,
+          "properties": {
+            "header": {
+              "type": "string",
+              "description": "Owning script header reference, e.g. bin/fm-fleet-snapshot.sh:1-40."
+            },
+            "doc": {
+              "type": "string",
+              "description": "Design or inventory reference, e.g. poc-mcp/INVENTORY.md."
+            }
+          }
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional one-line clarification."
+        }
+      }
+    }
+  }
+}
