@@ -409,11 +409,31 @@
       "audience": "agent-runtime"
     },
     {
+      "path": "poc-mcp/README.md",
+      "audience": "operator-current"
+    },
+    {
+      "path": "poc-mcp/INVENTORY.md",
+      "audience": "maintainer-architecture"
+    },
+    {
+      "path": "poc-mcp/AUTH.md",
+      "audience": "maintainer-architecture"
+    },
+    {
+      "path": "poc-mcp/FINDINGS.md",
+      "audience": "maintainer-verification"
+    },
+    {
       "path": "skills/stow/SKILL.md",
       "audience": "public-product"
     },
     {
       "path": "provenance/README.md",
+      "audience": "maintainer-architecture"
+    },
+    {
+      "path": "schema/matrix.md",
       "audience": "maintainer-architecture"
     },
     {
