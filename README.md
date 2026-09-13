@@ -135,6 +135,12 @@ contract, not the code. See `FINDINGS.md` for the residual risks
 (authority laundering chief among them) and the recommended local-only,
 pinned-`FM_HOME` posture.
 
+### MCP compatibility adapter
+
+The adapter (`adapter/`, see [docs/mcp-adapter.md](docs/mcp-adapter.md)) is the only layer allowed to know First Mate internals.
+Every MCP tool calls the adapter, the adapter shells to the owning `bin/fm-*.sh` script (never reimplements), validates ids/paths/text limits, and returns a typed result/error envelope.
+Code-writing, landing, daemon-control, and direct repo-mutation surfaces have no tool and are refused by an explicit deny-list.
+
 **The smarts-only line.** The owner order of 2026-09-13 drew this boundary:
 launch yes, code no. The full-coverage prototype bundled dev-adjacent tools
 and was trimmed to the 19 smarts-only tools shipped here. Rationale and the
@@ -150,7 +156,8 @@ ready-vs-not-ready ledger live in the notes of epic `task-5x79b`.
 - `auth/` — enforced tier assignments, approval check, and audit log,
   with `auth/test_authz.py` covering every tier.
 - `schema/` — depended-on contract map, matrix view, and validator.
-- `tests/` — contract-map behavior tests.
+- `adapter/` — compatibility boundary (dispatcher, validators, typed envelope, deny-list); spec in `docs/mcp-adapter.md`.
+- `tests/` — contract-map and adapter behavior tests.
 - `LICENSE` — MIT.
 
 ## History
