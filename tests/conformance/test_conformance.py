@@ -63,10 +63,7 @@ def find_firstmate_home():
         candidate = os.environ.get(var)
         if candidate and (Path(candidate) / "bin" / "fm-fleet-snapshot.sh").is_file():
             return Path(candidate)
-    for candidate in (
-        Path("/Users/trilliumsmith/code/firstmate"),
-        ROOT.parent / "firstmate",
-    ):
+    for candidate in (ROOT.parent / "firstmate",):
         if (candidate / "bin" / "fm-fleet-snapshot.sh").is_file():
             return candidate
     return None
