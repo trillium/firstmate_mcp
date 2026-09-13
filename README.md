@@ -6,6 +6,7 @@
 - [Quickstart](#quickstart)
 - [Tools](#tools)
 - [Authorization tiers](#authorization-tiers)
+- [Contract map](#contract-map)
 - [Design choices](#design-choices)
 - [Layout](#layout)
 - [History](#history)
@@ -96,6 +97,22 @@ tool and target, such as `I authorize lifecycle_interrupt on fm-task1`.
 See `auth/AUTH.md` for the mechanics and `auth/test_authz.py` for the
 allow/refuse proof.
 
+## Contract map
+
+The superset depends on a declared subset of firstmate surfaces, and
+`schema/` owns that declaration.
+Observed means visible but never depended on: the superset may read it for
+context and must not break when it changes.
+Depended-on means load-bearing: the entry pins a command plus flags, an
+output shape, exit behavior, a stability tier, and a tested version, and a
+stale pin fails validation naming the contract and the current pin.
+Stable means the output schema is frozen and breaking changes need a new pin.
+Evolving means the safe flag subset is pinned while the owning script may
+still grow outside it.
+Experimental means observed-only with no pin and no dependence.
+Validate with `python3 schema/validate.py`, read the matrix view in
+`schema/matrix.md`, and run `bash tests/mcp-schema.test.sh` for the proof.
+
 ## Design choices
 
 **Why typed tools, not shell.** Raw shell passes strings to scripts; the MCP
@@ -132,6 +149,8 @@ ready-vs-not-ready ledger live in the notes of epic `task-5x79b`.
 - `AUTH.md` — authorization tiers and the code-forbidden list.
 - `auth/` — enforced tier assignments, approval check, and audit log,
   with `auth/test_authz.py` covering every tier.
+- `schema/` — depended-on contract map, matrix view, and validator.
+- `tests/` — contract-map behavior tests.
 - `LICENSE` — MIT.
 
 ## History
