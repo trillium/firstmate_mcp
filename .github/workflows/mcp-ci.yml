@@ -1,0 +1,102 @@
+name: mcp-ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  schema:
+    name: schema validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pyyaml jsonschema
+      - name: schema files are valid JSON Schema draft 2020-12
+        run: |
+          python3 - <<'PYEOF'
+          import glob
+          import json
+          from jsonschema import Draft202012Validator
+          files = sorted(glob.glob("schema/*.schema.json"))
+          assert files, "no schema/*.schema.json found"
+          for path in files:
+              schema = json.load(open(path, encoding="utf-8"))
+              Draft202012Validator.check_schema(schema)
+              print(f"ok: {path}")
+          PYEOF
+      - name: seed contracts validate (plus stale/invalid refusal proof)
+        run: bash tests/mcp-schema.test.sh
+
+  unit:
+    name: unit / adapter / auth
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pyyaml jsonschema
+      - name: adapter boundary behavior tests
+        run: bash tests/mcp-adapter.test.sh
+      - name: authz tier tests
+        run: bash tests/fm-mcp-authz.test.sh
+
+  conformance:
+    name: conformance suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: end-to-end MCP proof (stdlib only, stub home)
+        run: python3 test_client.py
+
+  drift:
+    name: drift-baseline freshness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pyyaml
+      - name: contract map, matrix view, and pin table agree
+        run: |
+          python3 - <<'PYEOF'
+          import re
+          import sys
+          import yaml
+          from pathlib import Path
+
+          contracts = yaml.safe_load(Path("schema/contracts.yaml").read_text(encoding="utf-8"))["contracts"]
+          seed_names = [c["name"] for c in contracts]
+          seed_pins = {c["name"]: c["pinned"] for c in contracts}
+          failures = []
+
+          matrix = Path("schema/matrix.md").read_text(encoding="utf-8")
+          for name in seed_names:
+              if name not in matrix:
+                  failures.append(f"matrix.md missing contract '{name}'")
+
+          validator = Path("schema/validate.py").read_text(encoding="utf-8")
+          table = dict(re.findall(r'"(\w+)":\s*"([\w.\-]+)"', validator.split("CURRENT_PINS")[1].split("}")[0]))
+          for name, pin in seed_pins.items():
+              if table.get(name) != pin:
+                  failures.append(
+                      f"validate.py CURRENT_PINS['{name}']={table.get(name)!r} != seed pinned={pin!r}"
+                  )
+          for name in table:
+              if name not in seed_pins:
+                  failures.append(f"validate.py CURRENT_PINS has extra entry '{name}' not in seed")
+
+          if failures:
+              print("DRIFT DETECTED:")
+              print("\n".join(f" - {f}" for f in failures))
+              sys.exit(1)
+          print(f"ok: {len(seed_names)} contracts agree across contracts.yaml, matrix.md, validate.py")
+          PYEOF
