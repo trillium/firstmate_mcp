@@ -7,6 +7,7 @@
 - [Tools](#tools)
 - [Authorization tiers](#authorization-tiers)
 - [Contract map](#contract-map)
+- [Drift detection](#drift-detection)
 - [Design choices](#design-choices)
 - [Layout](#layout)
 - [History](#history)
@@ -113,6 +114,36 @@ Experimental means observed-only with no pin and no dependence.
 Validate with `python3 schema/validate.py`, read the matrix view in
 `schema/matrix.md`, and run `bash tests/mcp-schema.test.sh` for the proof.
 
+## Drift detection
+
+Firstmate changes underneath the depended-on contracts, so `drift/`
+watches the command surface and tells contract drift apart from noise.
+`drift/baseline.json` seeds the observed inventory (165 `bin/fm-*.sh`
+surfaces at firstmate rev `9bf454f4`, captured read-only from `--help`
+output plus script headers — firstmate itself is never modified).
+
+Snapshot the live checkout, then compare against the baseline:
+
+```sh
+python3 drift/snapshot.py --fm-home /path/to/firstmate -o /tmp/observed.json
+python3 drift/check.py drift/baseline.json /tmp/observed.json --format markdown
+```
+
+`drift check` exits 0 when clean, 1 when drift is found, 2 on usage or
+read errors. `--format json` emits the machine-readable report (summary
+counts plus added/removed/changed sections); `markdown` and `text` are
+the human-readable views of the same report.
+
+Each differing field is classified per the design report vocabulary:
+**feature drift** means the contract surface moved (command path, kind,
+flag set, schema id hint, output contract) and a depended-on pin may
+need updating; **behavior drift** means the same contract behaves or
+documents differently (help text, file bytes, version) and is worth a
+look without necessarily changing a pin. Added and removed surfaces are
+always feature drift. Proof lives in `tests/test_drift.py` (diff
+classes plus report shapes) and `tests/drift-check.test.sh` (CLI
+behavior on inline fixtures).
+
 ## Design choices
 
 **Why typed tools, not shell.** Raw shell passes strings to scripts; the MCP
@@ -157,6 +188,7 @@ ready-vs-not-ready ledger live in the notes of epic `task-5x79b`.
   with `auth/test_authz.py` covering every tier.
 - `schema/` — depended-on contract map, matrix view, and validator.
 - `adapter/` — compatibility boundary (dispatcher, validators, typed envelope, deny-list); spec in `docs/mcp-adapter.md`.
+- `drift/` — firstmate drift detection (observed-inventory snapshots, diff engine, report emitters, `check` CLI, seeded baseline).
 - `tests/` — contract-map and adapter behavior tests.
 - `LICENSE` — MIT.
 
