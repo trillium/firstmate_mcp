@@ -88,7 +88,13 @@ stay open because they change nothing.
 - Tier 4 — external sends, approval required plus relay consent in the owning
   script.
 
-See `AUTH.md` for the tier list and the code-forbidden list.
+See `AUTH.md` for the tier list and the code-forbidden list. The
+`auth/` module enforces the same model in code: per-tool tier assignments,
+the explicit per-call approval check, and the JSON-lines audit format.
+Trillium grants approval per call by writing that sentence for the exact
+tool and target, such as `I authorize lifecycle_interrupt on fm-task1`.
+See `auth/AUTH.md` for the mechanics and `auth/test_authz.py` for the
+allow/refuse proof.
 
 ## Design choices
 
@@ -124,6 +130,8 @@ ready-vs-not-ready ledger live in the notes of epic `task-5x79b`.
 - `INVENTORY.md` — capability inventory and typed mapping.
 - `FINDINGS.md` — smarts-only results and residual risks.
 - `AUTH.md` — authorization tiers and the code-forbidden list.
+- `auth/` — enforced tier assignments, approval check, and audit log,
+  with `auth/test_authz.py` covering every tier.
 - `LICENSE` — MIT.
 
 ## History
