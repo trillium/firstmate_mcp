@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -22,9 +23,9 @@ def home_dir():
 
 CHECKOUT_BIN = CHECKOUT_ROOT / "bin"
 BIN = CHECKOUT_BIN if CHECKOUT_BIN.is_dir() else home_dir() / "bin"
-MAX_OUTPUT_BYTES = 131072
+MAX_OUTPUT_BYTES = 1048576
 TAIL_CAP_BYTES = 8192
-SUBPROCESS_TIMEOUT_S = 30
+SUBPROCESS_TIMEOUT_S = 180
 SEND_TEXT_MAX_CHARS = 500
 APPROVAL_PREFIX = "I authorize"
 ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}")
@@ -78,20 +79,47 @@ def truncate(text, cap=TAIL_CAP_BYTES):
     return buf + "\n…[truncated]", True
 
 
+def terminate_process_group(proc, grace_s=5):
+    """Kill the child and its whole group after a timeout.
+
+    A bare proc.kill() would reap only the shell; fm-*.sh scripts shell out to
+    per-task children that would keep running as orphans for the rest of their
+    natural lifetime. start_new_session puts the child at the head of its own
+    group, so killing the group reclaims every descendant.
+    """
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        return
+    try:
+        proc.wait(timeout=grace_s)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        proc.wait()
+
+
 def run_script(argv):
     try:
-        proc = subprocess.run(
+        proc = subprocess.Popen(
             [str(a) for a in argv],
             cwd=str(CHECKOUT_ROOT),
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=SUBPROCESS_TIMEOUT_S,
+            start_new_session=True,
         )
     except FileNotFoundError as exc:
         return None, {"error": "executable not found", "detail": str(exc)}
+    try:
+        stdout, stderr = proc.communicate(timeout=SUBPROCESS_TIMEOUT_S)
     except subprocess.TimeoutExpired:
+        terminate_process_group(proc)
+        stdout, stderr = proc.communicate()
         return None, {"error": "timed out", "timeout_s": SUBPROCESS_TIMEOUT_S}
-    return proc, None
+    return subprocess.CompletedProcess(proc.args, proc.returncode, stdout, stderr), None
 
 
 def owned_call(argv, label):
@@ -492,10 +520,16 @@ def tool_fleet_poll(args):
         })
         if interval_s > 0:
             time.sleep(interval_s)
-    return {
+    payload = {
         "polls": polls,
         "warning": "polling convenience only; fleet_snapshot stays canonical",
-    }, False
+    }
+    if len(json.dumps(payload).encode("utf-8", "replace")) > MAX_OUTPUT_BYTES:
+        return {
+            "error": "poll output too large for PoC envelope",
+            "polls": len(polls),
+        }, True
+    return payload, False
 
 
 def approval_schema(extra):
