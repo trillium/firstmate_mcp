@@ -13,6 +13,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 SERVER = Path(__file__).resolve().parent / "fm_mcp_server.py"
@@ -49,6 +50,48 @@ def make_stub_home():
         script = bindir / name
         script.write_text("#!/bin/sh\n" + body, encoding="utf-8")
         script.chmod(script.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    (home / "state").mkdir()
+    return str(home)
+
+
+# Emulates the real fleet-snapshot envelope: the first call takes >30s (the old
+# server timeout) and every call emits >128KB (the old output ceiling) of valid
+# snapshot JSON. A marker file short-circuits the sleep after the first call so
+# the suite proves the raised envelope without paying 30s per tool call.
+SLOW_LARGE_SNAPSHOT = '''if [ ! -e "$FM_HOME/.envelope-slow-shown" ]; then
+  : > "$FM_HOME/.envelope-slow-shown"
+  sleep 32
+fi
+python3 - <<'PY'
+import json
+tasks = []
+for i in range(800):
+    tasks.append({
+        "task_id": "task-%04d" % i,
+        "current_state": {"state": "running"},
+        "note": "envelope-fixture-" + ("x" * 380),
+    })
+print(json.dumps({
+    "schema": "fm-fleet-snapshot.v1",
+    "generated": "envelope-slow-large",
+    "backlog": {},
+    "tasks": tasks,
+}))
+PY
+'''
+
+
+def make_envelope_stub_home():
+    home = Path(tempfile.mkdtemp(prefix="fm-mcp-envelope-"))
+    bindir = home / "bin"
+    bindir.mkdir()
+    for name, body in STUBS.items():
+        script = bindir / name
+        script.write_text("#!/bin/sh\n" + body, encoding="utf-8")
+        script.chmod(script.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    snapshot = bindir / "fm-fleet-snapshot.sh"
+    snapshot.write_text("#!/bin/sh\n" + SLOW_LARGE_SNAPSHOT, encoding="utf-8")
+    snapshot.chmod(snapshot.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     (home / "state").mkdir()
     return str(home)
 
@@ -251,6 +294,33 @@ def main():
         check("fleet_poll returns poll summaries", not is_error(resp) and len(polled.get("polls", [])) == 2)
     finally:
         boxed.close()
+
+    envelope = make_envelope_stub_home()
+    ebox = Client(env={"FM_HOME": envelope})
+    try:
+        started = time.time()
+        resp = ebox.call("fleet_snapshot", {})
+        elapsed = time.time() - started
+        snap = payload(resp)
+        check("fleet_snapshot survives a >30s slow snapshot",
+              not is_error(resp) and snap.get("generated") == "envelope-slow-large", str(resp)[:200])
+        check("raised timeout covers the slow real-fleet path",
+              elapsed >= 30, f"{elapsed:.1f}s")
+        check("fleet_snapshot accepts >128KB output",
+              not is_error(resp) and len(snap.get("tasks", [])) == 800, str(resp)[:200])
+
+        resp = ebox.call("backlog", {})
+        back = payload(resp)
+        check("backlog derives counts from a >128KB snapshot",
+              not is_error(resp) and back.get("task_counts", {}).get("total") == 800, str(resp)[:200])
+
+        resp = ebox.call("fleet_poll", {"count": 1, "interval_s": 0})
+        polled = payload(resp)
+        check("fleet_poll bounds output from a >128KB snapshot",
+              not is_error(resp) and len(polled.get("polls", [])) == 1
+              and len(json.dumps(polled).encode("utf-8")) <= 8192, str(resp)[:200])
+    finally:
+        ebox.close()
     failed = [n for n, ok, _ in CHECKS if not ok]
     print(f"{len(CHECKS) - len(failed)}/{len(CHECKS)} checks passed")
     sys.exit(1 if failed else 0)
