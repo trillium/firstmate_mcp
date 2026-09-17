@@ -1,0 +1,83 @@
+# Feature manifest — human view
+
+`FEATURES.yaml` is the durable feature manifest the epic requires
+(beads task-8d0ah, ARCHITECTURE): every tracked capability gets a stable
+feature identity, upstream provenance, behavioral contract pointer, upstream
+test provenance, Python implementation status, TypeScript implementation
+status, and explicit divergence status/reason where our behavior differs.
+Local-only Trillium extensions live in the same manifest with kind `local`
+so they survive upstream reconciliation and stay distinguishable from
+mirrored upstream behavior.
+
+Validate: `python3 manifest/validate.py` (also gated by
+`tests/fm-manifest.test.sh`).
+
+## Upstream provenance (seed)
+
+- Upstream repo: `https://github.com/kunchenguid/firstmate.git`
+  (submodule at `sources/firstmate`).
+- Submodule gitlink at seed: `3eb5b63`; drift baseline
+  (`drift/baseline.json`) at seed: firstmate rev `aaf67489`, 163 observed
+  `bin/fm-*.sh` surfaces. Both pins rot — `drift/shift.py` owns the live
+  pin-vs-main signal and re-seeding updates the header, never the entries'
+  shape.
+- Behavior owners stay the script headers; `schema/contracts.yaml` owns the
+  depended-on declaration. This manifest tracks identity and status only.
+
+## Mirrored capabilities (19)
+
+| Feature | Upstream surface | Contract | py | ts | Divergence |
+| --- | --- | --- | --- | --- | --- |
+| `fleet_snapshot` | `bin/fm-fleet-snapshot.sh --json` | `schema/contracts.yaml#fleet_snapshot` | ✅ | ✅ | none |
+| `backlog` | derived from `fleet_snapshot` | `schema/contracts.yaml#backlog` | ✅ | ✅ | none |
+| `crew_state` | `bin/fm-crew-state.sh <id>` | `schema/contracts.yaml#crew_state` | ✅ | ✅ | none |
+| `status_tail` | `state/<id>.status` file | `schema/contracts.yaml#status_tail` | ✅ | ✅ | intentional: 50-line cap + id/path validation |
+| `send_message` | `bin/fm-send.sh` | `schema/contracts.yaml#send_message` | ✅ | ✅ | intentional: 500-char single-line cap, slash refusal, plain-text path only |
+| `fleet_poll` | `bin/fm-fleet-snapshot.sh --json` | adapter poll projection | ✅ | ✅ | intentional: adapter-native, no upstream counterpart |
+| `lifecycle_interrupt/exit/relaunch/suspend/resume` | `bin/fm-control.sh` verbs | adapter safe-verb subset | ✅ | ✅ | intentional: per-call `I authorize` approval gate |
+| `spawn_crew` | `bin/fm-spawn.sh` | `schema/contracts.yaml#spawn_crew` | ✅ | ✅ | intentional: approval gate + safe flag subset |
+| `scaffold_brief` | `bin/fm-brief.sh` | `schema/contracts.yaml#scaffold_brief` | ✅ | ✅ | intentional: approval gate + safe flag subset |
+| `decision_hold/resolve` | `bin/fm-decision-hold.sh` | adapter safe-subcommand subset | ✅ | ✅ | intentional: approval gate + safe subcommand subset |
+| `review_decision` | `bin/fm-review-decision.sh` | adapter safe-verdict subset | ✅ | ✅ | intentional: approval gate + closed verdict set |
+| `relay_reply/dismiss/followup` | `bin/fm-x-*.sh` | adapter + external relay consent | ✅ | ✅ | intentional: approval gate on top of external consent |
+
+Equivalence proof: `tests/conformance/` replays read tools against the
+owning scripts under a scratch home; write tools never dispatch there by
+design and are proven by the stub-home server proof (`test_client.py`) plus
+the approval gate (`tests/fm-mcp-authz.test.sh`). Both implementations face
+the same referee: `tests/conformance/ts-parity.sh` diffs py/ts payloads
+field-for-field.
+
+## Local-only Trillium extensions (7)
+
+| Feature | Lives in | py | ts | Proof |
+| --- | --- | --- | --- | --- |
+| `drift_detection` | `drift/` | ✅ | ❌ | `tests/drift-check.test.sh`, `tests/test_drift.py` |
+| `upstream_shift_signal` | `drift/shift.py` | ✅ | ❌ | `drift/shift.py` CLI (no dedicated suite) |
+| `subprocess_envelope` | `fm_mcp_server.py` (+ `ts/src/runner.ts`) | ✅ | ✅ | `test_client.py` envelope fixture |
+| `auth_tiers` | `auth/` (+ `ts/src/auth.ts`) | ✅ | ✅ | `tests/fm-mcp-authz.test.sh`, `auth/test_authz.py`, `ts/tests/auth.test.ts` |
+| `contract_map` | `schema/` | ✅ | ❌ | `tests/mcp-schema.test.sh` |
+| `conformance_fixtures` | `tests/conformance/` (+ `ts/tests/`) | ✅ | ✅ | `conformance.sh`, `ts-parity.sh` |
+| `typescript_sibling` | `ts/` | ❌ (TS-only by design) | ✅ | `bun run test:bun`, `npm test` |
+
+## Generator wiring
+
+`scripts/gen_readme_lists.py` deliberately keeps live-probing the
+authoritative sources (`adapter/dispatch.py`, `auth/tiers.py`,
+`schema/contracts.yaml`, `drift/baseline.json`, `fm_mcp_server.py`) instead
+of reading this manifest: the manifest is verified *against* the tree, so
+generating the README *from* the manifest would let a stale manifest bless a
+stale README. The wiring that does fit is a consistency check in the other
+direction — `python3 scripts/gen_readme_lists.py --check-manifest` asserts
+the manifest's mirrored ids equal the adapter tool registry and every local
+entry's `readme_anchor` appears in the generated NEW list. The gate runs it.
+
+## Upstream reconciliation (how to use this on change)
+
+1. Run `drift/shift.py` (pin vs upstream main) and the drift check to find
+   added/changed/removed capabilities and tests.
+2. Add/remove manifest entries; update contracts and the conformance suite.
+3. Run preserved upstream tests and conformance against Python and
+   TypeScript; implement missing deltas independently in each.
+4. Mark intentional divergences with reasons and replacement tests — never
+   let drift pass silently. Local entries need no reconciliation.
