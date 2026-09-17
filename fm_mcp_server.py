@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """First Mate MCP smarts-only server (stdlib only, no dependencies)."""
+import hashlib
 import json
 import os
 import re
@@ -8,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 SERVER_NAME = "firstmate-mcp-poc"
@@ -70,6 +72,151 @@ def approval_error():
         "error": "approval required",
         "expect": "explicit approval string starting with 'I authorize'",
     }
+
+
+AUDIT_VERSION = 1
+
+# Tier mirror of auth/tiers.py TOOL_TIERS (kept inline so the server stays
+# stdlib-only and single-file; auth/ remains the standing contract and the
+# cutover proof diffs both). Forbidden tools have no MCP tool and answer
+# unknown-tool; unknown names audit with a null tier.
+AUDIT_TOOL_TIERS = {
+    "fleet_snapshot": 1,
+    "backlog": 1,
+    "crew_state": 1,
+    "status_tail": 1,
+    "fleet_poll": 1,
+    "send_message": 2,
+    "lifecycle_interrupt": 3,
+    "lifecycle_exit": 3,
+    "lifecycle_relaunch": 3,
+    "lifecycle_suspend": 3,
+    "lifecycle_resume": 3,
+    "spawn_crew": 3,
+    "scaffold_brief": 3,
+    "decision_hold": 3,
+    "decision_resolve": 3,
+    "review_decision": 3,
+    "relay_reply": 4,
+    "relay_dismiss": 4,
+    "relay_followup": 4,
+}
+AUDIT_FORBIDDEN_TOOLS = (
+    "promote_scout",
+    "teardown_crew",
+    "arm_pr_check",
+    "merge_pr",
+    "merge_local",
+)
+
+# Payload error strings that refuse the request (auth/validation) rather
+# than report a downstream failure. Anything else flagged isError ran with
+# authorization and audits as allow/ok with the failure kept in the payload.
+AUDIT_VALIDATION_ERRORS = frozenset({
+    "invalid id",
+    "invalid target",
+    "invalid text",
+    "slash commands refused",
+    "invalid lines",
+    "invalid note",
+    "invalid task_id",
+    "invalid project",
+    "invalid mode",
+    "invalid yolo",
+    "invalid origin_id",
+    "invalid decision_key",
+    "invalid title",
+    "invalid reason",
+    "invalid routed_to",
+    "invalid decision_text",
+    "invalid verdict",
+    "invalid comment",
+    "invalid request_id",
+    "invalid final",
+    "invalid count",
+    "invalid interval_s",
+    "cannot read status log",
+    "no status log for id",
+    "unexpected snapshot schema",
+    "snapshot was not JSON",
+    "snapshot too large for PoC envelope",
+    "poll output too large for PoC envelope",
+    "tool crashed",
+})
+
+
+def audit_tier(tool):
+    if tool in AUDIT_TOOL_TIERS:
+        return AUDIT_TOOL_TIERS[tool]
+    if tool in AUDIT_FORBIDDEN_TOOLS:
+        return "forbidden"
+    return None
+
+
+def audit_approval_ref(approval):
+    if not isinstance(approval, str) or not approval:
+        return None
+    return hashlib.sha256(approval.encode("utf-8")).hexdigest()[:16]
+
+
+def audit_target(name, args):
+    if not isinstance(args, dict):
+        return None
+    for key in ("id", "target", "task_id", "origin_id", "request_id"):
+        value = args.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def audit_decision(args, payload, is_error):
+    """Map a tool outcome to the (decision, reason) authorization audit pair.
+
+    allow/ok means the request was authorized to execute; a downstream
+    script failure after dispatch keeps allow/ok with the failure in the
+    tool payload. refuse/* means the request never dispatched.
+    """
+    if not is_error:
+        return "allow", "ok"
+    error = payload.get("error") if isinstance(payload, dict) else None
+    if error == "approval required":
+        approval = args.get("approval") if isinstance(args, dict) else None
+        if approval is None:
+            return "refuse", "approval-required"
+        return "refuse", "approval-invalid"
+    if isinstance(error, str) and error in AUDIT_VALIDATION_ERRORS:
+        return "refuse", "validation-failed"
+    return "allow", "ok"
+
+
+def audit_log_path():
+    override = os.environ.get("FM_AUDIT_LOG")
+    if override:
+        return Path(override)
+    return home_dir() / "state" / "mcp-audit.jsonl"
+
+
+def audit_append(tool, decision, reason, approval=None, target=None):
+    """Append one JSON-lines audit record. Best-effort: never breaks a call."""
+    try:
+        dest = audit_log_path()
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        line = {
+            "v": AUDIT_VERSION,
+            "ts": stamp,
+            "actor": os.environ.get("FM_ACTOR", "local"),
+            "tool": tool,
+            "tier": audit_tier(tool),
+            "decision": decision,
+            "reason": reason,
+            "approval_ref": audit_approval_ref(approval),
+            "target": target,
+        }
+        with dest.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(line, sort_keys=True) + "\n")
+    except Exception:
+        pass
 
 
 def truncate(text, cap=TAIL_CAP_BYTES):
@@ -748,10 +895,16 @@ def handle_tools_call(msg_id, params):
     params = params or {}
     name = params.get("name")
     args = params.get("arguments") or {}
+    tool_label = name if isinstance(name, str) else "unknown"
     if name not in TOOLS:
+        audit_append(tool_label, "refuse", "unknown-tool",
+                     approval=args.get("approval") if isinstance(args, dict) else None,
+                     target=audit_target(tool_label, args))
         reply_error(msg_id, -32602, f"unknown tool: {name}")
         return
     if not isinstance(args, dict):
+        audit_append(tool_label, "refuse", "validation-failed",
+                     target=None)
         reply_error(msg_id, -32602, "arguments must be an object")
         return
     _, _, func = TOOLS[name]
@@ -759,6 +912,9 @@ def handle_tools_call(msg_id, params):
         payload, is_error = func(args)
     except Exception as exc:  # never crash the session on a tool failure
         payload, is_error = {"error": "tool crashed", "detail": str(exc)}, True
+    decision, reason = audit_decision(args, payload, is_error)
+    audit_append(tool_label, decision, reason,
+                 approval=args.get("approval"), target=audit_target(tool_label, args))
     result = {"content": [{"type": "text", "text": json.dumps(payload)}]}
     if is_error:
         result["isError"] = True

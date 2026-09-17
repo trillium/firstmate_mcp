@@ -106,6 +106,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
 
 - [What this is](#what-this-is)
 - [Quickstart](#quickstart)
+- [Cutover](#cutover)
 - [Tools](#tools)
 - [Authorization tiers](#authorization-tiers)
 - [Contract map](#contract-map)
@@ -147,7 +148,7 @@ FM_HOME=/path/to/firstmate python3 fm_mcp_server.py
 Without a firstmate checkout beside it, the server resolves its tool scripts
 from `$FM_HOME/bin` and tool calls fail closed with `executable not found`.
 
-Run the end-to-end proof (67 checks, self-contained — no checkout needed):
+Run the end-to-end proof (72 checks, self-contained — no checkout needed):
 
 ```sh
 python3 test_client.py
@@ -156,6 +157,26 @@ python3 test_client.py
 The suite handshakes, lists tools, exercises every read, proves traversal and
 validation refusals, proves approval gating on every authority-bearing tool,
 and proves every removed code-writing surface answers unknown-tool.
+
+## Cutover
+
+Serve a live firstmate fleet through this layer, local-only:
+
+```sh
+scripts/fm-mcp-launch.sh --home /path/to/firstmate
+```
+
+The launcher pins one `FM_HOME` (required: flag or env, absolute, carrying
+`bin/fm-fleet-snapshot.sh`), stays on stdio JSON-RPC (no TCP/SSE/network
+listeners — network flags are refused), and execs the proven Python server
+by default (`--server ts --runtime bun|node` selects the TypeScript sibling
+where `tests/conformance/ts-parity.sh` proves parity). Every allow and every
+refuse appends one JSON line to the audit log (default
+`$FM_HOME/state/mcp-audit.jsonl`, override `FM_AUDIT_LOG`, actor via
+`FM_ACTOR`); approval tokens are stored as hashes only. See `AUTH.md` for
+the tiers and `CUTOVER-PROOF.md` for the live scratch-home proof (repro:
+`python3 scripts/cutover_prove.py` — scratch homes only, never the live
+fleet).
 
 ## Tools
 
@@ -314,7 +335,13 @@ ready-vs-not-ready ledger live in the notes of epic `task-5x79b`.
 ## Layout
 
 - `fm_mcp_server.py` — stdio MCP server, stdlib only.
-- `test_client.py` — 67-check end-to-end proof with a stub-home harness.
+- `test_client.py` — 72-check end-to-end proof with a stub-home harness.
+- `scripts/fm-mcp-launch.sh` — cutover launcher: pins one FM_HOME, local-only
+  stdio transport, execs the proven server (Python default, TS on request).
+- `scripts/cutover_prove.py` — cutover proof driver against scratch homes
+  only; writes `CUTOVER-PROOF.md`.
+- `CUTOVER-PROOF.md` — live scratch-home proof: read sweep, approval
+  allow/refuse, relay-inert, and the JSON-lines audit log.
 - `INVENTORY.md` — capability inventory and typed mapping.
 - `FINDINGS.md` — smarts-only results and residual risks.
 - `AUTH.md` — authorization tiers and the code-forbidden list.

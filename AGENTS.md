@@ -34,3 +34,12 @@ When updating this file, preserve this bar for all agents and keep entries conci
   `bash tests/conformance/ts-parity.sh` diffs py/ts payloads field-for-field
   under both runtimes plus the TS fixtures. The TS path follows the live
   server envelope (180s/1MB), never the adapter's older pair.
+- Cutover: `scripts/fm-mcp-launch.sh --home $FM_HOME` serves the fleet
+  local-only over stdio (Python default, `--server ts` for parity); pins
+  `FM_HOME`, refuses network flags, never add a repo-root `bin/` (it would
+  shadow `$FM_HOME/bin` in server resolution). Both servers append one
+  JSON-lines audit record per tools/call (default
+  `$FM_HOME/state/mcp-audit.jsonl`; override `FM_AUDIT_LOG`, actor via
+  `FM_ACTOR`; approval stored as hash only). Live proof:
+  `python3 scripts/cutover_prove.py` writes `CUTOVER-PROOF.md` from a fixed
+  scratch home — never the live fleet.
