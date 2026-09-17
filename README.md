@@ -65,8 +65,8 @@ Refused by the adapter deny-list (no tool, answered unknown):
 
 ### NEW Trillium features (exist only in this layer)
 
-- Drift detection — `drift/baseline.json` seeds 165 observed
-  `bin/fm-*.sh` surfaces at firstmate rev `9bf454f4`; `drift/snapshot.py` +
+- Drift detection — `drift/baseline.json` seeds 163 observed
+  `bin/fm-*.sh` surfaces at firstmate rev `aaf67489`; `drift/snapshot.py` +
   `drift/check.py` diff feature drift from behavior drift.
 - Upstream-shift signal — `sources/firstmate` pins upstream firstmate;
   `drift/shift.py` diffs the pin against upstream main and reports
