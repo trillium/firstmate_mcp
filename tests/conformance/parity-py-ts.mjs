@@ -9,6 +9,10 @@
  *
  * Usage: node tests/conformance/parity-py-ts.mjs
  * (or bash tests/conformance/ts-parity.sh for the full TS gate)
+ *
+ * The TS server spawns via process.execPath, so the runner running this
+ * script selects the server runtime: `node ...` proves the node server,
+ * `bun ...` proves the bun server.
  */
 import { spawn } from "node:child_process";
 import assert from "node:assert/strict";

@@ -12,9 +12,13 @@
     "build:tests": "tsc -p tsconfig.tests.json",
     "clean": "rm -rf dist testbuild",
     "test": "npm run build && npm run build:tests && node --test testbuild/tests/*.test.js",
+    "test:bun": "npm run build && npm run build:tests && bun test testbuild/tests/*.test.js",
     "test:fast": "npm run build && npm run build:tests && node --test testbuild/tests/validators.test.js testbuild/tests/envelope.test.js testbuild/tests/auth.test.js",
+    "test:fast:bun": "npm run build && npm run build:tests && bun test testbuild/tests/validators.test.js testbuild/tests/envelope.test.js testbuild/tests/auth.test.js",
     "conformance": "npm run build && npm run build:tests && node --test testbuild/tests/conformance.test.js",
-    "prove": "npm run build && npm run build:tests && node --test testbuild/tests/*.test.js"
+    "conformance:bun": "npm run build && npm run build:tests && bun test testbuild/tests/conformance.test.js",
+    "prove": "npm run build && npm run build:tests && node --test testbuild/tests/*.test.js",
+    "prove:bun": "npm run build && npm run build:tests && bun test testbuild/tests/*.test.js"
   },
   "engines": {
     "node": ">=20"
