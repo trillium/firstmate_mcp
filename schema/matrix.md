@@ -10,6 +10,12 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | crew_state | bin/fm-crew-state.sh | stable | <id> | current-state reads |
 | status_tail | file: state/<id>.status | stable | <id>, lines=1..50 | dispatch reads |
 | send_message | bin/fm-send.sh | stable | <target> <text> | safe steer write |
+| peek | bin/fm-peek.sh | stable | <target>, lines=1..100 | bounded endpoint-tail reads |
+| fleet_view | bin/fm-fleet-view.sh | stable | <none> | human fleet-render reads |
+| review_diff | bin/fm-review-diff.sh | stable | <task-id>, --stat | branch-vs-base diff reads |
+| bearings_snapshot | bin/fm-bearings-snapshot.sh | stable | --json | pick-up digest reads (local-only) |
+| wake_drain | bin/fm-wake-drain.sh | stable | <none> | drained-wake record reads |
+| guard_check | bin/fm-guard.sh | stable | <none> | liveness/tangle verdict reads |
 | spawn_crew | bin/fm-spawn.sh | evolving | task, project, mode, yolo | dispatch writes |
 | scaffold_brief | bin/fm-brief.sh | evolving | task, repo, mode/scout | dispatch writes |
 | receipt_submit | native: receipt store (state/mcp-receipts/) | experimental | <tool> <arguments> | detach long calls past the 30s budget |

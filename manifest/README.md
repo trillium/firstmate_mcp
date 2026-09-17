@@ -29,7 +29,7 @@ tool plus py/ts status, denied-by-design with reason, or unmirrored gap.
 - Behavior owners stay the script headers; `schema/contracts.yaml` owns the
   depended-on declaration. This manifest tracks identity and status only.
 
-## Mirrored capabilities (19)
+## Mirrored capabilities (25)
 
 | Feature | Upstream surface | Contract | py | ts | Divergence |
 | --- | --- | --- | --- | --- | --- |
@@ -39,6 +39,12 @@ tool plus py/ts status, denied-by-design with reason, or unmirrored gap.
 | `status_tail` | `state/<id>.status` file | `schema/contracts.yaml#status_tail` | ✅ | ✅ | intentional: 50-line cap + id/path validation |
 | `send_message` | `bin/fm-send.sh` | `schema/contracts.yaml#send_message` | ✅ | ✅ | intentional: 500-char single-line cap, slash refusal, plain-text path only |
 | `fleet_poll` | `bin/fm-fleet-snapshot.sh --json` | adapter poll projection | ✅ | ✅ | intentional: adapter-native, no upstream counterpart |
+| `peek` | `bin/fm-peek.sh <target> [lines]` | `schema/contracts.yaml#peek` | ✅ | ✅ | intentional: 100-line cap + id validation, 8KB envelope truncation |
+| `fleet_view` | `bin/fm-fleet-view.sh` | `schema/contracts.yaml#fleet_view` | ✅ | ✅ | intentional: human render only, 8KB envelope truncation |
+| `review_diff` | `bin/fm-review-diff.sh <id> [--stat]` | `schema/contracts.yaml#review_diff` | ✅ | ✅ | intentional: closed `--stat` subset + id validation, 8KB truncation |
+| `bearings_snapshot` | `bin/fm-bearings-snapshot.sh --json` | `schema/contracts.yaml#bearings_snapshot` | ✅ | ✅ | intentional: local-only projection, no `--include-prs` network path |
+| `wake_drain` | `bin/fm-wake-drain.sh` | `schema/contracts.yaml#wake_drain` | ✅ | ✅ | intentional: the queue drain is the defined read, 8KB truncation |
+| `guard_check` | `bin/fm-guard.sh` | `schema/contracts.yaml#guard_check` | ✅ | ✅ | intentional: `FM_GUARD_READ_ONLY=1`, warn-only, never blocks |
 | `lifecycle_interrupt/exit/relaunch/suspend/resume` | `bin/fm-control.sh` verbs | adapter safe-verb subset | ✅ | ✅ | intentional: per-call `I authorize` approval gate |
 | `spawn_crew` | `bin/fm-spawn.sh` | `schema/contracts.yaml#spawn_crew` | ✅ | ✅ | intentional: approval gate + safe flag subset |
 | `scaffold_brief` | `bin/fm-brief.sh` | `schema/contracts.yaml#scaffold_brief` | ✅ | ✅ | intentional: approval gate + safe flag subset |

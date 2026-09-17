@@ -1,9 +1,10 @@
 /**
- * The 21 smarts-only tools, in feature-manifest order.
+ * The 27 smarts-only tools, in feature-manifest order.
  *
  * SUPPORTED (no approval): fleet_snapshot, backlog, crew_state,
- * status_tail, send_message (+ fleet_poll, the read-only poller, plus
- * receipt_submit/receipt_status, the fail-closed async receipts).
+ * status_tail, send_message (+ fleet_poll, the read-only poller, peek,
+ * fleet_view, review_diff, bearings_snapshot, wake_drain, guard_check,
+ * plus receipt_submit/receipt_status, the fail-closed async receipts).
  * CHANGED (approval-gated): decision_hold, decision_resolve,
  * lifecycle_interrupt/exit/relaunch/suspend/resume, relay_reply/dismiss/
  * followup, review_decision, scaffold_brief, spawn_crew.
@@ -23,6 +24,7 @@ import path from "node:path";
 import { Effect } from "effect";
 import {
   APPROVAL_PREFIX,
+  BEARINGS_SCHEMA,
   BRIEF_MODES,
   MAX_OUTPUT_BYTES,
   MODES,
@@ -42,6 +44,7 @@ import {
   validApproval,
   validId,
   validNote,
+  validPeekLines,
   validProject,
   validStatusLines,
 } from "./validators.js";
@@ -513,6 +516,95 @@ async function toolSendMessage(args: ToolArgs, ctx: ToolContext): Promise<ToolRe
   };
 }
 
+// --- SUPPORTED: diagnostic reads (Tier 1, no approval) ---
+
+async function toolPeek(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const target = args["target"];
+  if (!validId(target)) {
+    return {
+      payload: { error: "invalid target", expect: "exact task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  const lines = validPeekLines(args["lines"] ?? 40);
+  if (lines === null) {
+    return {
+      payload: { error: "invalid lines", expect: "integer 1..100" },
+      isError: true,
+    };
+  }
+  void validStatusLines;
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-peek.sh"), target as string, String(lines)),
+    "peek failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, target, lines }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolFleetView(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  return ownedCall(argv(path.join(ctx.binDir, "fm-fleet-view.sh")), "fleet view failed", ctx.run);
+}
+
+async function toolReviewDiff(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["id"];
+  if (!validId(taskId)) {
+    return {
+      payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  const stat = args["stat"] ?? false;
+  if (typeof stat !== "boolean") {
+    return { payload: { error: "invalid stat", expect: "boolean" }, isError: true };
+  }
+  const cmd = argv(path.join(ctx.binDir, "fm-review-diff.sh"), taskId as string);
+  if (stat) cmd.push("--stat");
+  const { payload, isError } = await ownedCall(cmd, "review diff failed", ctx.run);
+  if (!isError) return { payload: { ...payload, id: taskId, stat }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolBearingsSnapshot(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const res = await ctx.run([path.join(ctx.binDir, "fm-bearings-snapshot.sh"), "--json"]);
+  if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
+  if (res.exitCode !== 0) {
+    const [out] = truncate(res.stderr || res.stdout || "");
+    return {
+      payload: { error: "bearings failed", exit: res.exitCode, output: out },
+      isError: true,
+    };
+  }
+  if (byteLength(res.stdout) > MAX_OUTPUT_BYTES) {
+    return { payload: { error: "bearings too large for envelope" }, isError: true };
+  }
+  let projection: Record<string, unknown>;
+  try {
+    projection = JSON.parse(res.stdout) as Record<string, unknown>;
+  } catch {
+    const [out] = truncate(res.stdout);
+    return { payload: { error: "bearings was not JSON", output: out }, isError: true };
+  }
+  if (projection["schema"] !== BEARINGS_SCHEMA) {
+    return {
+      payload: { error: "unexpected bearings schema", schema: projection["schema"] },
+      isError: true,
+    };
+  }
+  return { payload: projection, isError: false };
+}
+
+async function toolWakeDrain(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  return ownedCall(argv(path.join(ctx.binDir, "fm-wake-drain.sh")), "wake drain failed", ctx.run);
+}
+
+async function toolGuardCheck(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const guardRun: typeof ctx.run = (argvIn, opts = {}) =>
+    ctx.run(argvIn, { ...opts, env: { ...process.env, FM_GUARD_READ_ONLY: "1" } });
+  return ownedCall(argv(path.join(ctx.binDir, "fm-guard.sh")), "guard check failed", guardRun);
+}
+
 // --- CHANGED: approval-gated writes ---
 
 async function lifecycleTool(
@@ -966,6 +1058,53 @@ export const TOOLS: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolStatusTail,
+  },
+  peek: {
+    description: "Read-only bounded tail of one crew endpoint for cheap diagnosis.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        target: { type: "string", description: "Exact task id" },
+        lines: { type: "integer", minimum: 1, maximum: 100, default: 40 },
+      },
+      required: ["target"],
+      additionalProperties: false,
+    },
+    handler: toolPeek,
+  },
+  fleet_view: {
+    description: "Read-only human render of the fleet snapshot for operators.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolFleetView,
+  },
+  review_diff: {
+    description: "Read-only branch-vs-base diff for one task worktree.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Task id" },
+        stat: { type: "boolean", description: "Stat summary only", default: false },
+      },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    handler: toolReviewDiff,
+  },
+  bearings_snapshot: {
+    description:
+      "Read-only compact pick-up digest projected from the fleet snapshot (local-only).",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolBearingsSnapshot,
+  },
+  wake_drain: {
+    description: "Read-only drained-wake records from the durable watcher queue.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolWakeDrain,
+  },
+  guard_check: {
+    description: "Read-only watcher liveness and worktree-tangle verdict.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolGuardCheck,
   },
   send_message: {
     description:

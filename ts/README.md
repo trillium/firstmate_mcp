@@ -5,7 +5,7 @@ path (`fm_mcp_server.py` + `adapter/` + `auth/`) serves. The shared
 contract and tests are the referee between the two paths — this tree was
 written against that contract, not translated from the Python source.
 
-Scope: **stdio parity only** — the same 21 tools, validators, envelope,
+Scope: **stdio parity only** — the same 27 tools, validators, envelope,
 auth tiers, and subprocess semantics (30s fail-closed timeout, 1MB output
 cap, process-group kill on timeout, async receipts for longer work).
 No SSE / streamable HTTP (out of scope, same as the Python path).
@@ -37,7 +37,7 @@ checks) can point at either server unchanged.
 Bun first (primary), node as fallback — both must stay green:
 
 ```sh
-bun run test:bun  # full proof under bun: 141 checks (validators, envelope, auth, server, runner, conformance)
+bun run test:bun  # full proof under bun: 167 checks (validators, envelope, auth, server, runner, conformance)
 npm test          # same proof under node (fallback compat)
 ```
 
@@ -50,7 +50,7 @@ bun run conformance:bun # read-tool equivalence fixtures under bun
 npm run conformance     # read-tool equivalence fixtures under node
 ```
 
-`tests/server.test.ts` mirrors the upstream 87-check proof (stub homes via
+`tests/server.test.ts` mirrors the upstream 103-check proof (stub homes via
 `FM_HOME`, approval gating, traversal refusals, the >30s / >128KB envelope
 fixture). `tests/conformance.test.ts` mirrors
 `tests/conformance/test_conformance.py` hermetically (no live checkout).
@@ -71,7 +71,7 @@ compose them without throwing. Pinned dependency: `effect@3.22.2`
 - `src/envelope.ts` — the single internal result shape (`{ok:true,…}` / `{ok:false,error:{code,…}}`) plus `EnvelopeService`/`EnvelopeLive` and `toolErrorToEnvelope`.
 - `src/auth.ts` — tier assignments, per-call approval check, approval-token hashing, JSON-lines audit log plus `AuditService`/`AuditLive`/`makeTestAuditLayer` and `checkEffect`/`appendAuditEffect`.
 - `src/runner.ts` — fail-closed subprocess runner on Effect: `runScriptEffect` (acquireRelease spawn + process-group kill finalizer + timeout boundary, null-exit maps to typed timeout mirroring the legacy timedOut guard), `RunnerService`/`RunnerLive`/`makeTestRunnerLayer`, `ownedCallEffect`; legacy `runScript`/`ownedCall` Promise signatures delegate to the Effect core so the envelope (30s budget, detached group, SIGTERM → grace → SIGKILL; receipt continuations use `RECEIPT_TIMEOUT_S=180`) stays byte-identical.
-- `src/tools.ts` — the 21 tools in feature-manifest order, with the deny-list (`DENY_LIST`, `DENIED_FLAGS`) and the fail-closed async receipts (`receipt_submit` / `receipt_status`); `argvEffect` fails typed, legacy `argv` throws the same message; `liveContextEffect` resolves via `ConfigService`.
+- `src/tools.ts` — the 27 tools in feature-manifest order, with the deny-list (`DENY_LIST`, `DENIED_FLAGS`) and the fail-closed async receipts (`receipt_submit` / `receipt_status`); `argvEffect` fails typed, legacy `argv` throws the same message; `liveContextEffect` resolves via `ConfigService`.
 - `src/layers.ts` — composition root: `MainLive` merges config + runner + audit + envelope; `DispatchLive` narrows to audit for dispatch.
 - `src/server.ts` — stdio JSON-RPC loop (`initialize`, `tools/list`, `tools/call`, `ping`) with `handleToolsCallEffect`/`dispatchMessageEffect` on the service graph and `auditAppendEffect` for the side-channel audit log.
 

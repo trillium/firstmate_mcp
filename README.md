@@ -21,11 +21,17 @@ No-approval tools: the adapter's typed projection equals the owning
 script's observable output (modulo the envelope wrap).
 
 - `backlog` — via `fm-fleet-snapshot.sh` (pinned in schema/contracts.yaml)
+- `bearings_snapshot` — via `fm-bearings-snapshot.sh` (pinned in schema/contracts.yaml)
 - `crew_state` — via `fm-crew-state.sh` (pinned in schema/contracts.yaml)
 - `fleet_poll` — via `fm-fleet-snapshot.sh` (adapter-native projection)
 - `fleet_snapshot` — via `fm-fleet-snapshot.sh` (pinned in schema/contracts.yaml)
+- `fleet_view` — via `fm-fleet-view.sh` (pinned in schema/contracts.yaml)
+- `guard_check` — via `fm-guard.sh` (pinned in schema/contracts.yaml)
+- `peek` — via `fm-peek.sh` (pinned in schema/contracts.yaml)
+- `review_diff` — via `fm-review-diff.sh` (pinned in schema/contracts.yaml)
 - `send_message` — via `fm-send.sh` (pinned in schema/contracts.yaml)
 - `status_tail` — via `native (no owning script)` (pinned in schema/contracts.yaml)
+- `wake_drain` — via `fm-wake-drain.sh` (pinned in schema/contracts.yaml)
 
 ### CHANGED firstmate features (stricter adapter behavior, approval gates)
 
@@ -93,7 +99,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` independently implements the same 21-tool
+- TypeScript sibling — `ts/` independently implements the same 27-tool
   contract over stdio (no dependencies); `tests/conformance/ts-parity.sh`
   diffs py/ts payloads field-for-field plus the TS equivalence fixtures.
 - Proof suites in this tree (all run in gates below):
@@ -120,15 +126,15 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 
 | Area | Mirrored | Denied | Gap |
 | --- | --- | --- | --- |
-| Fleet runs | 1 | 0 | 7 |
-| Supervision | 4 | 4 | 32 |
+| Fleet runs | 3 | 0 | 5 |
+| Supervision | 6 | 4 | 30 |
 | Sessions | 2 | 0 | 23 |
 | Backlog / decisions | 2 | 0 | 10 |
 | Secondmates / remotes | 0 | 0 | 20 |
-| PR pipeline | 0 | 5 | 6 |
+| PR pipeline | 1 | 5 | 5 |
 | Relay | 3 | 0 | 5 |
 | Voice / mail | 0 | 0 | 2 |
-| Digests | 0 | 0 | 5 |
+| Digests | 1 | 0 | 4 |
 | Installs | 0 | 0 | 23 |
 
 Mirrored names the MCP tool; `stale` flags an owning script upstream removed

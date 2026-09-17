@@ -9,7 +9,7 @@ No ambient authority exists: environment flags, prior grants, roles, and session
 
 ## Tier 1 - open reads (no approval)
 
-These tools change nothing and take no `approval` argument: `fleet_snapshot`, `backlog`, `crew_state`, `status_tail`, `fleet_poll`, `receipt_submit`, `receipt_status`.
+These tools change nothing and take no `approval` argument: `fleet_snapshot`, `backlog`, `crew_state`, `status_tail`, `fleet_poll`, `peek`, `fleet_view`, `review_diff`, `bearings_snapshot`, `wake_drain`, `guard_check`, `receipt_submit`, `receipt_status`.
 `fleet_poll` is a read-only convenience poller over `fleet_snapshot`, and the snapshot stays canonical.
 `receipt_submit` detaches one tool call past the 30s fail-closed budget and returns a pending receipt; when the named tool is Tier 3/4 the nested arguments must still carry that tool's own `approval` string. `receipt_status` reports running/done/failed for one receipt with the result attached on completion.
 

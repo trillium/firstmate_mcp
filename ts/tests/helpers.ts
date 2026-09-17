@@ -19,9 +19,24 @@ export const SNAPSHOT = {
   tasks: [],
 };
 
+export const BEARINGS = {
+  schema: "fm-bearings.v1",
+  generated: "stub",
+  in_flight: [],
+  decisions_open: [],
+  landed: [],
+  omitted: [],
+};
+
 export const STUBS: Record<string, string> = {
   "fm-fleet-snapshot.sh": `echo '${JSON.stringify(SNAPSHOT)}'\n`,
   "fm-crew-state.sh": "echo 'state: unknown · source: none · stub: no such crew'\n",
+  "fm-peek.sh": 'echo "peek-stub:$1 lines=$2"\n',
+  "fm-fleet-view.sh": "echo '# Fleet View stub'\n",
+  "fm-review-diff.sh": 'echo "diff-stub:$1 stat=$2"\n',
+  "fm-bearings-snapshot.sh": `echo '${JSON.stringify(BEARINGS)}'\n`,
+  "fm-wake-drain.sh": "echo 'wake-drain stub: empty'\n",
+  "fm-guard.sh": "exit 0\n",
   "fm-send.sh": "echo 'stub: no such crew' >&2\nexit 1\n",
   "fm-control.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-spawn.sh": "echo 'stub: refused' >&2\nexit 1\n",

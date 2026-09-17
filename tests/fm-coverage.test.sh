@@ -47,6 +47,7 @@ test_seed_current_and_classified() {
 test_manifest_and_deny_appear() {
   local missing=0
   for id in fleet_snapshot backlog crew_state status_tail send_message fleet_poll \
+    peek fleet_view review_diff bearings_snapshot wake_drain guard_check \
     lifecycle_interrupt lifecycle_exit lifecycle_relaunch lifecycle_suspend lifecycle_resume \
     spawn_crew scaffold_brief decision_hold decision_resolve review_decision \
     relay_reply relay_dismiss relay_followup; do

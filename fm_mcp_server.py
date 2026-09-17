@@ -18,6 +18,7 @@ SERVER_NAME = "firstmate-mcp-poc"
 SERVER_VERSION = "0.3.0"
 SUPPORTED_PROTOCOL_VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18")
 SNAPSHOT_SCHEMA = "fm-fleet-snapshot.v1"
+BEARINGS_SCHEMA = "fm-bearings.v1"
 CHECKOUT_ROOT = Path(__file__).resolve().parent
 
 
@@ -100,6 +101,12 @@ AUDIT_TOOL_TIERS = {
     "crew_state": 1,
     "status_tail": 1,
     "fleet_poll": 1,
+    "peek": 1,
+    "fleet_view": 1,
+    "review_diff": 1,
+    "bearings_snapshot": 1,
+    "wake_drain": 1,
+    "guard_check": 1,
     "send_message": 2,
     "lifecycle_interrupt": 3,
     "lifecycle_exit": 3,
@@ -151,6 +158,10 @@ AUDIT_VALIDATION_ERRORS = frozenset({
     "invalid final",
     "invalid count",
     "invalid interval_s",
+    "invalid stat",
+    "bearings was not JSON",
+    "unexpected bearings schema",
+    "bearings too large for envelope",
     "invalid tool",
     "invalid arguments",
     "unknown tool",
@@ -786,6 +797,81 @@ def tool_fleet_poll(args):
     return payload, False
 
 
+def tool_peek(args):
+    target = args.get("target")
+    if not valid_id(target):
+        return {"error": "invalid target", "expect": "exact task id, no slashes or traversal"}, True
+    try:
+        lines = int(args.get("lines", 40))
+    except (TypeError, ValueError):
+        return {"error": "invalid lines", "expect": "integer 1..100"}, True
+    lines = max(1, min(100, lines))
+    payload, is_error = owned_call(
+        [BIN / "fm-peek.sh", target, str(lines)],
+        "peek failed",
+    )
+    if not is_error:
+        payload = dict(payload)
+        payload.update({"target": target, "lines": lines})
+    return payload, is_error
+
+
+def tool_fleet_view(_args):
+    return owned_call([BIN / "fm-fleet-view.sh"], "fleet view failed")
+
+
+def tool_review_diff(args):
+    task_id = args.get("id")
+    if not valid_id(task_id):
+        return {"error": "invalid id", "expect": "short task id, no slashes or traversal"}, True
+    stat = args.get("stat", False)
+    if not isinstance(stat, bool):
+        return {"error": "invalid stat", "expect": "boolean"}, True
+    argv = [BIN / "fm-review-diff.sh", task_id]
+    if stat:
+        argv.append("--stat")
+    payload, is_error = owned_call(argv, "review diff failed")
+    if not is_error:
+        payload = dict(payload)
+        payload.update({"id": task_id, "stat": stat})
+    return payload, is_error
+
+
+def tool_bearings_snapshot(_args):
+    proc, err = run_script([BIN / "fm-bearings-snapshot.sh", "--json"])
+    if err:
+        return err, True
+    if proc.returncode != 0:
+        out, _ = truncate(proc.stderr or proc.stdout or "")
+        return {"error": "bearings failed", "exit": proc.returncode, "output": out}, True
+    if len(proc.stdout.encode("utf-8", "replace")) > MAX_OUTPUT_BYTES:
+        return {"error": "bearings too large for envelope"}, True
+    try:
+        projection = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        out, _ = truncate(proc.stdout)
+        return {"error": "bearings was not JSON", "output": out}, True
+    if projection.get("schema") != BEARINGS_SCHEMA:
+        return {"error": "unexpected bearings schema", "schema": projection.get("schema")}, True
+    return projection, False
+
+
+def tool_wake_drain(_args):
+    return owned_call([BIN / "fm-wake-drain.sh"], "wake drain failed")
+
+
+def tool_guard_check(_args):
+    prev = os.environ.get("FM_GUARD_READ_ONLY")
+    os.environ["FM_GUARD_READ_ONLY"] = "1"
+    try:
+        return owned_call([BIN / "fm-guard.sh"], "guard check failed")
+    finally:
+        if prev is None:
+            os.environ.pop("FM_GUARD_READ_ONLY", None)
+        else:
+            os.environ["FM_GUARD_READ_ONLY"] = prev
+
+
 # Tools whose schemas carry a required per-call approval string. A
 # receipt_submit for one of these targets only schedules when the nested
 # arguments carry a valid approval; open tools submit freely.
@@ -901,6 +987,52 @@ TOOLS = {
             "additionalProperties": False,
         },
         tool_status_tail,
+    ),
+    "peek": (
+        "Read-only bounded tail of one crew endpoint for cheap diagnosis.",
+        {
+            "type": "object",
+            "properties": {
+                "target": {"type": "string", "description": "Exact task id"},
+                "lines": {"type": "integer", "minimum": 1, "maximum": 100, "default": 40},
+            },
+            "required": ["target"],
+            "additionalProperties": False,
+        },
+        tool_peek,
+    ),
+    "fleet_view": (
+        "Read-only human render of the fleet snapshot for operators.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_fleet_view,
+    ),
+    "review_diff": (
+        "Read-only branch-vs-base diff for one task worktree.",
+        {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "Task id"},
+                "stat": {"type": "boolean", "description": "Stat summary only", "default": False},
+            },
+            "required": ["id"],
+            "additionalProperties": False,
+        },
+        tool_review_diff,
+    ),
+    "bearings_snapshot": (
+        "Read-only compact pick-up digest projected from the fleet snapshot (local-only).",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_bearings_snapshot,
+    ),
+    "wake_drain": (
+        "Read-only drained-wake records from the durable watcher queue.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_wake_drain,
+    ),
+    "guard_check": (
+        "Read-only watcher liveness and worktree-tangle verdict.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_guard_check,
     ),
     "send_message": (
         "Steer one crew with a single verified prose line; slash commands, keys, raw panes, and lifecycle verbs are refused.",

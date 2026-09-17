@@ -14,7 +14,8 @@
  *
  * Side-effect-free by construction: only read tools run, every subprocess
  * carries FM_HOME=<scratch>, and the guarded runner refuses any script
- * outside {fm-fleet-snapshot.sh, fm-crew-state.sh}.
+ * outside the read-script set (snapshot, crew-state, peek, fleet-view,
+ * review-diff, bearings-snapshot, wake-drain, guard).
  */
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -34,12 +35,24 @@ const READ_TOOLS: ReadonlySet<string> = new Set([
   "crew_state",
   "status_tail",
   "fleet_poll",
+  "peek",
+  "fleet_view",
+  "review_diff",
+  "bearings_snapshot",
+  "wake_drain",
+  "guard_check",
 ]);
 
 // Scripts the suite may execute. Anything else fails closed at the runner.
 const READ_SCRIPTS: ReadonlySet<string> = new Set([
   "fm-fleet-snapshot.sh",
   "fm-crew-state.sh",
+  "fm-peek.sh",
+  "fm-fleet-view.sh",
+  "fm-review-diff.sh",
+  "fm-bearings-snapshot.sh",
+  "fm-wake-drain.sh",
+  "fm-guard.sh",
 ]);
 
 const SNAPSHOT_STUB = `node -e '
@@ -61,6 +74,23 @@ process.stdout.write(JSON.stringify({
 `;
 
 const CREW_STATE_STUB = "echo 'state: unknown · source: none · stub: no such crew'\n";
+
+const PEEK_STUB = 'echo "peek-stub:$1 lines=$2"\n';
+const FLEET_VIEW_STUB = "echo '# Fleet View stub'\n";
+const REVIEW_DIFF_STUB = 'echo "diff-stub:$1 stat=$2"\n';
+const BEARINGS_STUB = `node -e '
+process.stdout.write(JSON.stringify({
+  schema: "fm-bearings.v1",
+  generated: "stub",
+  in_flight: [],
+  decisions_open: [],
+  landed: [],
+  omitted: [],
+}));
+'
+`;
+const WAKE_DRAIN_STUB = "echo 'wake-drain stub: empty'\n";
+const GUARD_STUB = "exit 0\n";
 
 interface Call {
   argv: string[];
@@ -88,6 +118,12 @@ function setup(): Fixture {
   fs.mkdirSync(path.join(scratch, "state"));
   writeStub(path.join(scratch, "bin"), "fm-fleet-snapshot.sh", SNAPSHOT_STUB);
   writeStub(path.join(scratch, "bin"), "fm-crew-state.sh", CREW_STATE_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-peek.sh", PEEK_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-fleet-view.sh", FLEET_VIEW_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-review-diff.sh", REVIEW_DIFF_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-bearings-snapshot.sh", BEARINGS_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-wake-drain.sh", WAKE_DRAIN_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-guard.sh", GUARD_STUB);
 
   const savedFmHome = process.env.FM_HOME;
   const savedStateOverride = process.env.FM_STATE_OVERRIDE;
@@ -257,6 +293,68 @@ describe("status-tail equivalence", () => {
   });
 });
 
+describe("diagnostic-read equivalence", () => {
+  let fx: Fixture;
+  beforeEach(() => {
+    fx = setup();
+  });
+  afterEach(() => teardown(fx));
+
+  it("peek matches direct stub", async () => {
+    const direct = directRun(fx, "fm-peek.sh", ["no-such-crew", "5"]);
+    const result = okPayload(await readOnlyCall(fx, "peek", { target: "no-such-crew", lines: 5 }));
+    assert.ok((result["stdout"] as string).includes("peek-stub:no-such-crew"));
+    assert.equal(result["target"], "no-such-crew");
+    assert.equal(result["lines"], 5);
+    assert.equal(direct.status, 0);
+  });
+
+  it("peek refuses traversal without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "peek", { target: "../escape" });
+    assert.equal(result.isError, true);
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("fleet_view matches direct stub", async () => {
+    const direct = directRun(fx, "fm-fleet-view.sh", []);
+    const result = okPayload(await readOnlyCall(fx, "fleet_view", {}));
+    assert.equal((result["stdout"] as string).trim(), direct.stdout.trim());
+  });
+
+  it("review_diff matches direct stub", async () => {
+    const result = okPayload(await readOnlyCall(fx, "review_diff", { id: "no-such-crew" }));
+    assert.equal(result["id"], "no-such-crew");
+    assert.ok((result["stdout"] as string).includes("diff-stub:no-such-crew"));
+  });
+
+  it("review_diff refuses traversal without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "review_diff", { id: "../escape" });
+    assert.equal(result.isError, true);
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("bearings matches direct stub", async () => {
+    const direct = JSON.parse(directRun(fx, "fm-bearings-snapshot.sh", ["--json"]).stdout) as Record<string, unknown>;
+    const result = okPayload(await readOnlyCall(fx, "bearings_snapshot", {}));
+    assert.equal(result["schema"], "fm-bearings.v1");
+    assert.deepEqual(result["in_flight"], direct["in_flight"]);
+    assert.deepEqual(result["omitted"], direct["omitted"]);
+  });
+
+  it("wake_drain matches direct stub", async () => {
+    const direct = directRun(fx, "fm-wake-drain.sh", []);
+    const result = okPayload(await readOnlyCall(fx, "wake_drain", {}));
+    assert.equal((result["stdout"] as string).trim(), direct.stdout.trim());
+  });
+
+  it("guard_check matches direct stub read-only", async () => {
+    const result = okPayload(await readOnlyCall(fx, "guard_check", {}));
+    assert.ok("stdout" in result);
+  });
+});
+
 describe("side-effect-free", () => {
   let fx: Fixture;
   beforeEach(() => {
@@ -279,6 +377,12 @@ describe("side-effect-free", () => {
     await readOnlyCall(fx, "fleet_poll", { count: 1, interval_s: 0 });
     fs.writeFileSync(path.join(fx.scratch, "state", "t1.status"), "a\n", "utf8");
     await readOnlyCall(fx, "status_tail", { id: "t1" });
+    await readOnlyCall(fx, "peek", { target: "no-such-crew", lines: 1 });
+    await readOnlyCall(fx, "fleet_view", {});
+    await readOnlyCall(fx, "review_diff", { id: "no-such-crew" });
+    await readOnlyCall(fx, "bearings_snapshot", {});
+    await readOnlyCall(fx, "wake_drain", {});
+    await readOnlyCall(fx, "guard_check", {});
     for (const call of fx.calls) {
       assert.ok(READ_SCRIPTS.has(call.script), `non-read script ran: ${call.script}`);
     }
