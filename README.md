@@ -1,4 +1,99 @@
-# Firstmate MCP — smarts layer over firstmate
+# Firstmate MCP — an MCP-built adaption of firstmate, shaped to Trillium's desire of how firstmate works
+
+firstmate_mcp is an MCP-built adaption of firstmate: every tool shells out to
+firstmate's own `bin/fm-*.sh` scripts (pinned as a git submodule at
+`sources/firstmate`) and never reimplements firstmate behavior. Trillium's
+shape of how firstmate works is the smarts-only line: launch ability yes,
+development ability no — observe the fleet, steer workers, launch crews, but
+no code-writing, landing, or repo-mutation surface.
+
+The three lists below are generated, not hand-written, so they cannot drift
+from the tree. Regen with:
+
+```sh
+python3 scripts/gen_readme_lists.py --check   # verify the embed is current
+```
+
+<!-- GENERATED:BEGIN -->
+### SUPPORTED firstmate features (behavior-identical through the adapter)
+
+No-approval tools: the adapter's typed projection equals the owning
+script's observable output (modulo the envelope wrap).
+
+- `backlog` — via `fm-fleet-snapshot.sh` (pinned in schema/contracts.yaml)
+- `crew_state` — via `fm-crew-state.sh` (pinned in schema/contracts.yaml)
+- `fleet_poll` — via `fm-fleet-snapshot.sh` (adapter-native projection)
+- `fleet_snapshot` — via `fm-fleet-snapshot.sh` (pinned in schema/contracts.yaml)
+- `send_message` — via `fm-send.sh` (pinned in schema/contracts.yaml)
+- `status_tail` — via `native (no owning script)` (pinned in schema/contracts.yaml)
+
+### CHANGED firstmate features (stricter adapter behavior, approval gates)
+
+Same owning scripts, narrower surface: safe flag subsets only,
+revalidated ids/paths/text, explicit per-call approval.
+
+- `decision_hold` — via `fm-decision-hold.sh` (Tier 3 approval, approval required)
+- `decision_resolve` — via `fm-decision-hold.sh` (Tier 3 approval, approval required)
+- `lifecycle_exit` — via `fm-control.sh` (Tier 3 approval, approval required)
+- `lifecycle_interrupt` — via `fm-control.sh` (Tier 3 approval, approval required)
+- `lifecycle_relaunch` — via `fm-control.sh` (Tier 3 approval, approval required)
+- `lifecycle_resume` — via `fm-control.sh` (Tier 3 approval, approval required)
+- `lifecycle_suspend` — via `fm-control.sh` (Tier 3 approval, approval required)
+- `relay_dismiss` — via `fm-x-dismiss.sh` (Tier 4 approval+relay, approval required)
+- `relay_followup` — via `fm-x-followup.sh` (Tier 4 approval+relay, approval required)
+- `relay_reply` — via `fm-x-reply.sh` (Tier 4 approval+relay, approval required)
+- `review_decision` — via `fm-review-decision.sh` (Tier 3 approval, approval required)
+- `scaffold_brief` — via `fm-brief.sh` (Tier 3 approval, approval required)
+- `spawn_crew` — via `fm-spawn.sh` (Tier 3 approval, approval required)
+
+Refused by the adapter deny-list (no tool, answered unknown):
+
+- `arm_pr_check` (code-forbidden)
+- `daemon_restart` (out of smarts-only scope)
+- `daemon_start` (out of smarts-only scope)
+- `daemon_stop` (out of smarts-only scope)
+- `merge_local` (code-forbidden)
+- `merge_pr` (code-forbidden)
+- `promote_scout` (code-forbidden)
+- `repo_commit` (out of smarts-only scope)
+- `repo_edit` (out of smarts-only scope)
+- `repo_merge` (out of smarts-only scope)
+- `repo_push` (out of smarts-only scope)
+- `teardown_crew` (code-forbidden)
+- `watch_start` (out of smarts-only scope)
+- `watch_stop` (out of smarts-only scope)
+
+### NEW Trillium features (exist only in this layer)
+
+- Drift detection — `drift/baseline.json` seeds 165 observed
+  `bin/fm-*.sh` surfaces at firstmate rev `9bf454f4`; `drift/snapshot.py` +
+  `drift/check.py` diff feature drift from behavior drift.
+- Upstream-shift signal — `sources/firstmate` pins upstream firstmate;
+  `drift/shift.py` diffs the pin against upstream main and reports
+  which depended-on surfaces moved, so TS/Python ports start from
+  that report.
+- Subprocess envelope — `fm_mcp_server.py` runs every tool script with
+  `SUBPROCESS_TIMEOUT_S=180` and `MAX_OUTPUT_BYTES=1048576`,
+  process-group kill on timeout so timed-out reads leave no orphans.
+- Auth tiers in code — `auth/tiers.py` assigns every tool a tier,
+  `auth/audit.py` writes the JSON-lines audit log; every
+  authority-bearing tool refuses without an `I authorize` string.
+- Contract map — `schema/contracts.yaml` declares the depended-on
+  subset with stability tiers; `schema/validate.py` fails naming the
+  stale pin; `schema/matrix.md` is the human view.
+- Conformance fixtures — `tests/conformance/` proves adapter output
+  equals the owning scripts' output via stub homes (skips cleanly
+  without a firstmate checkout).
+- Proof suites in this tree (all run in gates below):
+  - `test_client.py`
+  - `tests/mcp-adapter.test.sh`
+  - `tests/mcp-schema.test.sh`
+  - `tests/drift-check.test.sh`
+  - `tests/fm-mcp-authz.test.sh`
+  - `tests/conformance/conformance.sh`
+  - `tests/test_drift.py`
+  - `auth/test_authz.py`
+<!-- GENERATED:END -->
 
 ## Contents
 
@@ -165,6 +260,16 @@ look without necessarily changing a pin. Added and removed surfaces are
 always feature drift. Proof lives in `tests/test_drift.py` (diff
 classes plus report shapes) and `tests/drift-check.test.sh` (CLI
 behavior on inline fixtures).
+
+Upstream shift (submodule pin vs upstream main) is a separate signal:
+
+```sh
+python3 drift/shift.py --format markdown
+```
+
+Exit 0 means the `sources/firstmate` pin tracks upstream main; exit 1
+names the depended-on surfaces that moved (the port starting point)
+apart from unrelated script churn; exit 2 is a usage or read error.
 
 ## Design choices
 
