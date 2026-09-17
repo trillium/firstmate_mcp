@@ -37,6 +37,12 @@ CURRENT_PINS = {
     "scaffold_brief": "fm-brief.safe-subset.v1",
     "receipt_submit": "mcp-receipt.v1",
     "receipt_status": "mcp-receipt.v1",
+    "peek": "fm-peek.v1",
+    "fleet_view": "fm-fleet-view.v1",
+    "review_diff": "fm-review-diff.v1",
+    "bearings_snapshot": "fm-bearings.v1",
+    "wake_drain": "fm-wake-drain.v1",
+    "guard_check": "fm-guard.v1",
 }
 
 

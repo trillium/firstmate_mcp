@@ -19,6 +19,8 @@ REASON_MAX_CHARS = 1000
 DECISION_TEXT_MAX_CHARS = 2000
 STATUS_LINES_MIN = 1
 STATUS_LINES_MAX = 50
+PEEK_LINES_MIN = 1
+PEEK_LINES_MAX = 100
 
 
 def valid_id(value):
@@ -73,6 +75,15 @@ def valid_status_lines(value):
     except (TypeError, ValueError):
         return None
     return max(STATUS_LINES_MIN, min(STATUS_LINES_MAX, lines))
+
+
+def valid_peek_lines(value):
+    """Coerce a peek lines count to the 1..100 window; None when not an integer."""
+    try:
+        lines = int(value)
+    except (TypeError, ValueError):
+        return None
+    return max(PEEK_LINES_MIN, min(PEEK_LINES_MAX, lines))
 
 
 def confine_state_path(state_dir, task_id):

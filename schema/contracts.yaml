@@ -148,3 +148,99 @@ contracts:
       header: fm_mcp_server.py:tool_receipt_status
       doc: INVENTORY.md
     notes: Local envelope mechanic; receipts are confined to the serving home's state dir and expire after RECEIPT_TTL_S.
+  - name: peek
+    command: bin/fm-peek.sh
+    flags: ["<target>", "lines=1..100"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["target", "lines", "stdout"]
+    exits:
+      zero: bounded endpoint tail with target and line count echoed
+      nonzero: unknown target or unreadable endpoint; stderr carries the reason
+    stability: stable
+    pinned: fm-peek.v1
+    evidence:
+      header: bin/fm-peek.sh:1-40
+      doc: INVENTORY.md
+    notes: Bounded 100-line cap with id validation; envelope truncates long tails.
+  - name: fleet_view
+    command: bin/fm-fleet-view.sh
+    flags: ["<none>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: human fleet render from the canonical snapshot
+      nonzero: snapshot refused or jq missing; stderr carries the reason
+    stability: stable
+    pinned: fm-fleet-view.v1
+    evidence:
+      header: bin/fm-fleet-view.sh:1-40
+      doc: INVENTORY.md
+    notes: Human render only; --json prints the underlying snapshot which fleet_snapshot already serves.
+  - name: review_diff
+    command: bin/fm-review-diff.sh
+    flags: ["<task-id>", "--stat"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["id", "stat", "stdout"]
+    exits:
+      zero: branch-vs-base diff with id and stat flag echoed
+      nonzero: unknown id, missing meta/worktree, or fetch failure; stderr carries the reason
+    stability: stable
+    pinned: fm-review-diff.v1
+    evidence:
+      header: bin/fm-review-diff.sh:1-30
+      doc: INVENTORY.md
+    notes: Read-only diff; envelope truncates long diffs.
+  - name: bearings_snapshot
+    command: bin/fm-bearings-snapshot.sh
+    flags: ["--json"]
+    output:
+      format: json
+      schema_id: fm-bearings.v1
+      fields: ["schema", "generated", "in_flight", "decisions_open", "landed", "omitted"]
+    exits:
+      zero: prints one JSON projection with schema fm-bearings.v1
+      nonzero: snapshot refused or failed; stderr carries the reason
+    stability: stable
+    pinned: fm-bearings.v1
+    evidence:
+      header: bin/fm-bearings-snapshot.sh:1-40
+      doc: INVENTORY.md
+    notes: Local-only projection; --include-prs network path stays out of scope.
+  - name: wake_drain
+    command: bin/fm-wake-drain.sh
+    flags: ["<none>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: drained-wake records emitted; empty queue exits 0 silently
+      nonzero: queue lock or state unreadable; stderr carries the reason
+    stability: stable
+    pinned: fm-wake-drain.v1
+    evidence:
+      header: bin/fm-wake-drain.sh:1-40
+      doc: INVENTORY.md
+    notes: Consumes the durable wake queue as defined; the drain is the read.
+  - name: guard_check
+    command: bin/fm-guard.sh
+    flags: ["<none>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: liveness/tangle verdict printed; always exits 0, warn-only
+      nonzero: never nonzero by contract; stderr carries diagnostics on hiccup
+    stability: stable
+    pinned: fm-guard.v1
+    evidence:
+      header: bin/fm-guard.sh:1-40
+      doc: INVENTORY.md
+    notes: Served with FM_GUARD_READ_ONLY=1 so the mirror never clears banner state.

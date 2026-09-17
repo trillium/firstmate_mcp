@@ -27,6 +27,15 @@ SNAPSHOT = {
     "tasks": [],
 }
 
+BEARINGS = {
+    "schema": "fm-bearings.v1",
+    "generated": "stub",
+    "in_flight": [],
+    "decisions_open": [],
+    "landed": [],
+    "omitted": [],
+}
+
 STUBS = {
     "fm-fleet-snapshot.sh": "echo '%s'\n" % json.dumps(SNAPSHOT),
     "fm-crew-state.sh": "echo 'state: unknown \\u00b7 source: none \\u00b7 stub: no such crew'\n",
@@ -39,6 +48,12 @@ STUBS = {
     "fm-x-reply.sh": "echo 'stub: refused' >&2\nexit 1\n",
     "fm-x-dismiss.sh": "echo 'stub: refused' >&2\nexit 1\n",
     "fm-x-followup.sh": "echo 'stub: refused' >&2\nexit 1\n",
+    "fm-peek.sh": "echo \"peek-stub:$1 lines=$2\"\n",
+    "fm-fleet-view.sh": "echo '# Fleet View stub'\n",
+    "fm-review-diff.sh": "echo \"diff-stub:$1 stat=$2\"\n",
+    "fm-bearings-snapshot.sh": "echo '%s'\n" % json.dumps(BEARINGS),
+    "fm-wake-drain.sh": "echo 'wake-drain stub: empty'\n",
+    "fm-guard.sh": "exit 0\n",
 }
 
 
@@ -228,11 +243,13 @@ def main():
         boxed.notify("notifications/initialized")
         resp = boxed.request("tools/list")
         names = {t["name"] for t in resp["result"]["tools"]}
-        check("smarts server lists 21 tools", len(names) == 21, sorted(names))
+        check("smarts server lists 27 tools", len(names) == 27, sorted(names))
         for required in ("lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch",
                          "lifecycle_suspend", "lifecycle_resume", "spawn_crew", "scaffold_brief",
                          "decision_hold", "decision_resolve", "review_decision", "relay_reply",
                          "relay_dismiss", "relay_followup", "fleet_poll",
+                         "peek", "fleet_view", "review_diff",
+                         "bearings_snapshot", "wake_drain", "guard_check",
                          "receipt_submit", "receipt_status"):
             check(f"tool present: {required}", required in names)
         for forbidden in ("promote_scout", "teardown_crew", "arm_pr_check",
@@ -247,6 +264,7 @@ def main():
             "approval" in (t.get("inputSchema", {}).get("required", []) or [])
             for t in resp["result"]["tools"]
             if t["name"] not in ("fleet_snapshot", "backlog", "crew_state", "status_tail", "send_message", "fleet_poll",
+                                "peek", "fleet_view", "review_diff", "bearings_snapshot", "wake_drain", "guard_check",
                                 "receipt_submit", "receipt_status")
         ))
 
@@ -315,6 +333,38 @@ def main():
         resp = boxed.call("fleet_poll", {"count": 2, "interval_s": 0})
         polled = payload(resp)
         check("fleet_poll returns poll summaries", not is_error(resp) and len(polled.get("polls", [])) == 2)
+
+        resp = boxed.call("peek", {"target": "no-such-id"})
+        peeked = payload(resp)
+        check("peek returns bounded tail with target echoed",
+              not is_error(resp) and peeked.get("target") == "no-such-id" and "stdout" in peeked)
+        resp = boxed.call("peek", {"target": "../escape"})
+        check("peek rejects traversal", is_error(resp))
+        resp = boxed.call("peek", {"target": "x", "lines": "many"})
+        check("peek rejects bad lines", is_error(resp))
+
+        resp = boxed.call("fleet_view", {})
+        check("fleet_view returns human render", not is_error(resp) and "stdout" in payload(resp))
+
+        resp = boxed.call("review_diff", {"id": "no-such-id"})
+        diffed = payload(resp)
+        check("review_diff returns diff with id echoed",
+              not is_error(resp) and diffed.get("id") == "no-such-id")
+        resp = boxed.call("review_diff", {"id": "../escape"})
+        check("review_diff rejects traversal", is_error(resp))
+        resp = boxed.call("review_diff", {"id": "x", "stat": "yes"})
+        check("review_diff rejects non-bool stat", is_error(resp))
+
+        resp = boxed.call("bearings_snapshot", {})
+        bearings = payload(resp)
+        check("bearings_snapshot returns fm-bearings.v1",
+              not is_error(resp) and bearings.get("schema") == "fm-bearings.v1")
+
+        resp = boxed.call("wake_drain", {})
+        check("wake_drain drains to structured text", not is_error(resp) and "stdout" in payload(resp))
+
+        resp = boxed.call("guard_check", {})
+        check("guard_check returns verdict text", not is_error(resp) and "stdout" in payload(resp))
     finally:
         boxed.close()
 

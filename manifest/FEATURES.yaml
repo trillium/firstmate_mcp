@@ -109,6 +109,90 @@ features:
         Adapter-native poll projection; upstream ships no poll surface. Derived
         from fleet_snapshot output on every call, and fleet_snapshot stays the
         canonical read.
+  - id: peek
+    kind: upstream-mirror
+    summary: Bounded endpoint tail for cheap diagnosis; target plus line count echoed.
+    upstream_command: bin/fm-peek.sh
+    upstream_flags: ["<target>", "lines=1..100"]
+    contract: schema/contracts.yaml#peek
+    upstream_test: "tests/conformance/test_conformance.py::TestPeekEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_peek", "adapter/dispatch.py:\"peek\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:peek"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Bounded 100-line cap with id validation; the upstream tail arg is
+        unbounded. Envelope truncates long tails at 8KB.
+  - id: fleet_view
+    kind: upstream-mirror
+    summary: Human render of the fleet snapshot for operators; the snapshot stays canonical.
+    upstream_command: bin/fm-fleet-view.sh
+    upstream_flags: ["<none>"]
+    contract: schema/contracts.yaml#fleet_view
+    upstream_test: "tests/conformance/test_conformance.py::TestFleetViewEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_fleet_view", "adapter/dispatch.py:\"fleet_view\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:fleet_view"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Human render only with no flag subset; --json prints the underlying
+        snapshot which fleet_snapshot already serves. Envelope truncates at 8KB.
+  - id: review_diff
+    kind: upstream-mirror
+    summary: Branch-vs-base review diff for one task worktree; stat flag echoes.
+    upstream_command: bin/fm-review-diff.sh
+    upstream_flags: ["<task-id>", "--stat"]
+    contract: schema/contracts.yaml#review_diff
+    upstream_test: "tests/conformance/test_conformance.py::TestReviewDiffEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_review_diff", "adapter/dispatch.py:\"review_diff\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:review_diff"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Closed --stat flag subset with id validation; envelope truncates
+        long diffs at 8KB.
+  - id: bearings_snapshot
+    kind: upstream-mirror
+    summary: Compact pick-up digest projected from the fleet snapshot, local-only.
+    upstream_command: bin/fm-bearings-snapshot.sh
+    upstream_flags: ["--json"]
+    contract: schema/contracts.yaml#bearings_snapshot
+    upstream_test: "tests/conformance/test_conformance.py::TestBearingsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_bearings_snapshot", "adapter/dispatch.py:\"bearings_snapshot\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:bearings_snapshot"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Local-only --json projection; the --include-prs network path stays
+        out of scope. Schema fm-bearings.v1 validated before return.
+  - id: wake_drain
+    kind: upstream-mirror
+    summary: Drained-wake records from the durable watcher queue; the drain is the read.
+    upstream_command: bin/fm-wake-drain.sh
+    upstream_flags: ["<none>"]
+    contract: schema/contracts.yaml#wake_drain
+    upstream_test: "tests/conformance/test_conformance.py::TestWakeDrainEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_wake_drain", "adapter/dispatch.py:\"wake_drain\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:wake_drain"]}
+    divergence:
+      status: intentional
+      reason: >-
+        No flag subset; the queue drain is the defined read. Envelope
+        truncates at 8KB.
+  - id: guard_check
+    kind: upstream-mirror
+    summary: Watcher liveness and worktree-tangle verdict read; warn-only, never blocks.
+    upstream_command: bin/fm-guard.sh
+    upstream_flags: ["<none>"]
+    contract: schema/contracts.yaml#guard_check
+    upstream_test: "tests/conformance/test_conformance.py::TestGuardCheckEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_guard_check", "adapter/dispatch.py:\"guard_check\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:guard_check"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Served with FM_GUARD_READ_ONLY=1 so the mirror never clears banner
+        state; upstream defaults clear. Always exits 0 by contract.
   # ---- CHANGED: same owning scripts, narrower surface, per-call approval ----
   - id: lifecycle_interrupt
     kind: upstream-mirror

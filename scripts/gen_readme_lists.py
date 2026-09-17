@@ -154,7 +154,10 @@ def generate():
     lines.append("  (upstream reference skips cleanly without a checkout); verdicts")
     lines.append("  seeded in `UPSTREAM-RESULTS.md`, divergences explicit in")
     lines.append("  `tests/upstream/divergences.json`.")
-    lines.append("- TypeScript sibling — `ts/` independently implements the same 21-tool")
+    # Server tool count is the adapter registry plus the two server-native
+    # receipt tools (receipt_submit/receipt_status live in fm_mcp_server.py
+    # and ts/src/tools.ts, not in adapter/dispatch.py).
+    lines.append(f"- TypeScript sibling — `ts/` independently implements the same {len(TOOLS) + 2}-tool")
     lines.append("  contract over stdio (no dependencies); `tests/conformance/ts-parity.sh`")
     lines.append("  diffs py/ts payloads field-for-field plus the TS equivalence fixtures.")
     lines.append("- Proof suites in this tree (all run in gates below):")

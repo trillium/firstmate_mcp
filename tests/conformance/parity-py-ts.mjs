@@ -27,9 +27,16 @@ const ROOT = path.resolve(HERE, "..", "..");
 const APPROVAL = "I authorize parity proof";
 
 const SNAPSHOT = { schema: "fm-fleet-snapshot.v1", generated: "stub", backlog: {}, tasks: [] };
+const BEARINGS = { schema: "fm-bearings.v1", generated: "stub", in_flight: [], decisions_open: [], landed: [], omitted: [] };
 const STUBS = {
   "fm-fleet-snapshot.sh": `echo '${JSON.stringify(SNAPSHOT)}'\n`,
   "fm-crew-state.sh": "echo 'state: unknown · source: none · stub: no such crew'\n",
+  "fm-peek.sh": 'echo "peek-stub:$1 lines=$2"\n',
+  "fm-fleet-view.sh": "echo '# Fleet View stub'\n",
+  "fm-review-diff.sh": 'echo "diff-stub:$1 stat=$2"\n',
+  "fm-bearings-snapshot.sh": `echo '${JSON.stringify(BEARINGS)}'\n`,
+  "fm-wake-drain.sh": "echo 'wake-drain stub: empty'\n",
+  "fm-guard.sh": "exit 0\n",
   "fm-send.sh": "echo 'stub: no such crew' >&2\nexit 1\n",
   "fm-control.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-spawn.sh": "echo 'stub: refused' >&2\nexit 1\n",
@@ -155,6 +162,16 @@ async function main() {
       ["relay dismiss no approval", "relay_dismiss", { request_id: "x" }],
       ["relay followup bad final", "relay_followup", { task_id: "x", text: "d", final: "yes", approval: APPROVAL }],
       ["fleet_poll", "fleet_poll", { count: 1, interval_s: 0 }],
+      ["peek", "peek", { target: "no-such-id" }],
+      ["peek traversal", "peek", { target: "../escape" }],
+      ["peek bad lines", "peek", { target: "x", lines: "many" }],
+      ["fleet_view", "fleet_view", {}],
+      ["review_diff", "review_diff", { id: "no-such-id" }],
+      ["review_diff traversal", "review_diff", { id: "../escape" }],
+      ["review_diff bad stat", "review_diff", { id: "x", stat: "yes" }],
+      ["bearings_snapshot", "bearings_snapshot", {}],
+      ["wake_drain", "wake_drain", {}],
+      ["guard_check", "guard_check", {}],
     ];
     for (const entry of calls) {
       const [label, name, args] = entry.length === 2 ? [entry[0], entry[0], entry[1]] : entry;
