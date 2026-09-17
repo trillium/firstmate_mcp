@@ -1,20 +1,26 @@
 #!/usr/bin/env node
 /**
- * First Mate MCP smarts-only server (TypeScript sibling).
+ * First Mate MCP smarts-only server (TypeScript sibling, Effect composition).
  *
  * stdio parity with fm_mcp_server.py: newline-delimited JSON-RPC on stdin,
- * responses on stdout, logs on stderr. No dependencies — Node built-ins only.
+ * responses on stdout, logs on stderr. Effect is the composition layer
+ * (Layers/Services for config, runner, audit, envelope; typed errors;
+ * scope-managed subprocess lifecycle) — the stdio wire stays byte-identical.
  * No SSE / streamable HTTP (out of scope, same as the Python path).
  */
 import readline from "node:readline";
 import path from "node:path";
+import { Effect } from "effect";
 import {
   SERVER_NAME,
   SERVER_VERSION,
   SUPPORTED_PROTOCOL_VERSIONS,
 } from "./constants.js";
-import { appendAudit, buildLine } from "./auth.js";
+import { AuditService, appendAudit, buildLine } from "./auth.js";
 import { TOOLS, liveContext, type ToolContext } from "./tools.js";
+import { MainLive } from "./layers.js";
+
+export { MainLive };
 
 export interface RpcMessage {
   jsonrpc?: string;
@@ -178,6 +184,26 @@ function auditAppend(
   }
 }
 
+/**
+ * Effect core for audit appends: same line shape, typed error channel,
+ * best-effort at the call site (failures are ignored, never break calls).
+ */
+export function auditAppendEffect(
+  ctx: ToolContext,
+  tool: string,
+  decision: string,
+  reason: string,
+  approval: unknown,
+  target: string | null,
+): Effect.Effect<void, never, AuditService> {
+  return Effect.gen(function* () {
+    const audit = yield* AuditService;
+    const actor = process.env.FM_ACTOR ?? "local";
+    const line = buildLine(actor, tool, decision, reason, { approval, target });
+    yield* audit.append(auditPath(ctx), line).pipe(Effect.ignore);
+  });
+}
+
 export async function handleToolsCall(
   msgId: string | number | null | undefined,
   params: Record<string, unknown>,
@@ -233,6 +259,128 @@ export async function handleToolsCall(
   };
   if (isError) result["isError"] = true;
   send({ jsonrpc: "2.0", id: msgId ?? null, result });
+}
+
+/**
+ * Effect core for tools/call: same wire logic, audit through the
+ * AuditService and tool execution as an Effect (typed crash mapping).
+ * Legacy handleToolsCall below delegates to this graph via the Effect
+ * runtime so there is a single source of truth.
+ */
+export function handleToolsCallEffect(
+  msgId: string | number | null | undefined,
+  params: Record<string, unknown>,
+  ctx: ToolContext,
+  send: (value: unknown) => void = writeLine,
+): Effect.Effect<void, never, AuditService> {
+  return Effect.gen(function* () {
+    const name = params?.["name"] as string | undefined;
+    const args = (params?.["arguments"] as Record<string, unknown> | undefined) ?? {};
+    const toolLabel = typeof name === "string" ? name : "unknown";
+    const append = (
+      decision: string,
+      reason: string,
+      approval: unknown,
+      target: string | null,
+    ) => auditAppendEffect(ctx, toolLabel, decision, reason, approval, target);
+    if (typeof name !== "string" || !(name in TOOLS)) {
+      yield* append(
+        "refuse",
+        "unknown-tool",
+        typeof args === "object" && args !== null && !Array.isArray(args)
+          ? (args as Record<string, unknown>)["approval"]
+          : undefined,
+        auditTarget(args),
+      );
+      send({
+        jsonrpc: "2.0",
+        id: msgId ?? null,
+        error: { code: -32602, message: `unknown tool: ${name}` },
+      });
+      return;
+    }
+    if (typeof args !== "object" || args === null || Array.isArray(args)) {
+      yield* append("refuse", "validation-failed", undefined, null);
+      send({
+        jsonrpc: "2.0",
+        id: msgId ?? null,
+        error: { code: -32602, message: "arguments must be an object" },
+      });
+      return;
+    }
+    const outcome = yield* Effect.promise(() =>
+      TOOLS[name].handler(args, ctx).then(
+        (ok) => ({ ok: true as const, value: ok }),
+        (exc) => ({ ok: false as const, error: exc }),
+      ),
+    );
+    let payload: Record<string, unknown>;
+    let isError: boolean;
+    if (outcome.ok) {
+      ({ payload, isError } = outcome.value);
+    } else {
+      payload = { error: "tool crashed", detail: String(outcome.error) };
+      isError = true;
+    }
+    {
+      const [decision, reason] = auditDecision(args, payload, isError);
+      let approval = (args as Record<string, unknown>)["approval"];
+      if (approval === undefined && toolLabel === "receipt_submit") {
+        const nested = (args as Record<string, unknown>)["arguments"];
+        if (typeof nested === "object" && nested !== null && !Array.isArray(nested)) {
+          approval = (nested as Record<string, unknown>)["approval"];
+        }
+      }
+      yield* append(decision, reason, approval, auditTarget(args));
+    }
+    const result: Record<string, unknown> = {
+      content: [{ type: "text", text: JSON.stringify(payload) }],
+    };
+    if (isError) result["isError"] = true;
+    send({ jsonrpc: "2.0", id: msgId ?? null, result });
+  });
+}
+
+/**
+ * Effect core for dispatch: pure methods stay synchronous, tools/call
+ * flows through the audit service graph.
+ */
+export function dispatchMessageEffect(
+  msg: RpcMessage,
+  ctx: ToolContext,
+  send: (value: unknown) => void = writeLine,
+): Effect.Effect<boolean, never, AuditService> {
+  const method = msg?.method;
+  const msgId = msg?.id;
+  const params = (msg?.params as Record<string, unknown> | undefined) ?? {};
+  if (method === "initialize") {
+    return Effect.sync(() => {
+      handleInitialize(msgId, params, send);
+    }).pipe(Effect.as(true));
+  } else if (method === "notifications/initialized") {
+    return Effect.succeed(true);
+  } else if (method === "tools/list") {
+    return Effect.sync(() => {
+      handleToolsList(msgId, send);
+    }).pipe(Effect.as(true));
+  } else if (method === "tools/call") {
+    return handleToolsCallEffect(msgId, params, ctx, send).pipe(Effect.as(true));
+  } else if (method === "ping") {
+    return Effect.sync(() => {
+      send({ jsonrpc: "2.0", id: msgId ?? null, result: {} });
+    }).pipe(Effect.as(true));
+  } else if (typeof method === "string" && method.startsWith("notifications/")) {
+    return Effect.succeed(true);
+  } else if (msgId !== undefined && msgId !== null) {
+    return Effect.sync(() => {
+      send({
+        jsonrpc: "2.0",
+        id: msgId,
+        error: { code: -32601, message: `method not found: ${method}` },
+      });
+    }).pipe(Effect.as(true));
+  }
+  return Effect.succeed(true);
 }
 
 /** Dispatch one parsed message. Returns false when the session should end. */

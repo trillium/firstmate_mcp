@@ -20,6 +20,7 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { Effect } from "effect";
 import {
   APPROVAL_PREFIX,
   BRIEF_MODES,
@@ -44,6 +45,8 @@ import {
   validProject,
   validStatusLines,
 } from "./validators.js";
+import { DeniedFlagError } from "./errors.js";
+import { ConfigService } from "./config.js";
 
 export type ToolArgs = Record<string, unknown>;
 
@@ -247,6 +250,14 @@ async function toolReceiptStatus(args: ToolArgs, ctx: ToolContext): Promise<Tool
   return { payload: record, isError: false };
 }
 
+/** Effect core: resolve the live tool context from the ConfigService. */
+export function liveContextEffect(): Effect.Effect<ToolContext, never, ConfigService> {
+  return Effect.gen(function* () {
+    const config = yield* ConfigService;
+    return { binDir: config.binDir, stateDir: config.stateDir, run: runScript };
+  });
+}
+
 // --- Deny-list: code-writing, landing, daemon, and repo-mutation surfaces
 // have no tool and are refused as unknown before any process starts. ---
 
@@ -281,6 +292,22 @@ export function argv(...parts: string[]): string[] {
     if (DENIED_FLAGS.has(flag)) throw new Error(`denied flag: ${flag}`);
   }
   return [...parts];
+}
+
+/**
+ * Effect core for argv: fails with a typed DeniedFlagError instead of
+ * throwing. Legacy argv() above delegates to the same check so the
+ * thrown message stays byte-identical for existing callers.
+ */
+export function argvEffect(
+  ...parts: string[]
+): Effect.Effect<string[], DeniedFlagError> {
+  for (const flag of parts) {
+    if (DENIED_FLAGS.has(flag)) {
+      return Effect.fail(new DeniedFlagError({ flag }));
+    }
+  }
+  return Effect.succeed([...parts]);
 }
 
 function approvalError(): Record<string, unknown> {

@@ -1,7 +1,7 @@
 {
   "name": "firstmate-mcp-ts",
   "version": "0.3.0",
-  "description": "TypeScript sibling of the First Mate MCP smarts-only server (stdio parity, stdlib-only runtime)",
+  "description": "TypeScript sibling of the First Mate MCP smarts-only server (stdio parity, Effect composition)",
   "type": "module",
   "main": "dist/server.js",
   "bin": {
@@ -27,5 +27,8 @@
   "devDependencies": {
     "typescript": "^5.6.3",
     "@types/node": "^22.7.4"
+  },
+  "dependencies": {
+    "effect": "3.22.2"
   }
 }
