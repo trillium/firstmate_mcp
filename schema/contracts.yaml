@@ -116,3 +116,35 @@ contracts:
       header: bin/fm-brief.sh:1-30
       doc: INVENTORY.md
     notes: Dispatch write; scaffolds instructions without launching.
+  - name: receipt_submit
+    command: "native: receipt store (state/mcp-receipts/)"
+    flags: ["<tool>", "<arguments>"]
+    output:
+      format: json
+      schema_id: mcp-receipt.v1
+      fields: ["status", "receipt_id", "tool", "check", "ttl_s"]
+    exits:
+      zero: call detached past the 30s budget; pending receipt returned immediately
+      nonzero: unknown tool, bad arguments, or missing nested approval for Tier 3/4 targets
+    stability: experimental
+    pinned: mcp-receipt.v1
+    evidence:
+      header: fm_mcp_server.py:tool_receipt_submit
+      doc: INVENTORY.md
+    notes: Local envelope mechanic, no owning firstmate script; authority targets still need their nested approval string.
+  - name: receipt_status
+    command: "native: receipt store (state/mcp-receipts/)"
+    flags: ["<receipt_id>"]
+    output:
+      format: json
+      schema_id: mcp-receipt.v1
+      fields: ["receipt_id", "status", "result", "ttl_s"]
+    exits:
+      zero: running, done with the result attached, or failed with the error attached
+      nonzero: unknown receipt, invalid receipt_id, or expired past the TTL
+    stability: experimental
+    pinned: mcp-receipt.v1
+    evidence:
+      header: fm_mcp_server.py:tool_receipt_status
+      doc: INVENTORY.md
+    notes: Local envelope mechanic; receipts are confined to the serving home's state dir and expire after RECEIPT_TTL_S.

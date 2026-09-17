@@ -1,8 +1,9 @@
 /**
- * The 19 smarts-only tools, in feature-manifest order.
+ * The 21 smarts-only tools, in feature-manifest order.
  *
  * SUPPORTED (no approval): fleet_snapshot, backlog, crew_state,
- * status_tail, send_message (+ fleet_poll, the read-only poller).
+ * status_tail, send_message (+ fleet_poll, the read-only poller, plus
+ * receipt_submit/receipt_status, the fail-closed async receipts).
  * CHANGED (approval-gated): decision_hold, decision_resolve,
  * lifecycle_interrupt/exit/relaunch/suspend/resume, relay_reply/dismiss/
  * followup, review_decision, scaffold_brief, spawn_crew.
@@ -15,6 +16,7 @@
  * firstmate behavior. Wire payloads match the Python server exactly so the
  * shared conformance checks are the referee between the two paths.
  */
+import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -23,6 +25,9 @@ import {
   BRIEF_MODES,
   MAX_OUTPUT_BYTES,
   MODES,
+  RECEIPT_DIRNAME,
+  RECEIPT_TIMEOUT_S,
+  RECEIPT_TTL_S,
   SEND_TEXT_MAX_CHARS,
   SNAPSHOT_SCHEMA,
   VERDICTS,
@@ -57,6 +62,189 @@ export interface ToolContext {
 
 export function liveContext(): ToolContext {
   return { binDir: defaultBinDir(), stateDir: defaultStateDir(), run: runScript };
+}
+
+// --- Fail-closed async receipts ---
+//
+// Every tool call returns within SUBPROCESS_TIMEOUT_S (30s): a script that
+// cannot finish in time is killed as a whole process group and answered
+// with a typed timeout error. Calls that need longer work go through
+// receipt_submit, which detaches the run (RECEIPT_TIMEOUT_S budget) and
+// returns a pending receipt immediately; receipt_status reports
+// running/done/failed with the result attached on completion. Receipt
+// records live under the serving home's state dir with RECEIPT_TTL_S expiry,
+// so they never leak across homes.
+
+/** Tools whose schemas carry a required per-call approval string. */
+const NEEDS_APPROVAL: ReadonlySet<string> = new Set([
+  "lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch",
+  "lifecycle_suspend", "lifecycle_resume", "spawn_crew",
+  "scaffold_brief", "decision_hold", "decision_resolve",
+  "review_decision", "relay_reply", "relay_dismiss", "relay_followup",
+]);
+
+function receiptDir(ctx: ToolContext): string {
+  return path.join(ctx.stateDir, RECEIPT_DIRNAME);
+}
+
+function utcNow(): string {
+  return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+function writeReceipt(ctx: ToolContext, record: Record<string, unknown>): boolean {
+  const dir = receiptDir(ctx);
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.resolve(dir, `${record["receipt_id"]}.json`);
+  if (path.dirname(file) !== path.resolve(dir)) return false;
+  const tmp = `${file}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(record), "utf8");
+  fs.renameSync(tmp, file);
+  return true;
+}
+
+function readReceipt(
+  ctx: ToolContext,
+  receiptId: unknown,
+): { record: Record<string, unknown> | null; error: Record<string, unknown> | null } {
+  if (!validId(receiptId)) {
+    return {
+      record: null,
+      error: {
+        error: "invalid receipt_id",
+        expect: "receipt id from a receipt_submit pending response",
+      },
+    };
+  }
+  const dir = path.resolve(receiptDir(ctx));
+  const file = path.resolve(dir, `${receiptId}.json`);
+  if (path.dirname(file) !== dir) {
+    return {
+      record: null,
+      error: {
+        error: "invalid receipt_id",
+        expect: "receipt id from a receipt_submit pending response",
+      },
+    };
+  }
+  let record: Record<string, unknown>;
+  try {
+    record = JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>;
+  } catch (exc) {
+    const nodeErr = exc as NodeJS.ErrnoException;
+    if (nodeErr?.code === "ENOENT") {
+      return { record: null, error: { error: "unknown receipt", receipt_id: receiptId } };
+    }
+    return { record: null, error: { error: "cannot read receipt", detail: String(exc) } };
+  }
+  if (typeof record !== "object" || record === null || record["receipt_id"] !== receiptId) {
+    return { record: null, error: { error: "unknown receipt", receipt_id: receiptId } };
+  }
+  return { record, error: null };
+}
+
+async function receiptWorker(
+  ctx: ToolContext,
+  receiptId: string,
+  tool: string,
+  args: ToolArgs,
+): Promise<void> {
+  // Detached continuation: the receipt background budget applies to every
+  // script this run executes, while sync callers keep the 30s budget.
+  const bg: ToolContext = {
+    ...ctx,
+    run: (argv, opts = {}) => ctx.run(argv, { timeoutS: RECEIPT_TIMEOUT_S, ...opts }),
+  };
+  let payload: Record<string, unknown>;
+  let isError: boolean;
+  try {
+    ({ payload, isError } = await TOOLS[tool].handler(args, bg));
+  } catch (exc) {
+    payload = { error: "tool crashed", detail: String(exc) };
+    isError = true;
+  }
+  const { record } = readReceipt(ctx, receiptId);
+  if (record === null) return;
+  record["status"] = isError ? "failed" : "done";
+  record["finished"] = utcNow();
+  record[isError ? "error_record" : "result"] = payload;
+  try {
+    writeReceipt(ctx, record);
+  } catch {
+    /* a lost terminal write leaves the receipt running; status re-reads */
+  }
+}
+
+async function toolReceiptSubmit(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const target = args["tool"];
+  const nested = args["arguments"];
+  if (typeof target !== "string" || target === "") {
+    return {
+      payload: { error: "invalid tool", expect: "name of a known tool" },
+      isError: true,
+    };
+  }
+  if (typeof nested !== "object" || nested === null || Array.isArray(nested)) {
+    return {
+      payload: { error: "invalid arguments", expect: "object of arguments for the named tool" },
+      isError: true,
+    };
+  }
+  if (!(target in TOOLS) || target === "receipt_submit") {
+    return { payload: { error: "unknown tool", tool: target }, isError: true };
+  }
+  if (NEEDS_APPROVAL.has(target) && !validApproval((nested as ToolArgs)["approval"])) {
+    return { payload: approvalError(), isError: true };
+  }
+  const receiptId = `rcpt-${randomBytes(8).toString("hex")}`;
+  const createdEpoch = Date.now() / 1000;
+  const record: Record<string, unknown> = {
+    receipt_id: receiptId,
+    tool: target,
+    status: "running",
+    created: utcNow(),
+    created_epoch: createdEpoch,
+    ttl_s: RECEIPT_TTL_S,
+    note: "long call detached; poll receipt_status for running/done/failed",
+  };
+  try {
+    if (!writeReceipt(ctx, record)) {
+      return { payload: { error: "cannot record receipt" }, isError: true };
+    }
+  } catch (exc) {
+    return { payload: { error: "cannot record receipt", detail: String(exc) }, isError: true };
+  }
+  void receiptWorker(ctx, receiptId, target, nested as ToolArgs);
+  return {
+    payload: {
+      status: "pending",
+      receipt_id: receiptId,
+      tool: target,
+      check: { tool: "receipt_status", arguments: { receipt_id: receiptId } },
+      ttl_s: RECEIPT_TTL_S,
+      note: "call detached past the 30s budget; check receipt_status for the result",
+    },
+    isError: false,
+  };
+}
+
+async function toolReceiptStatus(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const { record, error } = readReceipt(ctx, args["receipt_id"]);
+  if (record === null) return { payload: error as Record<string, unknown>, isError: true };
+  const createdEpoch = typeof record["created_epoch"] === "number" ? record["created_epoch"] : NaN;
+  const age = Date.now() / 1000 - createdEpoch;
+  const ttl = typeof record["ttl_s"] === "number" ? record["ttl_s"] : RECEIPT_TTL_S;
+  if (!(age <= ttl)) {
+    try {
+      fs.rmSync(path.resolve(receiptDir(ctx), `${record["receipt_id"]}.json`), { force: true });
+    } catch {
+      /* expiry unlink is best-effort */
+    }
+    return {
+      payload: { error: "receipt expired", receipt_id: record["receipt_id"], ttl_s: ttl },
+      isError: true,
+    };
+  }
+  return { payload: record, isError: false };
 }
 
 // --- Deny-list: code-writing, landing, daemon, and repo-mutation surfaces
@@ -879,6 +1067,40 @@ export const TOOLS: Record<string, ToolDef> = {
       final: { type: "boolean", description: "Clear the link after this post" },
     }),
     handler: toolRelayFollowup,
+  },
+  receipt_submit: {
+    description:
+      "Detach one tool call past the 30s fail-closed budget; returns a pending receipt to poll with receipt_status.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tool: { type: "string", description: "Name of the tool to run detached" },
+        arguments: {
+          type: "object",
+          description:
+            "Arguments for the named tool, including its approval when it requires one",
+        },
+      },
+      required: ["tool", "arguments"],
+      additionalProperties: false,
+    },
+    handler: toolReceiptSubmit,
+  },
+  receipt_status: {
+    description:
+      "Read-only check on one detached receipt; reports running, done with the result attached, failed, or expired.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        receipt_id: {
+          type: "string",
+          description: "Receipt id from a receipt_submit pending response",
+        },
+      },
+      required: ["receipt_id"],
+      additionalProperties: false,
+    },
+    handler: toolReceiptStatus,
   },
   fleet_poll: {
     description:

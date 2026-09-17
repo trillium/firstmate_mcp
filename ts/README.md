@@ -5,10 +5,10 @@ path (`fm_mcp_server.py` + `adapter/` + `auth/`) serves. The shared
 contract and tests are the referee between the two paths — this tree was
 written against that contract, not translated from the Python source.
 
-Scope: **stdio parity only** — the same 19 tools, validators, envelope,
-auth tiers, and subprocess semantics (180s timeout, 1MB output cap,
-process-group kill on timeout). No SSE / streamable HTTP (out of scope,
-same as the Python path).
+Scope: **stdio parity only** — the same 21 tools, validators, envelope,
+auth tiers, and subprocess semantics (30s fail-closed timeout, 1MB output
+cap, process-group kill on timeout, async receipts for longer work).
+No SSE / streamable HTTP (out of scope, same as the Python path).
 
 ## Run
 
@@ -37,7 +37,7 @@ checks) can point at either server unchanged.
 Bun first (primary), node as fallback — both must stay green:
 
 ```sh
-bun run test:bun  # full proof under bun: 128 checks (validators, envelope, auth, server, conformance)
+bun run test:bun  # full proof under bun: 141 checks (validators, envelope, auth, server, runner, conformance)
 npm test          # same proof under node (fallback compat)
 ```
 
@@ -50,7 +50,7 @@ bun run conformance:bun # read-tool equivalence fixtures under bun
 npm run conformance     # read-tool equivalence fixtures under node
 ```
 
-`tests/server.test.ts` mirrors the upstream 67-check proof (stub homes via
+`tests/server.test.ts` mirrors the upstream 87-check proof (stub homes via
 `FM_HOME`, approval gating, traversal refusals, the >30s / >128KB envelope
 fixture). `tests/conformance.test.ts` mirrors
 `tests/conformance/test_conformance.py` hermetically (no live checkout).
@@ -65,7 +65,7 @@ lives in the shared suite: `bash tests/conformance/ts-parity.sh`.
 - `src/envelope.ts` — the single internal result shape (`{ok:true,…}` / `{ok:false,error:{code,…}}`).
 - `src/auth.ts` — tier assignments, per-call approval check, approval-token hashing, JSON-lines audit log.
 - `src/runner.ts` — fail-closed subprocess runner (detached process group, SIGTERM → grace → SIGKILL on timeout).
-- `src/tools.ts` — the 19 tools in feature-manifest order, with the deny-list (`DENY_LIST`, `DENIED_FLAGS`).
+- `src/tools.ts` — the 21 tools in feature-manifest order, with the deny-list (`DENY_LIST`, `DENIED_FLAGS`) and the fail-closed async receipts (`receipt_submit` / `receipt_status`).
 - `src/server.ts` — stdio JSON-RPC loop (`initialize`, `tools/list`, `tools/call`, `ping`).
 
 ## Parity notes
@@ -74,10 +74,10 @@ lives in the shared suite: `bash tests/conformance/ts-parity.sh`.
   `send_message` success shape, which carries `stdout_truncated` but no
   `stderr` body, and `crew_state`, which reports the parsed line even on
   nonzero exit). `parity-py-ts.mjs` pins this.
-- Envelope constants match the **server** boundary (`SUBPROCESS_TIMEOUT_S=180`,
-  `MAX_OUTPUT_BYTES=1MB`). `adapter/dispatch.py` carries its own older
-  30s/128KB pair behind the Python conformance suite; the two boundaries
-  are independent (see root `AGENTS.md`) and the TS path follows the live
-  server, not the adapter copy.
+- Envelope constants match the **server** boundary (`SUBPROCESS_TIMEOUT_S=30`,
+  `MAX_OUTPUT_BYTES=1MB`, `RECEIPT_TIMEOUT_S=180`, `RECEIPT_TTL_S=3600`).
+  `adapter/dispatch.py` carries its own 30s/128KB pair behind the Python
+  conformance suite; the two boundaries are independent (see root
+  `AGENTS.md`) and the TS path follows the live server, not the adapter copy.
 - `status_tail` splits on `\n` with trailing-newline handling identical to
   Python's `splitlines()` for log files.
