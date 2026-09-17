@@ -61,18 +61,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: ts proof suites (validators, envelope, auth, server, conformance)
+      - name: ts proof suites under bun (primary runtime)
+        run: |
+          cd ts
+          bun install --no-progress
+          bun run test:bun
+      - name: ts proof suites under node (fallback compat)
         run: |
           cd ts
           npm install --no-audit --no-fund
           npm test
-      - name: py/ts wire parity plus ts fixtures
+      - name: py/ts wire parity plus ts fixtures (both runtimes)
         run: bash tests/conformance/ts-parity.sh
 
   drift:

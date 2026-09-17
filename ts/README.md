@@ -12,11 +12,19 @@ same as the Python path).
 
 ## Run
 
-Requirements: Node 20+, no runtime dependencies (built-ins only).
+Primary runtime: Bun (faster, leaner). Node 20+ stays as fallback compat.
 
 ```sh
-npm install   # one-time: TypeScript + @types/node (dev only)
-npm run build # compile src/ -> dist/
+bun install   # one-time: TypeScript + @types/node (dev only)
+bun run build # compile src/ -> dist/
+FM_HOME=/path/to/firstmate bun dist/server.js
+```
+
+Node fallback (same wire, same behavior):
+
+```sh
+npm install
+npm run build
 FM_HOME=/path/to/firstmate node dist/server.js
 ```
 
@@ -26,10 +34,20 @@ checks) can point at either server unchanged.
 
 ## Test
 
+Bun first (primary), node as fallback — both must stay green:
+
 ```sh
-npm test         # full proof: 128 checks (validators, envelope, auth, server, conformance)
-npm run test:fast # pure unit suites only (no subprocess, <1s)
-npm run conformance # read-tool equivalence fixtures only
+bun run test:bun  # full proof under bun: 128 checks (validators, envelope, auth, server, conformance)
+npm test          # same proof under node (fallback compat)
+```
+
+Focused suites:
+
+```sh
+bun run test:fast:bun  # pure unit suites under bun (no subprocess, <1s)
+npm run test:fast      # pure unit suites under node
+bun run conformance:bun # read-tool equivalence fixtures under bun
+npm run conformance     # read-tool equivalence fixtures under node
 ```
 
 `tests/server.test.ts` mirrors the upstream 67-check proof (stub homes via

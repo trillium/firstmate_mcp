@@ -38,11 +38,17 @@ export const STUBS: Record<string, string> = {
 // of valid snapshot JSON. A marker file short-circuits the sleep after the
 // first call so the suite proves the raised envelope without paying 32s per
 // tool call. Uses /bin/sleep absolutely (bare `sleep` may be a guard shim).
-export const SLOW_LARGE_SNAPSHOT = `if [ ! -e "$FM_HOME/.envelope-slow-shown" ]; then
+//
+// The payload generator runs on the same runtime executing the suite
+// (process.execPath: node under `node --test`, bun under `bun test` via
+// `bun -e`), so the envelope proof holds on both runtimes with no node
+// dependency in the bun path.
+export function slowLargeSnapshot(): string {
+  return `if [ ! -e "$FM_HOME/.envelope-slow-shown" ]; then
   : > "$FM_HOME/.envelope-slow-shown"
   /bin/sleep 32
 fi
-node -e '
+"${process.execPath}" -e '
 const tasks = [];
 for (let i = 0; i < 800; i++) {
   tasks.push({
@@ -59,6 +65,7 @@ process.stdout.write(JSON.stringify({
 }));
 '
 `;
+}
 
 function writeStub(home: string, name: string, body: string): void {
   const script = path.join(home, "bin", name);
@@ -78,7 +85,7 @@ export function makeEnvelopeStubHome(): string {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "fm-mcp-ts-envelope-"));
   fs.mkdirSync(path.join(home, "bin"));
   for (const [name, body] of Object.entries(STUBS)) writeStub(home, name, body);
-  writeStub(home, "fm-fleet-snapshot.sh", SLOW_LARGE_SNAPSHOT);
+  writeStub(home, "fm-fleet-snapshot.sh", slowLargeSnapshot());
   fs.mkdirSync(path.join(home, "state"));
   return home;
 }
