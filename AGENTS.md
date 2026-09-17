@@ -27,3 +27,8 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - `adapter/dispatch.py` carries its own older envelope constants (30s/128KB) behind
   the conformance suite, which overrides timeouts via its own 60s runner; the two
   boundaries are independent and not drift-checked against each other.
+- TypeScript sibling (`ts/`, stdio parity, no runtime deps): `npm test` in `ts/`
+  is the full TS proof (validators, envelope, auth, 71-check server suite,
+  conformance fixtures); `bash tests/conformance/ts-parity.sh` diffs py/ts
+  payloads field-for-field plus the TS fixtures. The TS path follows the live
+  server envelope (180s/1MB), never the adapter's older pair.
