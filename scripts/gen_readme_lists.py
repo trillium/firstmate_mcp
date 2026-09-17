@@ -79,6 +79,7 @@ def existing_suites():
         "tests/fm-coverage.test.sh",
         "tests/conformance/conformance.sh",
         "tests/conformance/ts-parity.sh",
+        "tests/upstream/run_upstream.sh",
         "tests/test_drift.py",
         "auth/test_authz.py",
         "ts/tests/server.test.ts",
@@ -148,6 +149,11 @@ def generate():
     lines.append("- Conformance fixtures — `tests/conformance/` proves adapter output")
     lines.append("  equals the owning scripts' output via stub homes (skips cleanly")
     lines.append("  without a firstmate checkout).")
+    lines.append("- Upstream preservation — `tests/upstream/` runs upstream firstmate")
+    lines.append("  tests unchanged against both py and ts paths via thin adapters")
+    lines.append("  (upstream reference skips cleanly without a checkout); verdicts")
+    lines.append("  seeded in `UPSTREAM-RESULTS.md`, divergences explicit in")
+    lines.append("  `tests/upstream/divergences.json`.")
     lines.append("- TypeScript sibling — `ts/` independently implements the same 21-tool")
     lines.append("  contract over stdio (no dependencies); `tests/conformance/ts-parity.sh`")
     lines.append("  diffs py/ts payloads field-for-field plus the TS equivalence fixtures.")
