@@ -17,7 +17,10 @@ When updating this file, preserve this bar for all agents and keep entries conci
   server and the CI conformance job; run it before shipping server changes. It
   includes a fixture that fakes a >30s, >128KB snapshot so the envelope stays
   covered without the live fleet. Other suites: `bash tests/mcp-adapter.test.sh`,
-  `tests/fm-mcp-authz.test.sh`, `tests/mcp-schema.test.sh`, `tests/drift-check.test.sh`.
+  `tests/fm-mcp-authz.test.sh`, `tests/mcp-schema.test.sh`, `tests/drift-check.test.sh`,
+  `tests/fm-manifest.test.sh`, `tests/fm-coverage.test.sh` (support-coverage view:
+  `scripts/gen_coverage.py` renders every upstream command area with its mirror
+  status into `manifest/COVERAGE.md`; the gate fails on any unclassified command).
 - The repo tree has no `bin/`; the server resolves scripts through `FM_HOME/bin`
   (`fm_mcp_server.py:24-25`), defaulting to the live firstmate checkout.
 - Envelope (fm_mcp_server.py): `SUBPROCESS_TIMEOUT_S=180`, `MAX_OUTPUT_BYTES=1MB`,
