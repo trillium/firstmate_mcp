@@ -15,7 +15,7 @@ No SSE / streamable HTTP (out of scope, same as the Python path).
 Primary runtime: Bun (faster, leaner). Node 20+ stays as fallback compat.
 
 ```sh
-bun install   # one-time: TypeScript + @types/node (dev only)
+bun install   # one-time: effect runtime + TypeScript + @types/node (dev)
 bun run build # compile src/ -> dist/
 FM_HOME=/path/to/firstmate bun dist/server.js
 ```
@@ -58,15 +58,22 @@ fixture). `tests/conformance.test.ts` mirrors
 Cross-path wire parity (same stub home, same calls, diffed payloads)
 lives in the shared suite: `bash tests/conformance/ts-parity.sh`.
 
-## Layout
+## Layout (Effect composition)
+
+Pure contract modules keep their exact wire behavior; Effect Layers/Services
+compose them without throwing. Pinned dependency: `effect@3.22.2`
+(`bun add effect@3.22.2`, `npm install` keeps `package-lock.json` in sync).
 
 - `src/constants.ts` — server identity, protocol versions, envelope sizes, id/project shapes, modes, verdicts.
-- `src/validators.ts` — pure input checks (ids, projects, notes, approvals, steer text, status lines, state-path confinement).
-- `src/envelope.ts` — the single internal result shape (`{ok:true,…}` / `{ok:false,error:{code,…}}`).
-- `src/auth.ts` — tier assignments, per-call approval check, approval-token hashing, JSON-lines audit log.
-- `src/runner.ts` — fail-closed subprocess runner (detached process group, SIGTERM → grace → SIGKILL on timeout).
-- `src/tools.ts` — the 21 tools in feature-manifest order, with the deny-list (`DENY_LIST`, `DENIED_FLAGS`) and the fail-closed async receipts (`receipt_submit` / `receipt_status`).
-- `src/server.ts` — stdio JSON-RPC loop (`initialize`, `tools/list`, `tools/call`, `ping`).
+- `src/errors.ts` — typed errors (`DeniedFlagError`, `ValidationError`, `ApprovalRequired/InvalidError`, `ExecutableNotFoundError`, `SubprocessTimeoutError`, `SubprocessFailedError`, `Unknown/ForbiddenToolError`, `AuditError`) with legacy payload mapping; no `throw` on the Effect path.
+- `src/config.ts` — `ConfigService` Tag + `ConfigLive`/`makeConfigLive`/`makeTestConfig` (FM_HOME resolution, env re-read per layer build).
+- `src/validators.ts` — pure boolean checks (ids, projects, notes, approvals, steer text, status lines, state-path confinement) plus `requireId`/`requireProject`/`requireNote`/`requireApproval`/`requireStatePath` Effect variants.
+- `src/envelope.ts` — the single internal result shape (`{ok:true,…}` / `{ok:false,error:{code,…}}`) plus `EnvelopeService`/`EnvelopeLive` and `toolErrorToEnvelope`.
+- `src/auth.ts` — tier assignments, per-call approval check, approval-token hashing, JSON-lines audit log plus `AuditService`/`AuditLive`/`makeTestAuditLayer` and `checkEffect`/`appendAuditEffect`.
+- `src/runner.ts` — fail-closed subprocess runner on Effect: `runScriptEffect` (acquireRelease spawn + process-group kill finalizer + timeout boundary, null-exit maps to typed timeout mirroring the legacy timedOut guard), `RunnerService`/`RunnerLive`/`makeTestRunnerLayer`, `ownedCallEffect`; legacy `runScript`/`ownedCall` Promise signatures delegate to the Effect core so the envelope (30s budget, detached group, SIGTERM → grace → SIGKILL; receipt continuations use `RECEIPT_TIMEOUT_S=180`) stays byte-identical.
+- `src/tools.ts` — the 21 tools in feature-manifest order, with the deny-list (`DENY_LIST`, `DENIED_FLAGS`) and the fail-closed async receipts (`receipt_submit` / `receipt_status`); `argvEffect` fails typed, legacy `argv` throws the same message; `liveContextEffect` resolves via `ConfigService`.
+- `src/layers.ts` — composition root: `MainLive` merges config + runner + audit + envelope; `DispatchLive` narrows to audit for dispatch.
+- `src/server.ts` — stdio JSON-RPC loop (`initialize`, `tools/list`, `tools/call`, `ping`) with `handleToolsCallEffect`/`dispatchMessageEffect` on the service graph and `auditAppendEffect` for the side-channel audit log.
 
 ## Parity notes
 
