@@ -84,6 +84,9 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - Conformance fixtures — `tests/conformance/` proves adapter output
   equals the owning scripts' output via stub homes (skips cleanly
   without a firstmate checkout).
+- TypeScript sibling — `ts/` independently implements the same 19-tool
+  contract over stdio (no dependencies); `tests/conformance/ts-parity.sh`
+  diffs py/ts payloads field-for-field plus the TS equivalence fixtures.
 - Proof suites in this tree (all run in gates below):
   - `test_client.py`
   - `tests/mcp-adapter.test.sh`
@@ -91,8 +94,12 @@ Refused by the adapter deny-list (no tool, answered unknown):
   - `tests/drift-check.test.sh`
   - `tests/fm-mcp-authz.test.sh`
   - `tests/conformance/conformance.sh`
+  - `tests/conformance/ts-parity.sh`
   - `tests/test_drift.py`
   - `auth/test_authz.py`
+  - `ts/tests/server.test.ts`
+  - `ts/tests/conformance.test.ts`
+  - `ts/tests/auth.test.ts`
 <!-- GENERATED:END -->
 
 ## Contents
