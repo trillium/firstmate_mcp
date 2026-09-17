@@ -126,7 +126,7 @@ def main():
     listed = py.rpc("tools/list")
     names = [t["name"] for t in listed["result"]["tools"]]
     row("initialize/tools/list", "n/a",
-        "ok" if len(names) == 27 else "MISMATCH",
+        "ok" if len(names) == 36 else "MISMATCH",
         "%d tools, server %s %s" % (
             len(names), server_info["name"], server_info["version"]))
 

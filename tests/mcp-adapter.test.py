@@ -114,6 +114,70 @@ class ValidatorsTest(unittest.TestCase):
             self.assertIsNone(v.confine_state_path(state, "../escape"))
             self.assertIsNone(v.confine_state_path(state, "a/b"))
 
+    def test_relpath_confinement(self):
+        self.assertTrue(v.valid_relpath("data/backlog.md"))
+        self.assertTrue(v.valid_relpath("state/handoff/x.outbox.md"))
+        self.assertFalse(v.valid_relpath("/abs/path"))
+        self.assertFalse(v.valid_relpath("../up"))
+        self.assertFalse(v.valid_relpath("a//b"))
+        self.assertFalse(v.valid_relpath("a/./b"))
+        self.assertFalse(v.valid_relpath("a/../b"))
+        self.assertFalse(v.valid_relpath(""))
+        self.assertFalse(v.valid_relpath("a\tb"))
+        self.assertFalse(v.valid_relpath(None))
+
+    def test_sha256_and_corr(self):
+        self.assertTrue(v.valid_sha256("e" * 64))
+        self.assertFalse(v.valid_sha256("e" * 63))
+        self.assertFalse(v.valid_sha256("z" * 64))
+        self.assertFalse(v.valid_sha256(None))
+        self.assertTrue(v.valid_corr("abcdef0123456789"))
+        self.assertTrue(v.valid_corr("corr=abcdef0123456789"))
+        self.assertFalse(v.valid_corr("abcdef01"))
+        self.assertFalse(v.valid_corr("zzzzz0123456789ab"))
+        self.assertFalse(v.valid_corr(None))
+
+    def test_delta_windows(self):
+        self.assertEqual(v.valid_nonneg_int(0), 0)
+        self.assertEqual(v.valid_nonneg_int("42"), 42)
+        self.assertIsNone(v.valid_nonneg_int(-1))
+        self.assertIsNone(v.valid_nonneg_int("many"))
+        self.assertIsNone(v.valid_nonneg_int(None))
+        self.assertIsNone(v.valid_nonneg_int(True))
+        self.assertEqual(v.valid_delta_wait(0), 0)
+        self.assertEqual(v.valid_delta_wait(300), 10)
+        self.assertEqual(v.valid_delta_wait(-5), 0)
+        self.assertIsNone(v.valid_delta_wait("long"))
+        self.assertIsNone(v.valid_delta_wait(None))
+        self.assertEqual(v.valid_remote_max_bytes(8192), 8192)
+        self.assertEqual(v.valid_remote_max_bytes(10 ** 9), 262144)
+        self.assertEqual(v.valid_remote_max_bytes(0), 1)
+        self.assertIsNone(v.valid_remote_max_bytes("big"))
+        self.assertIsNone(v.valid_remote_max_bytes(None))
+        self.assertEqual(v.valid_handoff_lines(10), 10)
+        self.assertEqual(v.valid_handoff_lines(999), 20)
+        self.assertEqual(v.valid_handoff_lines(0), 1)
+        self.assertIsNone(v.valid_handoff_lines("many"))
+        self.assertIsNone(v.valid_handoff_lines(None))
+
+    def test_id_lists(self):
+        self.assertEqual(v.valid_id_list(["a", "b"], 8), ["a", "b"])
+        self.assertIsNone(v.valid_id_list([], 8))
+        self.assertIsNone(v.valid_id_list(["a"] * 9, 8))
+        self.assertIsNone(v.valid_id_list(["../x"], 8))
+        self.assertIsNone(v.valid_id_list("a", 8))
+        self.assertIsNone(v.valid_id_list(None, 8))
+
+    def test_confine_handoff_path(self):
+        with tempfile.TemporaryDirectory() as home:
+            data = Path(home) / "data"
+            (data / "handoff").mkdir(parents=True)
+            ok_path = v.confine_handoff_path(data, "mate-1")
+            self.assertEqual(
+                ok_path, (data / "handoff" / "mate-1.outbox.md").resolve())
+            self.assertIsNone(v.confine_handoff_path(data, "../escape"))
+            self.assertIsNone(v.confine_handoff_path(data, "a/b"))
+
 
 class EnvelopeTest(unittest.TestCase):
     def test_ok_shape(self):
@@ -279,6 +343,104 @@ class ValidationRejectionTest(unittest.TestCase):
         self.assertEqual(result["error"]["code"], "invalid-stat")
         self.assertEqual(seen, [])
 
+    def test_remote_file_validates_path_and_bytes(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("remote_file", {"path": "../escape"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-path")
+        result = adapter.dispatch("remote_file",
+                                  {"path": "data/x.md", "max_bytes": "big"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-max-bytes")
+        self.assertEqual(seen, [])
+
+    def test_remote_delta_validates_cursor(self):
+        adapter, seen, _ = make_adapter()
+        good = {"log": "state/job.log", "offset": 0, "sha256": "e" * 64}
+        for key, value, code in (("log", "../x", "invalid-path"),
+                                 ("offset", -1, "invalid-offset"),
+                                 ("sha256", "short", "invalid-sha256"),
+                                 ("wait", "long", "invalid-wait")):
+            with self.subTest(field=key):
+                args = dict(good, **{key: value})
+                result = adapter.dispatch("remote_delta", args)
+                self.assertTrue(env.is_err(result), key)
+                self.assertEqual(result["error"]["code"], code, key)
+        self.assertEqual(seen, [])
+
+    def test_handoff_status_validates_id_and_lines(self):
+        adapter, seen, home = make_adapter()
+        (home / "data" / "handoff").mkdir(parents=True, exist_ok=True)
+        result = adapter.dispatch("handoff_status", {"id": "../escape"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-id")
+        result = adapter.dispatch("handoff_status", {"lines": "many"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-lines")
+        self.assertEqual(seen, [])
+
+    def test_secondmate_authority_tools_require_approval(self):
+        adapter, seen, _ = make_adapter()
+        cases = [
+            ("secondmate_nudge", {}),
+            ("secondmate_restart", {"ids": ["m1"]}),
+            ("secondmate_report", {"verb": "done",
+                                     "corr": "a" * 16, "note": "ok"}),
+            ("remote_control", {"verb": "state", "id": "m1"}),
+            ("handoff_move", {"id": "m1", "keys": ["k1"]}),
+        ]
+        for name, args in cases:
+            with self.subTest(tool=name):
+                result = adapter.dispatch(name, args)
+                self.assertTrue(env.is_err(result), name)
+                self.assertEqual(result["error"]["code"],
+                                 "approval-required", name)
+        self.assertEqual(seen, [])
+
+    def test_secondmate_restart_report_control_move_refusals(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("secondmate_restart",
+                                  {"ids": ["../x"], "approval": APPROVAL})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-id")
+        result = adapter.dispatch("secondmate_report",
+                                  {"verb": "done", "corr": "short",
+                                   "note": "ok", "approval": APPROVAL})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-corr")
+        result = adapter.dispatch("secondmate_report",
+                                  {"verb": "has space", "corr": "a" * 16,
+                                   "note": "ok", "approval": APPROVAL})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-verb")
+        result = adapter.dispatch("remote_control",
+                                  {"verb": "launch", "id": "m1",
+                                   "approval": APPROVAL})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-verb")
+        result = adapter.dispatch("remote_control",
+                                  {"verb": "send", "id": "m1",
+                                   "text": "/raw key",
+                                   "approval": APPROVAL})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "slash-commands-refused")
+        result = adapter.dispatch("handoff_move",
+                                  {"id": "m1", "keys": [],
+                                   "approval": APPROVAL})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-keys")
+        result = adapter.dispatch("handoff_move",
+                                  {"id": "m1", "resume": "yes",
+                                   "approval": APPROVAL})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-resume")
+        result = adapter.dispatch("handoff_move",
+                                  {"id": "m1", "resume": True,
+                                   "keys": ["k1"], "approval": APPROVAL})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-keys")
+        self.assertEqual(seen, [])
+
 
 class ArgvBuilderTest(unittest.TestCase):
     def test_spawn_argv_safe_subset(self):
@@ -337,6 +499,76 @@ class ArgvBuilderTest(unittest.TestCase):
         self.assertTrue(env.is_err(result))
         self.assertEqual(result["error"]["code"], "unexpected-bearings-schema")
 
+    def test_secondmate_remote_handoff_argv(self):
+        adapter, seen, _ = make_adapter(proc=FakeProc())
+        result = adapter.dispatch("secondmate_nudge", {"approval": APPROVAL})
+        self.assertTrue(env.is_ok(result))
+        self.assertIn("fm-secondmate-reconcile.sh", seen[-1][0])
+        self.assertEqual(seen[-1][1:], ["notify"])
+        result = adapter.dispatch("secondmate_restart",
+                                  {"ids": ["m1", "m2"],
+                                   "approval": APPROVAL})
+        self.assertTrue(env.is_ok(result))
+        self.assertIn("fm-secondmate-restart.sh", seen[-1][0])
+        self.assertEqual(seen[-1][1:], ["m1", "m2"])
+        self.assertEqual(result["ids"], ["m1", "m2"])
+        result = adapter.dispatch("secondmate_report",
+                                  {"verb": "done", "corr": "a" * 16,
+                                   "note": "audit clean",
+                                   "approval": APPROVAL})
+        self.assertTrue(env.is_ok(result))
+        self.assertIn("fm-secondmate-report.sh", seen[-1][0])
+        self.assertEqual(seen[-1][1:],
+                         ["done", "a" * 16, "audit clean"])
+        self.assertNotIn("--doc", seen[-1])
+        result = adapter.dispatch("remote_control",
+                                  {"verb": "state", "id": "m1",
+                                   "approval": APPROVAL})
+        self.assertTrue(env.is_ok(result))
+        self.assertIn("fm-remote-secondmate-control.sh", seen[-1][0])
+        self.assertEqual(seen[-1][1:], ["state", "m1"])
+        result = adapter.dispatch("remote_control",
+                                  {"verb": "send", "id": "m1",
+                                   "text": "steady on",
+                                   "approval": APPROVAL})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(seen[-1][1:], ["send", "m1", "steady on"])
+        result = adapter.dispatch("handoff_move",
+                                  {"id": "m1", "keys": ["k1", "k2"],
+                                   "approval": APPROVAL})
+        self.assertTrue(env.is_ok(result))
+        self.assertIn("fm-backlog-handoff.sh", seen[-1][0])
+        self.assertEqual(seen[-1][1:], ["m1", "k1", "k2"])
+        self.assertEqual(result["keys"], ["k1", "k2"])
+        result = adapter.dispatch("handoff_move",
+                                  {"id": "m1", "resume": True,
+                                   "approval": APPROVAL})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(seen[-1][1:], ["--resume-pending"])
+        self.assertTrue(result["resumed"])
+
+    def test_remote_file_delta_argv(self):
+        adapter, seen, _ = make_adapter(proc=FakeProc())
+        result = adapter.dispatch("remote_file", {"path": "data/x.md"})
+        self.assertTrue(env.is_ok(result))
+        self.assertIn("fm-remote-file.sh", seen[-1][0])
+        self.assertEqual(seen[-1][1:], ["get", "data/x.md", "8192"])
+        self.assertEqual(result["path"], "data/x.md")
+        self.assertEqual(result["max_bytes"], 8192)
+        result = adapter.dispatch("remote_delta",
+                                  {"log": "state/job.log", "offset": 0,
+                                   "sha256": "e" * 64})
+        self.assertTrue(env.is_ok(result))
+        self.assertIn("fm-remote-delta-read.sh", seen[-1][0])
+        self.assertEqual(seen[-1][1:],
+                         ["state/job.log", "0", "e" * 64, "0"])
+        self.assertEqual(result["offset"], 0)
+        result = adapter.dispatch("remote_delta",
+                                  {"log": "state/job.log", "offset": 0,
+                                   "sha256": "e" * 64, "wait": 300})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(seen[-1][-1], "10")
+
     def test_decision_resolve_uses_temp_file(self):
         adapter, seen, _ = make_adapter(proc=FakeProc())
         result = adapter.dispatch("decision_resolve", {
@@ -394,6 +626,29 @@ class SnapshotToolsTest(unittest.TestCase):
         result = adapter.dispatch("status_tail", {"id": "ghost"})
         self.assertTrue(env.is_err(result))
         self.assertEqual(result["error"]["code"], "no-status-log")
+        self.assertEqual(seen, [])
+
+    def test_handoff_status_lists_and_reads_outboxes(self):
+        adapter, seen, home = make_adapter()
+        handoff = home / "data" / "handoff"
+        result = adapter.dispatch("handoff_status", {})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(result["outboxes"], [])
+        handoff.mkdir(parents=True)
+        (handoff / "m1.outbox.md").write_text("- [ ] k1 first\n- [ ] k2 second\n")
+        (handoff / "notes.txt").write_text("ignored\n")
+        result = adapter.dispatch("handoff_status", {})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(len(result["outboxes"]), 1)
+        self.assertEqual(result["outboxes"][0]["id"], "m1")
+        self.assertEqual(result["outboxes"][0]["total_lines"], 2)
+        result = adapter.dispatch("handoff_status",
+                                  {"id": "m1", "lines": 1})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(result["lines"], ["- [ ] k2 second"])
+        result = adapter.dispatch("handoff_status", {"id": "ghost"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "no-handoff")
         self.assertEqual(seen, [])
 
 

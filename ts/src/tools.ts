@@ -1,13 +1,15 @@
 /**
- * The 27 smarts-only tools, in feature-manifest order.
+ * The 36 smarts-only tools, in feature-manifest order.
  *
  * SUPPORTED (no approval): fleet_snapshot, backlog, crew_state,
  * status_tail, send_message (+ fleet_poll, the read-only poller, peek,
  * fleet_view, review_diff, bearings_snapshot, wake_drain, guard_check,
+ * remote_doctor, remote_file, remote_delta, handoff_status,
  * plus receipt_submit/receipt_status, the fail-closed async receipts).
  * CHANGED (approval-gated): decision_hold, decision_resolve,
  * lifecycle_interrupt/exit/relaunch/suspend/resume, relay_reply/dismiss/
- * followup, review_decision, scaffold_brief, spawn_crew.
+ * followup, review_decision, scaffold_brief, spawn_crew,
+ * secondmate_nudge/restart/report, remote_control, handoff_move.
  *
  * Refused by the deny-list (no tool, answered unknown): promote_scout,
  * teardown_crew, arm_pr_check, merge_pr, merge_local, daemon_start/stop/
@@ -26,26 +28,41 @@ import {
   APPROVAL_PREFIX,
   BEARINGS_SCHEMA,
   BRIEF_MODES,
+  HANDOFF_DEFAULT_LINES,
+  HANDOFF_KEYS_MAX,
   MAX_OUTPUT_BYTES,
   MODES,
   RECEIPT_DIRNAME,
   RECEIPT_TIMEOUT_S,
   RECEIPT_TTL_S,
+  REMOTE_CONTROL_VERBS,
+  REMOTE_FILE_DEFAULT_MAX_BYTES,
+  RESTART_IDS_MAX,
   SEND_TEXT_MAX_CHARS,
   SNAPSHOT_SCHEMA,
   VERDICTS,
   YOLO,
   binDir as defaultBinDir,
+  dataDir as defaultDataDir,
   stateDir as defaultStateDir,
 } from "./constants.js";
 import { ownedCall, runScript, truncate, byteLength, isRunResult } from "./runner.js";
 import {
+  confineHandoffPath,
   confineStatePath,
   validApproval,
+  validCorr,
+  validDeltaWait,
+  validHandoffLines,
   validId,
+  validIdList,
+  validNonnegInt,
   validNote,
   validPeekLines,
   validProject,
+  validRelpath,
+  validRemoteMaxBytes,
+  validSha256,
   validStatusLines,
 } from "./validators.js";
 import { DeniedFlagError } from "./errors.js";
@@ -63,11 +80,17 @@ export type ToolHandler = (args: ToolArgs, ctx: ToolContext) => Promise<ToolResu
 export interface ToolContext {
   binDir: string;
   stateDir: string;
+  dataDir: string;
   run: typeof runScript;
 }
 
 export function liveContext(): ToolContext {
-  return { binDir: defaultBinDir(), stateDir: defaultStateDir(), run: runScript };
+  return {
+    binDir: defaultBinDir(),
+    stateDir: defaultStateDir(),
+    dataDir: defaultDataDir(),
+    run: runScript,
+  };
 }
 
 // --- Fail-closed async receipts ---
@@ -87,6 +110,8 @@ const NEEDS_APPROVAL: ReadonlySet<string> = new Set([
   "lifecycle_suspend", "lifecycle_resume", "spawn_crew",
   "scaffold_brief", "decision_hold", "decision_resolve",
   "review_decision", "relay_reply", "relay_dismiss", "relay_followup",
+  "secondmate_nudge", "secondmate_restart", "secondmate_report",
+  "remote_control", "handoff_move",
 ]);
 
 function receiptDir(ctx: ToolContext): string {
@@ -257,7 +282,12 @@ async function toolReceiptStatus(args: ToolArgs, ctx: ToolContext): Promise<Tool
 export function liveContextEffect(): Effect.Effect<ToolContext, never, ConfigService> {
   return Effect.gen(function* () {
     const config = yield* ConfigService;
-    return { binDir: config.binDir, stateDir: config.stateDir, run: runScript };
+    return {
+      binDir: config.binDir,
+      stateDir: config.stateDir,
+      dataDir: config.dataDir,
+      run: runScript,
+    };
   });
 }
 
@@ -603,6 +633,152 @@ async function toolGuardCheck(_args: ToolArgs, ctx: ToolContext): Promise<ToolRe
   const guardRun: typeof ctx.run = (argvIn, opts = {}) =>
     ctx.run(argvIn, { ...opts, env: { ...process.env, FM_GUARD_READ_ONLY: "1" } });
   return ownedCall(argv(path.join(ctx.binDir, "fm-guard.sh")), "guard check failed", guardRun);
+}
+
+// --- SUPPORTED: secondmate / remote reads (Tier 1, no approval) ---
+
+async function toolRemoteDoctor(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // Check mode only: the --fix repair path stays out of scope.
+  return ownedCall(argv(path.join(ctx.binDir, "fm-remote-doctor.sh")), "doctor failed", ctx.run);
+}
+
+async function toolRemoteFile(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const relpath = args["path"];
+  if (!validRelpath(relpath)) {
+    return {
+      payload: { error: "invalid path", expect: "relative path under the home, no traversal" },
+      isError: true,
+    };
+  }
+  const maxBytes = validRemoteMaxBytes(args["max_bytes"] ?? REMOTE_FILE_DEFAULT_MAX_BYTES);
+  if (maxBytes === null) {
+    return {
+      payload: { error: "invalid max_bytes", expect: "integer 1..262144" },
+      isError: true,
+    };
+  }
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-remote-file.sh"), "get", relpath, String(maxBytes)),
+    "remote file read failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, path: relpath, max_bytes: maxBytes }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolRemoteDelta(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const relLog = args["log"];
+  if (!validRelpath(relLog)) {
+    return {
+      payload: { error: "invalid path", expect: "relative log path under the home, no traversal" },
+      isError: true,
+    };
+  }
+  const offset = validNonnegInt(args["offset"] ?? 0);
+  if (offset === null) {
+    return {
+      payload: { error: "invalid offset", expect: "nonnegative integer byte cursor" },
+      isError: true,
+    };
+  }
+  const sha = args["sha256"];
+  if (!validSha256(sha)) {
+    return {
+      payload: { error: "invalid sha256", expect: "64 hex chars of the exact prefix" },
+      isError: true,
+    };
+  }
+  const wait = validDeltaWait(args["wait"] ?? 0);
+  if (wait === null) {
+    return {
+      payload: { error: "invalid wait", expect: "integer 0..10 seconds" },
+      isError: true,
+    };
+  }
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-remote-delta-read.sh"), relLog, String(offset), sha, String(wait)),
+    "remote delta read failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, log: relLog, offset }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolHandoffStatus(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["id"];
+  if (taskId !== undefined && !validId(taskId)) {
+    return {
+      payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  const lines = validHandoffLines(args["lines"] ?? HANDOFF_DEFAULT_LINES);
+  if (lines === null) {
+    return { payload: { error: "invalid lines", expect: "integer 1..20" }, isError: true };
+  }
+  const handoffDir = path.join(ctx.dataDir, "handoff");
+  if (taskId === undefined) {
+    let names: string[];
+    try {
+      names = fs.readdirSync(handoffDir)
+        .filter((name) => {
+          if (!name.endsWith(".outbox.md")) return false;
+          try {
+            const st = fs.lstatSync(path.join(handoffDir, name));
+            return st.isFile() && !st.isSymbolicLink();
+          } catch {
+            return false;
+          }
+        })
+        .sort();
+    } catch (exc) {
+      const nodeErr = exc as NodeJS.ErrnoException;
+      if (nodeErr?.code === "ENOENT") return { payload: { outboxes: [] }, isError: false };
+      return { payload: { error: "cannot read handoff", detail: String(exc) }, isError: true };
+    }
+    const outboxes: Array<Record<string, unknown>> = [];
+    for (const name of names) {
+      try {
+        const raw = fs.readFileSync(path.join(handoffDir, name), "utf8");
+        const text = raw.split("\n");
+        if (text.length > 0 && text[text.length - 1] === "") text.pop();
+        const size = fs.statSync(path.join(handoffDir, name)).size;
+        outboxes.push({
+          id: name.slice(0, -".outbox.md".length),
+          bytes: size,
+          total_lines: text.length,
+        });
+      } catch (exc) {
+        return { payload: { error: "cannot read handoff", detail: String(exc) }, isError: true };
+      }
+    }
+    return { payload: { outboxes }, isError: false };
+  }
+  const confined = confineHandoffPath(ctx.dataDir, taskId);
+  if (confined === null) {
+    return {
+      payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  let content: string[];
+  let size: number;
+  try {
+    const raw = fs.readFileSync(confined, "utf8");
+    content = raw.split("\n");
+    if (content.length > 0 && content[content.length - 1] === "") content.pop();
+    size = fs.statSync(confined).size;
+  } catch (exc) {
+    const nodeErr = exc as NodeJS.ErrnoException;
+    if (nodeErr?.code === "ENOENT") {
+      return { payload: { error: "no handoff for id", id: taskId }, isError: true };
+    }
+    return { payload: { error: "cannot read handoff", detail: String(exc) }, isError: true };
+  }
+  return {
+    payload: { id: taskId, bytes: size, total_lines: content.length, lines: content.slice(-lines) },
+    isError: false,
+  };
 }
 
 // --- CHANGED: approval-gated writes ---
@@ -953,6 +1129,163 @@ async function toolRelayFollowup(args: ToolArgs, ctx: ToolContext): Promise<Tool
   }
 }
 
+// --- CHANGED: secondmate / remote authority writes (Tier 3, approval) ---
+
+async function toolSecondmateNudge(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // Notify-only subset: the backstop asks mismatched secondmates to
+  // reconcile through the cooldown-guarded notify path.
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  return ownedCall(
+    argv(path.join(ctx.binDir, "fm-secondmate-reconcile.sh"), "notify"),
+    "reconcile notify refused or failed",
+    ctx.run,
+  );
+}
+
+async function toolSecondmateRestart(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const ids = validIdList(args["ids"], RESTART_IDS_MAX);
+  if (ids === null) {
+    return {
+      payload: { error: "invalid id", expect: "1..8 secondmate ids, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-secondmate-restart.sh"), ...ids),
+    "secondmate restart refused or failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, ids }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolSecondmateReport(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const verb = args["verb"];
+  if (!validId(verb)) {
+    return {
+      payload: { error: "invalid verb", expect: "short slug, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  const corr = args["corr"];
+  if (!validCorr(corr)) {
+    return {
+      payload: { error: "invalid corr", expect: "16 hex chars, optional corr= prefix" },
+      isError: true,
+    };
+  }
+  const note = args["note"];
+  if (!validNote(note)) {
+    return {
+      payload: { error: "invalid note", expect: "single line, 1..500 chars" },
+      isError: true,
+    };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  // Note-only form: --doc stays out, and the helper resolves the parent
+  // channel itself, so no status path ever crosses this boundary.
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-secondmate-report.sh"), verb, corr, note),
+    "secondmate report refused or failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, verb, corr }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolRemoteControl(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const verb = args["verb"];
+  if (typeof verb !== "string" || !(REMOTE_CONTROL_VERBS as readonly string[]).includes(verb)) {
+    return {
+      payload: { error: "invalid verb", expect: "one of state, route, observe, send" },
+      isError: true,
+    };
+  }
+  const taskId = args["id"];
+  if (!validId(taskId)) {
+    return {
+      payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = argv(path.join(ctx.binDir, "fm-remote-secondmate-control.sh"), verb, taskId);
+  if (verb === "send") {
+    const text = args["text"];
+    if (typeof text !== "string" || text.length < 1 || text.length > SEND_TEXT_MAX_CHARS) {
+      return {
+        payload: { error: "invalid text", expect: `single line, 1..${SEND_TEXT_MAX_CHARS} chars` },
+        isError: true,
+      };
+    }
+    if (text.includes("\n") || text.includes("\r")) {
+      return {
+        payload: { error: "invalid text", expect: "single line, no newlines" },
+        isError: true,
+      };
+    }
+    if (text.trimStart().startsWith("/")) {
+      return {
+        payload: { error: "slash commands refused", expect: "plain prose steer only" },
+        isError: true,
+      };
+    }
+    cmd.push(text);
+  }
+  // Closed verb subset: launch/relaunch (firstmate-owned provisioning),
+  // key/capture (raw pane access), and sync/update/retire (remote code
+  // and pane teardown) stay out.
+  const { payload, isError } = await ownedCall(cmd, "remote control refused or failed", ctx.run);
+  if (!isError) return { payload: { ...payload, verb, id: taskId }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolHandoffMove(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["id"];
+  if (!validId(taskId)) {
+    return {
+      payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  const resume = args["resume"] ?? false;
+  if (typeof resume !== "boolean") {
+    return { payload: { error: "invalid resume", expect: "boolean" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  if (resume) {
+    const keys = args["keys"] ?? [];
+    if (!(Array.isArray(keys) && keys.length === 0)) {
+      return {
+        payload: { error: "invalid keys", expect: "resume takes no keys" },
+        isError: true,
+      };
+    }
+    const { payload, isError } = await ownedCall(
+      argv(path.join(ctx.binDir, "fm-backlog-handoff.sh"), "--resume-pending"),
+      "handoff refused or failed",
+      ctx.run,
+    );
+    if (!isError) return { payload: { ...payload, id: taskId, resumed: true }, isError: false };
+    return { payload, isError: true };
+  }
+  const keys = validIdList(args["keys"], HANDOFF_KEYS_MAX);
+  if (keys === null) {
+    return {
+      payload: { error: "invalid keys", expect: "1..20 backlog item keys, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-backlog-handoff.sh"), taskId, ...keys),
+    "handoff refused or failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, id: taskId, keys }, isError: false };
+  return { payload, isError: true };
+}
+
 async function toolFleetPoll(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   let count: number;
   const rawCount = args["count"] ?? 2;
@@ -1106,6 +1439,54 @@ export const TOOLS: Record<string, ToolDef> = {
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     handler: toolGuardCheck,
   },
+  remote_doctor: {
+    description:
+      "Read-only remote-home readiness diagnostic (check mode; repairs stay out).",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolRemoteDoctor,
+  },
+  remote_file: {
+    description:
+      "Read-only bounded read of one home-relative file (get only; intake stays out).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Home-relative file path" },
+        max_bytes: { type: "integer", minimum: 1, maximum: 262144, default: 8192 },
+      },
+      required: ["path"],
+      additionalProperties: false,
+    },
+    handler: toolRemoteFile,
+  },
+  remote_delta: {
+    description: "Read-only continuity-checked delta read of one append-only log.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        log: { type: "string", description: "Home-relative log path" },
+        offset: { type: "integer", minimum: 0, description: "Byte cursor", default: 0 },
+        sha256: { type: "string", description: "64 hex chars of the exact prefix" },
+        wait: { type: "integer", minimum: 0, maximum: 10, default: 0 },
+      },
+      required: ["log", "sha256"],
+      additionalProperties: false,
+    },
+    handler: toolRemoteDelta,
+  },
+  handoff_status: {
+    description:
+      "Read-only staged handoff outboxes: list staged moves, or read one outbox tail.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Secondmate id" },
+        lines: { type: "integer", minimum: 1, maximum: 20, default: 10 },
+      },
+      additionalProperties: false,
+    },
+    handler: toolHandoffStatus,
+  },
   send_message: {
     description:
       "Steer one crew with a single verified prose line; slash commands, keys, raw panes, and lifecycle verbs are refused.",
@@ -1233,6 +1614,54 @@ export const TOOLS: Record<string, ToolDef> = {
       final: { type: "boolean", description: "Clear the link after this post" },
     }),
     handler: toolRelayFollowup,
+  },
+  secondmate_nudge: {
+    description:
+      "Authority write: ask mismatched secondmates to reconcile via the cooldown-guarded notify path.",
+    inputSchema: approvalSchema({}),
+    handler: toolSecondmateNudge,
+  },
+  secondmate_restart: {
+    description:
+      "Authority write: restart secondmates onto current wiring after persist; ids only.",
+    inputSchema: approvalSchema({
+      ids: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 8 },
+    }),
+    handler: toolSecondmateRestart,
+  },
+  secondmate_report: {
+    description:
+      "Authority write: append one correlated report to the parent channel; the helper resolves the destination.",
+    inputSchema: approvalSchema({
+      verb: { type: "string", description: "Report verb slug" },
+      corr: { type: "string", description: "16 hex chars, optional corr= prefix" },
+      note: { type: "string", description: "Report note, single line 1..500 chars" },
+    }),
+    handler: toolSecondmateReport,
+  },
+  remote_control: {
+    description:
+      "Authority write: closed state/route/observe/send subset of remote secondmate control.",
+    inputSchema: approvalSchema({
+      verb: { type: "string", enum: [...REMOTE_CONTROL_VERBS] },
+      id: { type: "string", description: "Secondmate id" },
+      text: { type: "string", description: "Prose steer for send, 1..500 chars" },
+    }),
+    handler: toolRemoteControl,
+  },
+  handoff_move: {
+    description:
+      "Authority write: hand queued backlog items to a secondmate, or resume pending wakes.",
+    inputSchema: approvalSchema({
+      id: { type: "string", description: "Secondmate id" },
+      keys: { type: "array", items: { type: "string" }, description: "1..20 backlog item keys" },
+      resume: {
+        type: "boolean",
+        description: "Resume pending wakes; takes no keys",
+        default: false,
+      },
+    }),
+    handler: toolHandoffMove,
   },
   receipt_submit: {
     description:

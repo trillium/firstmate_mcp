@@ -16,7 +16,8 @@ refuses - fails.
 Side-effect-free by construction, asserted in TestSideEffectFree:
   * only read tools ever dispatch (fleet_snapshot, backlog, crew_state,
     status_tail, fleet_poll, peek, fleet_view, review_diff,
-    bearings_snapshot, wake_drain, guard_check); any other tool name
+    bearings_snapshot, wake_drain, guard_check, remote_doctor,
+    remote_file, remote_delta, handoff_status); any other tool name
     raises in the wrapper.
   * every subprocess runs with FM_HOME/FM_STATE_OVERRIDE pinned to a temp
     scratch dir; the suite asserts the snapshot's own fm_home/roots.state
@@ -56,14 +57,16 @@ SUBPROCESS_TIMEOUT_S = 60
 READ_TOOLS = frozenset({
     "fleet_snapshot", "backlog", "crew_state", "status_tail", "fleet_poll",
     "peek", "fleet_view", "review_diff", "bearings_snapshot",
-    "wake_drain", "guard_check",
+    "wake_drain", "guard_check", "remote_doctor", "remote_file",
+    "remote_delta", "handoff_status",
 })
 
 # Scripts the suite may execute. Anything else fails closed at the runner.
 READ_SCRIPTS = frozenset({
     "fm-fleet-snapshot.sh", "fm-crew-state.sh", "fm-peek.sh",
     "fm-fleet-view.sh", "fm-review-diff.sh", "fm-bearings-snapshot.sh",
-    "fm-wake-drain.sh", "fm-guard.sh",
+    "fm-wake-drain.sh", "fm-guard.sh", "fm-remote-doctor.sh",
+    "fm-remote-file.sh", "fm-remote-delta-read.sh",
 })
 
 
@@ -81,7 +84,9 @@ def find_firstmate_home():
 FIRSTMATE_HOME = find_firstmate_home()
 REQUIRED_SCRIPTS = ("fm-fleet-snapshot.sh", "fm-crew-state.sh",
                     "fm-peek.sh", "fm-fleet-view.sh", "fm-review-diff.sh",
-                    "fm-bearings-snapshot.sh", "fm-wake-drain.sh", "fm-guard.sh")
+                    "fm-bearings-snapshot.sh", "fm-wake-drain.sh", "fm-guard.sh",
+                    "fm-remote-doctor.sh", "fm-remote-file.sh",
+                    "fm-remote-delta-read.sh")
 
 
 def scratch_env(scratch):
@@ -359,6 +364,115 @@ class TestGuardCheckEquivalence(ConformanceBase):
         _assert_text_matches(self, result, proc)
 
 
+class TestRemoteDoctorEquivalence(ConformanceBase):
+    def test_doctor_matches_direct_check_mode(self):
+        proc = run_direct("fm-remote-doctor.sh", [], self.env)
+        result = self.adapter.dispatch("remote_doctor", {})
+        _assert_text_matches(self, result, proc)
+
+
+class TestRemoteFileEquivalence(ConformanceBase):
+    def test_file_get_matches_direct(self):
+        rel = "data/probe.txt"
+        target = self.scratch / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("probe-bytes\n", encoding="utf-8")
+        proc = run_direct("fm-remote-file.sh", ["get", rel, "8192"], self.env)
+        result = self.adapter.dispatch("remote_file", {"path": rel})
+        _assert_text_matches(self, result, proc)
+        if env.is_ok(result):
+            self.assertEqual(result["path"], rel)
+            self.assertEqual(result["max_bytes"], 8192)
+
+    def test_file_rejects_traversal_without_spawn(self):
+        before = len(self.runner.calls)
+        result = self.adapter.dispatch("remote_file", {"path": "../escape"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-path")
+        self.assertEqual(len(self.runner.calls), before)
+
+    def test_file_rejects_bad_bytes(self):
+        result = self.adapter.dispatch(
+            "remote_file", {"path": "data/x.md", "max_bytes": "big"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-max-bytes")
+
+
+class TestRemoteDeltaEquivalence(ConformanceBase):
+    EMPTY_SHA = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+    def test_delta_matches_direct(self):
+        rel = "state/job.log"
+        target = self.scratch / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("delta-line-1\n", encoding="utf-8")
+        proc = run_direct("fm-remote-delta-read.sh",
+                          [rel, "0", self.EMPTY_SHA, "0"], self.env)
+        result = self.adapter.dispatch(
+            "remote_delta",
+            {"log": rel, "offset": 0, "sha256": self.EMPTY_SHA})
+        _assert_text_matches(self, result, proc)
+        if env.is_ok(result):
+            self.assertEqual(result["log"], rel)
+            self.assertEqual(result["offset"], 0)
+
+    def test_delta_rejects_bad_cursor_without_spawn(self):
+        before = len(self.runner.calls)
+        good = {"log": "state/job.log", "offset": 0,
+                "sha256": self.EMPTY_SHA}
+        for key, value, code in (("log", "../x", "invalid-path"),
+                                 ("offset", -1, "invalid-offset"),
+                                 ("sha256", "short", "invalid-sha256"),
+                                 ("wait", "long", "invalid-wait")):
+            with self.subTest(field=key):
+                args = dict(good, **{key: value})
+                result = self.adapter.dispatch("remote_delta", args)
+                self.assertTrue(env.is_err(result), key)
+                self.assertEqual(result["error"]["code"], code, key)
+        self.assertEqual(len(self.runner.calls), before)
+
+
+class TestHandoffStatusEquivalence(ConformanceBase):
+    def test_handoff_lists_staged_outboxes(self):
+        handoff = self.scratch / "data" / "handoff"
+        handoff.mkdir(parents=True)
+        (handoff / "m1.outbox.md").write_text(
+            "- [ ] k1 first\n- [ ] k2 second\n", encoding="utf-8")
+        (handoff / "notes.txt").write_text("ignored\n", encoding="utf-8")
+        result = self.adapter.dispatch("handoff_status", {})
+        self.assertTrue(env.is_ok(result), result)
+        self.assertEqual(len(result["outboxes"]), 1)
+        self.assertEqual(result["outboxes"][0]["id"], "m1")
+        self.assertEqual(result["outboxes"][0]["total_lines"], 2)
+        self.assertEqual(self.runner.calls, [],
+                         "handoff_status must never spawn a process")
+
+    def test_handoff_detail_matches_file_tail(self):
+        handoff = self.scratch / "data" / "handoff"
+        handoff.mkdir(parents=True)
+        lines = ["- [ ] k1 first", "- [ ] k2 second", "- [ ] k3 third"]
+        (handoff / "m1.outbox.md").write_text(
+            "\n".join(lines) + "\n", encoding="utf-8")
+        result = self.adapter.dispatch(
+            "handoff_status", {"id": "m1", "lines": 2})
+        self.assertTrue(env.is_ok(result), result)
+        self.assertEqual(result["lines"], lines[-2:])
+        self.assertEqual(result["total_lines"], 3)
+
+    def test_handoff_missing_id_is_typed_error(self):
+        (self.scratch / "data" / "handoff").mkdir(parents=True)
+        result = self.adapter.dispatch("handoff_status", {"id": "ghost"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "no-handoff")
+
+    def test_handoff_rejects_traversal_without_read(self):
+        result = self.adapter.dispatch("handoff_status", {"id": "../escape"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-id")
+        self.assertEqual(self.runner.calls, [],
+                         "handoff_status must never spawn a process")
+
+
 class TestSideEffectFree(ConformanceBase):
     def test_snapshot_served_from_scratch_home(self):
         result = self.adapter.dispatch("fleet_snapshot", {})
@@ -385,6 +499,15 @@ class TestSideEffectFree(ConformanceBase):
         self.adapter.dispatch("bearings_snapshot", {})
         self.adapter.dispatch("wake_drain", {})
         self.adapter.dispatch("guard_check", {})
+        self.adapter.dispatch("remote_doctor", {})
+        (self.scratch / "data" / "probe.txt").write_text("p\n", encoding="utf-8")
+        self.adapter.dispatch("remote_file", {"path": "data/probe.txt"})
+        (self.scratch / "state" / "job.log").write_text("l\n", encoding="utf-8")
+        self.adapter.dispatch("remote_delta", {
+            "log": "state/job.log", "offset": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"})
+        (self.scratch / "data" / "handoff").mkdir(parents=True, exist_ok=True)
+        self.adapter.dispatch("handoff_status", {})
         for script in self.runner.scripts_run():
             self.assertIn(script, READ_SCRIPTS, f"non-read script ran: {script}")
 
@@ -403,7 +526,9 @@ class TestSideEffectFree(ConformanceBase):
 
     def test_write_tools_never_dispatch(self):
         for name in ("send_message", "lifecycle_interrupt", "spawn_crew",
-                     "scaffold_brief", "decision_hold", "relay_reply"):
+                     "scaffold_brief", "decision_hold", "relay_reply",
+                     "secondmate_nudge", "secondmate_restart",
+                     "secondmate_report", "remote_control", "handoff_move"):
             with self.subTest(tool=name):
                 with self.assertRaises(AssertionError):
                     self.adapter.dispatch(name, {})
