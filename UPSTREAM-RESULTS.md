@@ -1,10 +1,10 @@
 # UPSTREAM-RESULTS
 
-Seeded: 2026-09-17T19:13:18Z via `bash tests/upstream/run_upstream.sh` (`python3 tests/upstream/run_upstream.py --write-results`).
+Seeded: 2026-09-17T20:28:31Z via `bash tests/upstream/run_upstream.sh` (`python3 tests/upstream/run_upstream.py --write-results`).
 
 - upstream repo: `https://github.com/kunchenguid/firstmate.git`
 - gitlink pin: `3eb5b6334a80e06083e3837f0032a5cec39b8e52`
-- upstream root at seed time: `/Users/trilliumsmith/code/firstmate`
+- upstream root at seed time: `sources/firstmate`
 - ts runtime at seed time: `bun` (bun-primary, node-fallback; harness spawns the TS server via the proving runtime)
 - contracts source: `schema/contracts.yaml`
 - overall: **pass**
@@ -16,7 +16,7 @@ Seeded: 2026-09-17T19:13:18Z via `bash tests/upstream/run_upstream.sh` (`python3
 | crew_state | crew_state | fm-crew-state.test.sh | pass | pass | pass |
 | status_tail | status_tail | (adapter-native) | skip | pass | pass |
 | send_message | send_message | fm-send-strict.test.sh | pass | pass | pass |
-| spawn_crew | spawn_crew | fm-spawn-beads.test.sh | pass | pass | pass |
+| spawn_crew | spawn_crew | fm-spawn-batch.test.sh | pass | pass | pass |
 | scaffold_brief | scaffold_brief | fm-brief.test.sh | pass | pass | pass |
 
 ## Per-test detail
@@ -24,12 +24,11 @@ Seeded: 2026-09-17T19:13:18Z via `bash tests/upstream/run_upstream.sh` (`python3
 ### fleet_snapshot
 
 - upstream file: `fm-fleet-snapshot-view.test.sh`
-- upstream ref: **pass** — exit 0; tail: ok - snapshot event hints follow reconciled current state
-ok - durable fold keeps an open decision past a later unrelated event
-ok - a live secondmate endpoint preserves unrelated open decisions
-ok - durable captain-held transfer closes the duplicate live status decision
-ok - durable fold clears a decision only on a keyed resolution
-ok - a completed scout's stale decision surfaces as
+- upstream ref: **pass** — exit 0; tail: ok - undated captain holds age after a configurable threshold, decided only from structured fields
+ok - captain-hold buckets are total, mutually exclusive, and never decided by prose
+ok - main_inventory discloses orphan/unstructured and clears when inventory is consistent
+ok - backlog normalization preserves strict roles and resolves every blocker compatibly
+ok - snapshot event hints
 - py: **pass**, ts (bun): **pass**
   - `fleet_snapshot:fleet_snapshot {}` — py pass, ts pass
 
@@ -43,14 +42,12 @@ ok - a completed scout's stale decision surfaces as
 ### crew_state
 
 - upstream file: `fm-crew-state.test.sh`
-- upstream ref: **pass** — exit 0; tail: ok - dead window ignores stale status log
-ok - closed pane still reports a terminal run-step
-ok - closed pane still reports an active run-step
-ok - no timeout command uses perl bound
-ok - scout skips the run lookup
-ok - torn-down worktree is handled gracefully
-ok - missing meta is handled gracefully
-ok - crew_is_provably_working absorbs a validating crew found only via the runs-list 
+- upstream ref: **pass** — exit 0; tail: ok - local work advanced past run head invalidates attribution
+ok - pipeline-owned active run binds without head equality and beats the failed row
+ok - a genuinely failed run with no later run is not hidden
+ok - coarse scan anchors the unresolvable active row instead of falling to an older one
+ok - coarse scan with a mismatched anchor stays unknown and lets the pane answer
+ok - the e
 - py: **pass**, ts (bun): **pass**
   - `crew_state:crew_state {'id': 'no-such-crew'}` — py pass, ts pass
   - `crew_state:crew_state {'id': '../escape'}` — py pass, ts pass
@@ -80,11 +77,12 @@ ok -
 
 ### spawn_crew
 
-- upstream file: `fm-spawn-beads.test.sh`
-- upstream ref: **pass** — exit 0; tail: ok - a spawn with --beads <id> records beads_id= in meta and stamps the bead dispatch=sent/lifecycle=sent
-ok - a spawn without --beads records no beads_id= and never invokes the bead stamp
-ok - a spawn under config/backlog-backend=beads auto-links a bead (no --beads needed) and stamps dispatch=sent/lifecycle=sent
-ok - an explicit --beads id wins over auto-resolution under the beads b
+- upstream file: `fm-spawn-batch.test.sh`
+- upstream ref: **pass** — exit 0; tail: ok - batch dispatch re-execs and reports every id=repo pair
+ok - batch detection: single pair batches, non-pair rejected, single-task and slash-id stay single
+ok - batch dispatch requires the shared ship delivery contract before any pair runs
+ok - scout batch refuses ship delivery flags instead of ignoring them
+ok - projects/ paths are scoped through the firstmate home for single-tas
 - py: **pass**, ts (bun): **pass**
   - `spawn_crew:spawn_crew {'task_id': 'no-such-id', 'project': 'no-such-project', 'mode': 'local-only', 'yolo': 'off'}` — py pass, ts pass
   - `spawn_crew:spawn_crew {'task_id': 'no-such-id', 'project': 'no-such-project', 'mode': 'local-only', 'yolo': 'off', 'approval': 'I authorize upstream preservation proof'}` — py pass, ts pass
@@ -92,11 +90,11 @@ ok - an explicit --beads id wins over auto-resolution under the beads b
 ### scaffold_brief
 
 - upstream file: `fm-brief.test.sh`
-- upstream ref: **pass** — exit 0; tail: ok - fm-brief.sh: --herdr-lab uses its quoted Firstmate-owned helper path
+- upstream ref: **pass** — exit 0; tail: ok - fm-brief.sh: --herdr-lab emits the complete hard safety contract
+ok - fm-brief.sh: --herdr-lab uses its quoted Firstmate-owned helper path
 ok - fm-brief.sh: ship and scout scaffolds make omitted Herdr intent fail-visible
-ok - fm-brief.sh: Herdr lab contract covers scouts and rejects secondmate misuse
-ok - fm-brief.sh: --no-projects scaffolds a project-less charter and guards misuse
-ok - fm-brief.sh: marked requests avoid generic acknowledgements a
+ok - fm-brief.sh: the documented {TASK} and {FIRSTMATE_SPEC} fills cannot corrupt the Herdr safety gate
+ok - fm-brief.sh: Herdr lab contract covers scouts and r
 - py: **pass**, ts (bun): **pass**
   - `scaffold_brief:scaffold_brief {'task_id': 'no-such-id', 'project': 'no-such-project', 'mode': 'scout'}` — py pass, ts pass
   - `scaffold_brief:scaffold_brief {'task_id': 'no-such-id', 'project': 'no-such-project', 'mode': 'bogus', 'approval': 'I authorize upstream preservation proof'}` — py pass, ts pass

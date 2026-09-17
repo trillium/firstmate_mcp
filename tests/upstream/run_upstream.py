@@ -313,6 +313,10 @@ def main():
 
     upstream_root = resolve_upstream_root()
     pin = upstream_pin()
+    try:
+        upstream_root_display = str(upstream_root.relative_to(ROOT)) if upstream_root else None
+    except ValueError:
+        upstream_root_display = str(upstream_root) if upstream_root else None
 
     # TS availability: dist must exist; runtime bun-primary, node-fallback.
     ts_dist_ok = TS_SERVER.is_file()
@@ -399,7 +403,7 @@ def main():
         shutil.rmtree(stub_home, ignore_errors=True)
 
     summary = {
-        "upstream_root": str(upstream_root) if upstream_root else None,
+        "upstream_root": upstream_root_display,
         "upstream_pin": pin,
         "ts_runtime": ts_runtime,
         "ts_dist": ts_dist_ok,

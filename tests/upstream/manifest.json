@@ -47,9 +47,9 @@
     {
       "id": "spawn_crew",
       "contracts": ["spawn_crew"],
-      "upstream_test": "fm-spawn-beads.test.sh",
+      "upstream_test": "fm-spawn-batch.test.sh",
       "mcp_tools": ["spawn_crew"],
-      "upstream_note": "Safe flag subset only (task, project, mode, yolo) with approval gate; beads-spawn coverage exercises the owning fm-spawn.sh surface hermetically."
+      "upstream_note": "Safe flag subset only (task, project, mode, yolo) with approval gate; batch-dispatch coverage (every id=repo pair dispatched and reported) exercises the owning fm-spawn.sh surface. Passes at the pinned submodule; the fork's newer copy diverges and is not authoritative."
     },
     {
       "id": "scaffold_brief",
