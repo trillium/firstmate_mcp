@@ -22,7 +22,7 @@ Denied argv flags (`--key`, `--raw`, `--force`, `--yes`, `--force-with-lease`) c
 
 ## Authorization tiers
 
-Reads (`fleet_snapshot`, `backlog`, `crew_state`, `status_tail`, `fleet_poll`) and the single safe steer (`send_message`, plain prose, 500-char single line, slash commands refused) need no approval.
+Reads (`fleet_snapshot`, `backlog`, `crew_state`, `status_tail`, `fleet_poll`, `peek`, `fleet_view`, `review_diff`, `bearings_snapshot`, `wake_drain`, `guard_check`) and the single safe steer (`send_message`, plain prose, 500-char single line, slash commands refused) need no approval.
 Every authority-bearing or externally visible tool requires an explicit `approval` string starting with `I authorize`.
 Relay sends stay inert without relay consent inside the owning scripts, and downstream code work stays under merge authority, yolo posture, and the decision-hold lifecycle.
 

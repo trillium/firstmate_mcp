@@ -98,6 +98,13 @@ class ValidatorsTest(unittest.TestCase):
         self.assertIsNone(v.valid_status_lines("many"))
         self.assertIsNone(v.valid_status_lines(None))
 
+    def test_peek_lines_window(self):
+        self.assertEqual(v.valid_peek_lines(40), 40)
+        self.assertEqual(v.valid_peek_lines(999), 100)
+        self.assertEqual(v.valid_peek_lines(0), 1)
+        self.assertIsNone(v.valid_peek_lines("many"))
+        self.assertIsNone(v.valid_peek_lines(None))
+
     def test_confine_state_path(self):
         with tempfile.TemporaryDirectory() as home:
             state = Path(home) / "state"
@@ -252,6 +259,26 @@ class ValidationRejectionTest(unittest.TestCase):
         self.assertEqual(result["error"]["code"], "invalid-final")
         self.assertEqual(seen, [])
 
+    def test_peek_validates_target_and_lines(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("peek", {"target": "../escape"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-target")
+        result = adapter.dispatch("peek", {"target": "t1", "lines": "many"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-lines")
+        self.assertEqual(seen, [])
+
+    def test_review_diff_validates_id_and_stat(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("review_diff", {"id": "../escape"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-id")
+        result = adapter.dispatch("review_diff", {"id": "t1", "stat": "yes"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-stat")
+        self.assertEqual(seen, [])
+
 
 class ArgvBuilderTest(unittest.TestCase):
     def test_spawn_argv_safe_subset(self):
@@ -283,6 +310,32 @@ class ArgvBuilderTest(unittest.TestCase):
     def test_denied_flags_never_emitted(self):
         with self.assertRaises(ValueError):
             d._argv("fm-send.sh", "t1", "--raw")
+
+    def test_peek_argv_carries_target_and_lines(self):
+        adapter, seen, _ = make_adapter(proc=FakeProc())
+        result = adapter.dispatch("peek", {"target": "t1", "lines": 5})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(seen[0][1:], ["t1", "5"])
+        self.assertIn("fm-peek.sh", seen[0][0])
+
+    def test_review_diff_stat_flag(self):
+        adapter, seen, _ = make_adapter(proc=FakeProc())
+        result = adapter.dispatch("review_diff", {"id": "t1", "stat": True})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(seen[0][1:], ["t1", "--stat"])
+
+    def test_bearings_validates_schema(self):
+        good = json.dumps({"schema": "fm-bearings.v1", "generated": "stub",
+                           "in_flight": [], "omitted": []})
+        adapter, _, _ = make_adapter(proc=FakeProc(stdout=good))
+        result = adapter.dispatch("bearings_snapshot", {})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(result["schema"], "fm-bearings.v1")
+        bad = json.dumps(dict(json.loads(good), schema="other.v9"))
+        adapter, _, _ = make_adapter(proc=FakeProc(stdout=bad))
+        result = adapter.dispatch("bearings_snapshot", {})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "unexpected-bearings-schema")
 
     def test_decision_resolve_uses_temp_file(self):
         adapter, seen, _ = make_adapter(proc=FakeProc())

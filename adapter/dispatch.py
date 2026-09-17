@@ -119,6 +119,37 @@ def _build_send_message(args):
     return _argv("fm-send.sh", target, text), None
 
 
+def _build_peek(args):
+    target = args.get("target")
+    if not v.valid_id(target):
+        return None, env.err(
+            "invalid-target",
+            "invalid target",
+            expect="exact task id, no slashes or traversal",
+        )
+    lines = v.valid_peek_lines(args.get("lines", 40))
+    if lines is None:
+        return None, env.err(
+            "invalid-lines", "invalid lines", expect="integer 1..100"
+        )
+    return _argv("fm-peek.sh", target, str(lines)), None
+
+
+def _build_review_diff(args):
+    task_id = args.get("id")
+    if not v.valid_id(task_id):
+        return None, ID_ERROR
+    stat = args.get("stat", False)
+    if not isinstance(stat, bool):
+        return None, env.err(
+            "invalid-stat", "invalid stat", expect="boolean"
+        )
+    argv = _argv("fm-review-diff.sh", task_id)
+    if stat:
+        argv.append("--stat")
+    return argv, None
+
+
 def _lifecycle_builder(verb, needs_note):
     def build(args):
         task_id = args.get("id")
@@ -312,6 +343,8 @@ def _build_relay_dismiss(args):
 # bearing or externally visible does. status_tail and fleet_poll are
 # handled natively by the adapter (bounded file read / snapshot poller)
 # because no owning script exists for those projections.
+BEARINGS_SCHEMA = "fm-bearings.v1"
+
 TOOLS = {
     "fleet_snapshot": ("fm-fleet-snapshot.sh", None, False),
     "backlog": ("fm-fleet-snapshot.sh", None, False),
@@ -319,6 +352,12 @@ TOOLS = {
     "status_tail": (None, _build_status_tail, False),
     "send_message": ("fm-send.sh", _build_send_message, False),
     "fleet_poll": ("fm-fleet-snapshot.sh", None, False),
+    "peek": ("fm-peek.sh", _build_peek, False),
+    "fleet_view": ("fm-fleet-view.sh", None, False),
+    "review_diff": ("fm-review-diff.sh", _build_review_diff, False),
+    "bearings_snapshot": ("fm-bearings-snapshot.sh", None, False),
+    "wake_drain": ("fm-wake-drain.sh", None, False),
+    "guard_check": ("fm-guard.sh", None, False),
     "lifecycle_interrupt": ("fm-control.sh", _lifecycle_builder("interrupt", False), True),
     "lifecycle_exit": ("fm-control.sh", _lifecycle_builder("exit", False), True),
     "lifecycle_relaunch": ("fm-control.sh", _lifecycle_builder("relaunch", True), True),
@@ -526,6 +565,71 @@ class Adapter:
              "note": "verified submit per fm-send contract; delivery is not reply"}
         )
         return result
+
+    def tool_peek(self, args):
+        argv, error = _build_peek(args)
+        if error:
+            return error
+        result = self.owned_call(argv, "peek failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        result.update({
+            "target": args.get("target"),
+            "lines": v.valid_peek_lines(args.get("lines", 40)),
+        })
+        return result
+
+    def tool_fleet_view(self, _args):
+        return self.owned_call(["fm-fleet-view.sh"], "fleet view failed")
+
+    def tool_review_diff(self, args):
+        argv, error = _build_review_diff(args)
+        if error:
+            return error
+        result = self.owned_call(argv, "review diff failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        result.update({"id": args.get("id"), "stat": bool(args.get("stat", False))})
+        return result
+
+    def tool_bearings_snapshot(self, _args):
+        proc, error = self.run_script(["fm-bearings-snapshot.sh", "--json"])
+        if error:
+            return error
+        if proc.returncode != 0:
+            out, _ = truncate(proc.stderr or proc.stdout or "")
+            return env.err("bearings-failed", "bearings failed",
+                           exit=proc.returncode, output=out)
+        if len(proc.stdout.encode("utf-8", "replace")) > MAX_OUTPUT_BYTES:
+            return env.err("bearings-too-large",
+                           "bearings too large for envelope")
+        try:
+            projection = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            out, _ = truncate(proc.stdout)
+            return env.err("bearings-not-json", "bearings was not JSON",
+                           output=out)
+        if projection.get("schema") != BEARINGS_SCHEMA:
+            return env.err("unexpected-bearings-schema",
+                           "unexpected bearings schema",
+                           schema=projection.get("schema"))
+        return env.ok(**projection)
+
+    def tool_wake_drain(self, _args):
+        return self.owned_call(["fm-wake-drain.sh"], "wake drain failed")
+
+    def tool_guard_check(self, _args):
+        prev = os.environ.get("FM_GUARD_READ_ONLY")
+        os.environ["FM_GUARD_READ_ONLY"] = "1"
+        try:
+            return self.owned_call(["fm-guard.sh"], "guard check failed")
+        finally:
+            if prev is None:
+                os.environ.pop("FM_GUARD_READ_ONLY", None)
+            else:
+                os.environ["FM_GUARD_READ_ONLY"] = prev
 
     def tool_fleet_poll(self, args):
         try:

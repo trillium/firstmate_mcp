@@ -14,17 +14,17 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 
 | Area | Mirrored | Denied | Gap |
 | --- | --- | --- | --- |
-| [Fleet runs](#fleet-runs) | 1 | 0 | 7 |
-| [Supervision](#supervision) | 4 | 4 | 32 |
+| [Fleet runs](#fleet-runs) | 3 | 0 | 5 |
+| [Supervision](#supervision) | 6 | 4 | 30 |
 | [Sessions](#sessions) | 2 | 0 | 23 |
 | [Backlog / decisions](#backlog-decisions) | 2 | 0 | 10 |
 | [Secondmates / remotes](#secondmates-remotes) | 0 | 0 | 20 |
-| [PR pipeline](#pr-pipeline) | 0 | 5 | 6 |
+| [PR pipeline](#pr-pipeline) | 1 | 5 | 5 |
 | [Relay](#relay) | 3 | 0 | 5 |
 | [Voice / mail](#voice-mail) | 0 | 0 | 2 |
-| [Digests](#digests) | 0 | 0 | 5 |
+| [Digests](#digests) | 1 | 0 | 4 |
 | [Installs](#installs) | 0 | 0 | 23 |
-| **Total** | **12** | **9** | **133** |
+| **Total** | **18** | **9** | **127** |
 
 ## Fleet runs
 
@@ -35,10 +35,10 @@ Whole-fleet reads and fleet hygiene: snapshot, views, and reconciliation.
 | `fm-agent-axi.sh` (removed upstream) | gap | read-only reap-triage; removed upstream since pin |
 | `fm-fleet-snapshot.sh` | mirrored — `fleet_snapshot` (py✔ ts✔), `fleet_poll` (py✔ ts✔), `backlog` (derived, py✔ ts✔) | canonical read; backlog counts derive from it |
 | `fm-fleet-sync.sh` | gap | project sync across the fleet |
-| `fm-fleet-view.sh` | gap | human render of the snapshot |
+| `fm-fleet-view.sh` | mirrored — `fleet_view` (py✔ ts✔) | human render of the snapshot |
 | `fm-inactive-reconcile.sh` | gap | bounded reconciliation of inactive outcomes |
 | `fm-mini1-healthcheck.sh` (removed upstream) | gap | mini1 dev-space health read; removed upstream since pin |
-| `fm-peek.sh` | gap | bounded endpoint tail for cheap diagnosis |
+| `fm-peek.sh` | mirrored — `peek` (py✔ ts✔) | bounded endpoint tail for cheap diagnosis |
 | `fm-pool-reclaim.sh` (removed upstream) | gap | treehouse pool-slot reclaim; removed upstream since pin |
 
 ## Supervision
@@ -60,7 +60,7 @@ Control and data planes for live crews: daemon, lifecycle verbs, steer, wakes, g
 | `fm-cd-pretool-check.sh` | gap | cwd-change policy hook |
 | `fm-control.sh` | mirrored — `lifecycle_interrupt` (py✔ ts✔), `lifecycle_exit` (py✔ ts✔), `lifecycle_relaunch` (py✔ ts✔), `lifecycle_suspend` (py✔ ts✔), `lifecycle_resume` (py✔ ts✔) | lifecycle verbs behind approval |
 | `fm-crew-state.sh` | mirrored — `crew_state` (py✔ ts✔) | deterministic current-state read |
-| `fm-guard.sh` | gap | watcher liveness / worktree-tangle guard |
+| `fm-guard.sh` | mirrored — `guard_check` (py✔ ts✔) | watcher liveness / worktree-tangle guard |
 | `fm-kimi-turnend-hook.sh` | gap | kimi turn-end hook |
 | `fm-lease.sh` | gap | per-task supervision leases |
 | `fm-lock.sh` | gap | per-home session lock |
@@ -81,7 +81,7 @@ Control and data planes for live crews: daemon, lifecycle verbs, steer, wakes, g
 | `fm-turnend-guard-cursor.sh` | gap | cursor turn-end guard |
 | `fm-turnend-guard-grok.sh` | gap | grok turn-end guard |
 | `fm-turnend-guard.sh` | gap | turn-end guard |
-| `fm-wake-drain.sh` | gap | durable wake-queue drain |
+| `fm-wake-drain.sh` | mirrored — `wake_drain` (py✔ ts✔) | durable wake-queue drain |
 | `fm-wake-grant.sh` | gap | wake-grant mechanics |
 | `fm-wake-memo.sh` (removed upstream) | gap | wake memo record/consult/prune; removed upstream since pin |
 | `fm-watch-arm.sh` | denied-by-design — `watch_start`, `watch_stop` | watcher arm path. watcher control would fork shared supervision state |
@@ -181,7 +181,7 @@ Check arming, polls, reviews, and landing: the code-adjacent surface that stays 
 | `fm-pr-reviewers.sh` | gap | reviewer assignment; unmirrored |
 | `fm-pr-state.sh` | gap | PR state read; unmirrored |
 | `fm-promote.sh` | denied-by-design — `promote_scout` | promote scout to ship; code-writing path stays out. code-writing path: scouts report, ships launch separately |
-| `fm-review-diff.sh` | gap | branch-vs-base review diff; unmirrored read |
+| `fm-review-diff.sh` | mirrored — `review_diff` (py✔ ts✔) | branch-vs-base review diff; unmirrored read |
 | `policy: repo-mutation` | denied-by-design — `repo_edit`, `repo_commit`, `repo_push`, `repo_merge` | project changes belong to workers behind merge authority |
 
 ## Relay
@@ -215,7 +215,7 @@ Composed captain views: bearings, inbox, home summary, contributions.
 | Command | Mirror status | Notes |
 | --- | --- | --- |
 | `fm-bearings-board.sh` | gap | bearings board render |
-| `fm-bearings-snapshot.sh` | gap | compact bearings projection over the snapshot |
+| `fm-bearings-snapshot.sh` | mirrored — `bearings_snapshot` (py✔ ts✔) | compact bearings projection over the snapshot |
 | `fm-contributions.sh` | gap | published contributions observer |
 | `fm-home-summary-refresh.sh` | gap | published home-summary refresh |
 | `fm-inbox.sh` | gap | captain's out-of-band capture surface |

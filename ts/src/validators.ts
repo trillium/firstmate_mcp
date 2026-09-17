@@ -24,6 +24,8 @@ export const REASON_MAX_CHARS = 1000;
 export const DECISION_TEXT_MAX_CHARS = 2000;
 export const STATUS_LINES_MIN = 1;
 export const STATUS_LINES_MAX = 50;
+export const PEEK_LINES_MIN = 1;
+export const PEEK_LINES_MAX = 100;
 
 export function validId(value: unknown): value is string {
   return typeof value === "string" && ID_RE.test(value);
@@ -63,6 +65,20 @@ export function validSteerText(
 ): value is string {
   if (!validSingleLine(value, maxChars)) return false;
   return !(value as string).trimStart().startsWith("/");
+}
+
+/** Coerce a peek lines count into the 1..100 window; null when not an integer. */
+export function validPeekLines(value: unknown): number | null {
+  let lines: number;
+  if (typeof value === "number" && Number.isInteger(value)) {
+    lines = value;
+  } else if (typeof value === "string" && value.trim() !== "" && Number.isInteger(Number(value))) {
+    lines = Number(value);
+  } else {
+    return null;
+  }
+  if (!Number.isFinite(lines)) return null;
+  return Math.max(PEEK_LINES_MIN, Math.min(PEEK_LINES_MAX, lines));
 }
 
 /** Coerce a lines count into the 1..50 window; null when not an integer. */

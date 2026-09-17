@@ -128,7 +128,7 @@ describe("handshake and reads", () => {
   });
 });
 
-describe("smarts surface: 21 tools, forbidden absent", () => {
+describe("smarts surface: 27 tools, forbidden absent", () => {
   let boxed: Client;
   let sandbox: string;
   before(() => {
@@ -146,14 +146,16 @@ describe("smarts surface: 21 tools, forbidden absent", () => {
     "lifecycle_suspend", "lifecycle_resume", "spawn_crew", "scaffold_brief",
     "decision_hold", "decision_resolve", "review_decision", "relay_reply",
     "relay_dismiss", "relay_followup", "fleet_poll",
+    "peek", "fleet_view", "review_diff",
+    "bearings_snapshot", "wake_drain", "guard_check",
     "receipt_submit", "receipt_status",
   ];
   const FORBIDDEN = ["promote_scout", "teardown_crew", "arm_pr_check", "merge_pr", "merge_local"];
 
-  it("smarts server lists 21 tools", async () => {
+  it("smarts server lists 27 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 21);
+    assert.equal(tools.length, 27);
   });
 
   for (const required of REQUIRED) {
@@ -188,6 +190,7 @@ describe("smarts surface: 21 tools, forbidden absent", () => {
     }>;
     const open = new Set([
       "fleet_snapshot", "backlog", "crew_state", "status_tail", "send_message", "fleet_poll",
+      "peek", "fleet_view", "review_diff", "bearings_snapshot", "wake_drain", "guard_check",
       "receipt_submit", "receipt_status",
     ]);
     for (const tool of tools) {
@@ -343,6 +346,48 @@ describe("smarts surface: 21 tools, forbidden absent", () => {
     const polled = payload(resp);
     assert.equal(isError(resp), false);
     assert.equal(((polled["polls"] as unknown[]) ?? []).length, 2);
+  });
+  it("peek returns bounded tail with target echoed", async () => {
+    const resp = await boxed.call("peek", { target: "no-such-id" });
+    const peeked = payload(resp);
+    assert.equal(isError(resp), false);
+    assert.equal(peeked["target"], "no-such-id");
+    assert.ok("stdout" in peeked);
+  });
+  it("peek rejects traversal", async () => {
+    assert.equal(isError(await boxed.call("peek", { target: "../escape" })), true);
+  });
+  it("peek rejects bad lines", async () => {
+    assert.equal(isError(await boxed.call("peek", { target: "x", lines: "many" })), true);
+  });
+  it("fleet_view returns human render", async () => {
+    const resp = await boxed.call("fleet_view", {});
+    assert.equal(isError(resp), false);
+    assert.ok("stdout" in payload(resp));
+  });
+  it("review_diff unknown id stays structured", async () => {
+    assert.equal(isError(await boxed.call("review_diff", { id: "no-such-id" })), false);
+  });
+  it("review_diff rejects traversal", async () => {
+    assert.equal(isError(await boxed.call("review_diff", { id: "../escape" })), true);
+  });
+  it("review_diff rejects non-bool stat", async () => {
+    assert.equal(isError(await boxed.call("review_diff", { id: "x", stat: "yes" })), true);
+  });
+  it("bearings_snapshot returns fm-bearings.v1", async () => {
+    const resp = await boxed.call("bearings_snapshot", {});
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["schema"], "fm-bearings.v1");
+  });
+  it("wake_drain drains to structured text", async () => {
+    const resp = await boxed.call("wake_drain", {});
+    assert.equal(isError(resp), false);
+    assert.ok("stdout" in payload(resp));
+  });
+  it("guard_check returns verdict text", async () => {
+    const resp = await boxed.call("guard_check", {});
+    assert.equal(isError(resp), false);
+    assert.ok("stdout" in payload(resp));
   });
 });
 

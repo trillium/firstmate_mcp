@@ -29,6 +29,8 @@ from auth.tiers import (
 APPROVAL = "I authorize lifecycle_interrupt on fm-task1 (2026-09-13)"
 
 TIER1_TOOLS = ["fleet_snapshot", "backlog", "crew_state", "status_tail", "fleet_poll",
+               "peek", "fleet_view", "review_diff", "bearings_snapshot",
+               "wake_drain", "guard_check",
                "receipt_submit", "receipt_status"]
 TIER3_TOOLS = [t for t, tier in TOOL_TIERS.items() if tier == TIER_AUTHORITY]
 TIER4_TOOLS = [t for t, tier in TOOL_TIERS.items() if tier == TIER_EXTERNAL]
@@ -36,7 +38,7 @@ TIER4_TOOLS = [t for t, tier in TOOL_TIERS.items() if tier == TIER_EXTERNAL]
 
 class TierAssignmentTest(unittest.TestCase):
     def test_every_tool_has_a_tier(self):
-        self.assertEqual(len(TOOL_TIERS), 21)
+        self.assertEqual(len(TOOL_TIERS), 27)
 
     def test_tier1_is_open_reads(self):
         for tool in TIER1_TOOLS:

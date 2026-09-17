@@ -15,7 +15,9 @@ refuses - fails.
 
 Side-effect-free by construction, asserted in TestSideEffectFree:
   * only read tools ever dispatch (fleet_snapshot, backlog, crew_state,
-    status_tail, fleet_poll); any other tool name raises in the wrapper.
+    status_tail, fleet_poll, peek, fleet_view, review_diff,
+    bearings_snapshot, wake_drain, guard_check); any other tool name
+    raises in the wrapper.
   * every subprocess runs with FM_HOME/FM_STATE_OVERRIDE pinned to a temp
     scratch dir; the suite asserts the snapshot's own fm_home/roots.state
     resolve inside that scratch dir.
@@ -27,8 +29,9 @@ Side-effect-free by construction, asserted in TestSideEffectFree:
     so no steer, launch, or external send can fire.
 
 Locating firstmate: FIRSTMATE_HOME (else FM_REAL_HOME, FM_CHECKOUT, then the
-well-known checkout path). Without a checkout carrying
-bin/fm-fleet-snapshot.sh + bin/fm-crew-state.sh the suite skips cleanly so
+well-known checkout path). Without a checkout carrying the read-script set
+(fleet-snapshot, crew-state, peek, fleet-view, review-diff,
+bearings-snapshot, wake-drain, guard) the suite skips cleanly so
 this repo stays standalone in CI.
 """
 
@@ -52,10 +55,16 @@ SUBPROCESS_TIMEOUT_S = 60
 # Read-only boundary: the only tools this suite may dispatch.
 READ_TOOLS = frozenset({
     "fleet_snapshot", "backlog", "crew_state", "status_tail", "fleet_poll",
+    "peek", "fleet_view", "review_diff", "bearings_snapshot",
+    "wake_drain", "guard_check",
 })
 
 # Scripts the suite may execute. Anything else fails closed at the runner.
-READ_SCRIPTS = frozenset({"fm-fleet-snapshot.sh", "fm-crew-state.sh"})
+READ_SCRIPTS = frozenset({
+    "fm-fleet-snapshot.sh", "fm-crew-state.sh", "fm-peek.sh",
+    "fm-fleet-view.sh", "fm-review-diff.sh", "fm-bearings-snapshot.sh",
+    "fm-wake-drain.sh", "fm-guard.sh",
+})
 
 
 def find_firstmate_home():
@@ -70,7 +79,9 @@ def find_firstmate_home():
 
 
 FIRSTMATE_HOME = find_firstmate_home()
-REQUIRED_SCRIPTS = ("fm-fleet-snapshot.sh", "fm-crew-state.sh")
+REQUIRED_SCRIPTS = ("fm-fleet-snapshot.sh", "fm-crew-state.sh",
+                    "fm-peek.sh", "fm-fleet-view.sh", "fm-review-diff.sh",
+                    "fm-bearings-snapshot.sh", "fm-wake-drain.sh", "fm-guard.sh")
 
 
 def scratch_env(scratch):
@@ -245,6 +256,109 @@ class StatusTailEquivalenceTest(ConformanceBase):
                          "status_tail must never spawn a process")
 
 
+def _assert_text_matches(testcase, result, proc):
+    """Adapter owned-call text agrees with the direct script run.
+
+    Success matches stdout (modulo the 8KB envelope truncation); failure
+    matches the exit code with the script output carried in the payload.
+    """
+    from adapter import dispatch as _d
+    cap = _d.TAIL_CAP_BYTES
+    if proc.returncode == 0:
+        testcase.assertTrue(env.is_ok(result), result)
+        direct_out = proc.stdout or ""
+        if len(direct_out.encode("utf-8", "replace")) <= cap:
+            testcase.assertEqual(result["stdout"], direct_out)
+            testcase.assertFalse(result["stdout_truncated"])
+        else:
+            testcase.assertTrue(result["stdout_truncated"])
+            testcase.assertTrue(direct_out.startswith(
+                result["stdout"].split("\n…[truncated]")[0][:100]))
+    else:
+        testcase.assertTrue(env.is_err(result), result)
+        testcase.assertEqual(result["error"].get("exit"), proc.returncode)
+
+
+class TestPeekEquivalence(ConformanceBase):
+    def test_peek_matches_direct(self):
+        proc = run_direct("fm-peek.sh", ["no-such-crew", "5"], self.env)
+        result = self.adapter.dispatch("peek", {"target": "no-such-crew", "lines": 5})
+        _assert_text_matches(self, result, proc)
+        if env.is_ok(result):
+            self.assertEqual(result["target"], "no-such-crew")
+            self.assertEqual(result["lines"], 5)
+
+    def test_peek_rejects_traversal_without_spawn(self):
+        before = len(self.runner.calls)
+        result = self.adapter.dispatch("peek", {"target": "../escape"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-target")
+        self.assertEqual(len(self.runner.calls), before)
+
+    def test_peek_rejects_bad_lines(self):
+        result = self.adapter.dispatch("peek", {"target": "x", "lines": "many"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-lines")
+
+
+class TestFleetViewEquivalence(ConformanceBase):
+    def test_fleet_view_matches_direct(self):
+        proc = run_direct("fm-fleet-view.sh", [], self.env)
+        result = self.adapter.dispatch("fleet_view", {})
+        _assert_text_matches(self, result, proc)
+
+
+class TestReviewDiffEquivalence(ConformanceBase):
+    def test_review_diff_missing_meta_agrees(self):
+        proc = run_direct("fm-review-diff.sh", ["no-such-crew"], self.env)
+        result = self.adapter.dispatch("review_diff", {"id": "no-such-crew"})
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"].get("exit"), proc.returncode)
+
+    def test_review_diff_rejects_traversal_without_spawn(self):
+        before = len(self.runner.calls)
+        result = self.adapter.dispatch("review_diff", {"id": "../escape"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-id")
+        self.assertEqual(len(self.runner.calls), before)
+
+    def test_review_diff_rejects_non_bool_stat(self):
+        result = self.adapter.dispatch("review_diff", {"id": "x", "stat": "yes"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-stat")
+
+
+class TestBearingsEquivalence(ConformanceBase):
+    def test_bearings_matches_direct(self):
+        proc = run_direct("fm-bearings-snapshot.sh", ["--json"], self.env)
+        self.assertEqual(proc.returncode, 0, f"bearings failed: {proc.stderr[:500]}")
+        direct = json.loads(proc.stdout)
+        result = self.adapter.dispatch("bearings_snapshot", {})
+        self.assertTrue(env.is_ok(result), result)
+        self.assertEqual(result["schema"], "fm-bearings.v1")
+        self.assertEqual(result["schema"], direct["schema"])
+        for key in ("in_flight", "decisions_open", "landed", "omitted"):
+            self.assertEqual(result.get(key), direct.get(key), key)
+
+
+class TestWakeDrainEquivalence(ConformanceBase):
+    def test_wake_drain_matches_direct(self):
+        proc = run_direct("fm-wake-drain.sh", [], self.env)
+        result = self.adapter.dispatch("wake_drain", {})
+        _assert_text_matches(self, result, proc)
+
+
+class TestGuardCheckEquivalence(ConformanceBase):
+    def test_guard_matches_direct_read_only(self):
+        guard_env = dict(self.env)
+        guard_env["FM_GUARD_READ_ONLY"] = "1"
+        proc = run_direct("fm-guard.sh", [], guard_env)
+        result = self.adapter.dispatch("guard_check", {})
+        self.assertEqual(proc.returncode, 0)
+        _assert_text_matches(self, result, proc)
+
+
 class TestSideEffectFree(ConformanceBase):
     def test_snapshot_served_from_scratch_home(self):
         result = self.adapter.dispatch("fleet_snapshot", {})
@@ -265,6 +379,12 @@ class TestSideEffectFree(ConformanceBase):
         self.adapter.dispatch("fleet_poll", {"count": 1, "interval_s": 0})
         (self.scratch / "state" / "t1.status").write_text("a\n", encoding="utf-8")
         self.adapter.dispatch("status_tail", {"id": "t1"})
+        self.adapter.dispatch("peek", {"target": "no-such-crew", "lines": 1})
+        self.adapter.dispatch("fleet_view", {})
+        self.adapter.dispatch("review_diff", {"id": "no-such-crew"})
+        self.adapter.dispatch("bearings_snapshot", {})
+        self.adapter.dispatch("wake_drain", {})
+        self.adapter.dispatch("guard_check", {})
         for script in self.runner.scripts_run():
             self.assertIn(script, READ_SCRIPTS, f"non-read script ran: {script}")
 

@@ -20,6 +20,7 @@ export const SUPPORTED_PROTOCOL_VERSIONS = [
 ] as const;
 
 export const SNAPSHOT_SCHEMA = "fm-fleet-snapshot.v1";
+export const BEARINGS_SCHEMA = "fm-bearings.v1";
 
 /** Repo root: the TS tree lives one folder below it (ts/ -> root). */
 export const CHECKOUT_ROOT: string = path.resolve(

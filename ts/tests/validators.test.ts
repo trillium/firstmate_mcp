@@ -12,6 +12,7 @@ import {
   validApproval,
   validId,
   validNote,
+  validPeekLines,
   validProject,
   validSingleLine,
   validStatusLines,
@@ -97,6 +98,19 @@ describe("validStatusLines", () => {
     assert.equal(validStatusLines("many"), null);
     assert.equal(validStatusLines(null), null);
     assert.equal(validStatusLines(undefined), null);
+  });
+});
+
+describe("validPeekLines", () => {
+  it("passes integers through the 1..100 window", () => {
+    assert.equal(validPeekLines(40), 40);
+    assert.equal(validPeekLines(999), 100);
+    assert.equal(validPeekLines(0), 1);
+  });
+  it("returns null for non-integers", () => {
+    assert.equal(validPeekLines("many"), null);
+    assert.equal(validPeekLines(null), null);
+    assert.equal(validPeekLines(undefined), null);
   });
 });
 
