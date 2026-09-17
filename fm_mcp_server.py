@@ -4,10 +4,12 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,7 +29,19 @@ CHECKOUT_BIN = CHECKOUT_ROOT / "bin"
 BIN = CHECKOUT_BIN if CHECKOUT_BIN.is_dir() else home_dir() / "bin"
 MAX_OUTPUT_BYTES = 1048576
 TAIL_CAP_BYTES = 8192
-SUBPROCESS_TIMEOUT_S = 180
+# Fail-closed call budget: no tool call ever blocks an external caller past
+# this. A script that cannot finish in time is killed as a whole process
+# group and answered with a typed timeout error; callers that need longer
+# work submit it via receipt_submit and poll receipt_status instead.
+SUBPROCESS_TIMEOUT_S = 30
+# Background budget for receipt runs: the detached continuation of a
+# receipt_submit may run this long while the caller stays unblocked.
+RECEIPT_TIMEOUT_S = 180
+# Receipt lifetime: completed receipt records stay retrievable this long,
+# then expire. Receipts live under the serving home's state dir, so they
+# never leak across homes.
+RECEIPT_TTL_S = 3600
+RECEIPT_DIRNAME = "mcp-receipts"
 SEND_TEXT_MAX_CHARS = 500
 APPROVAL_PREFIX = "I authorize"
 ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}")
@@ -92,6 +106,8 @@ AUDIT_TOOL_TIERS = {
     "lifecycle_relaunch": 3,
     "lifecycle_suspend": 3,
     "lifecycle_resume": 3,
+    "receipt_submit": 1,
+    "receipt_status": 1,
     "spawn_crew": 3,
     "scaffold_brief": 3,
     "decision_hold": 3,
@@ -135,6 +151,13 @@ AUDIT_VALIDATION_ERRORS = frozenset({
     "invalid final",
     "invalid count",
     "invalid interval_s",
+    "invalid tool",
+    "invalid arguments",
+    "unknown tool",
+    "invalid receipt_id",
+    "unknown receipt",
+    "receipt expired",
+    "cannot read receipt",
     "cannot read status log",
     "no status log for id",
     "unexpected snapshot schema",
@@ -162,7 +185,8 @@ def audit_approval_ref(approval):
 def audit_target(name, args):
     if not isinstance(args, dict):
         return None
-    for key in ("id", "target", "task_id", "origin_id", "request_id"):
+    for key in ("id", "target", "task_id", "origin_id", "request_id",
+                "receipt_id", "tool"):
         value = args.get(key)
         if isinstance(value, str) and value:
             return value
@@ -248,7 +272,18 @@ def terminate_process_group(proc, grace_s=5):
         proc.wait()
 
 
-def run_script(argv):
+_run_timeout = threading.local()
+
+
+def _current_timeout():
+    """Effective script budget: the fail-closed 30s default, or the receipt
+    background budget inside a receipt worker thread (thread-local, so sync
+    calls are never affected)."""
+    return getattr(_run_timeout, "s", SUBPROCESS_TIMEOUT_S)
+
+
+def run_script(argv, timeout_s=None):
+    budget = timeout_s if timeout_s is not None else _current_timeout()
     try:
         proc = subprocess.Popen(
             [str(a) for a in argv],
@@ -261,12 +296,84 @@ def run_script(argv):
     except FileNotFoundError as exc:
         return None, {"error": "executable not found", "detail": str(exc)}
     try:
-        stdout, stderr = proc.communicate(timeout=SUBPROCESS_TIMEOUT_S)
+        stdout, stderr = proc.communicate(timeout=budget)
     except subprocess.TimeoutExpired:
         terminate_process_group(proc)
         stdout, stderr = proc.communicate()
-        return None, {"error": "timed out", "timeout_s": SUBPROCESS_TIMEOUT_S}
+        return None, {"error": "timed out", "timeout_s": budget}
     return subprocess.CompletedProcess(proc.args, proc.returncode, stdout, stderr), None
+
+
+def receipt_dir():
+    return state_dir() / RECEIPT_DIRNAME
+
+
+def new_receipt_id():
+    return "rcpt-" + secrets.token_hex(8)
+
+
+def utc_now():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def write_receipt(record):
+    dest = receipt_dir()
+    dest.mkdir(parents=True, exist_ok=True)
+    path = (dest / (record["receipt_id"] + ".json")).resolve()
+    if path.parent != dest.resolve():
+        return False
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(record, sort_keys=True), encoding="utf-8")
+    tmp.replace(path)
+    return True
+
+
+def read_receipt(receipt_id):
+    """Load one receipt record confined to this home's receipt dir.
+    Returns (record, None) or (None, typed-error-payload)."""
+    if not valid_id(receipt_id):
+        return None, {"error": "invalid receipt_id",
+                       "expect": "receipt id from a receipt_submit pending response"}
+    try:
+        base = receipt_dir().resolve()
+    except FileNotFoundError:
+        return None, {"error": "unknown receipt", "receipt_id": receipt_id}
+    path = (receipt_dir() / (receipt_id + ".json")).resolve()
+    if path.parent != base:
+        return None, {"error": "invalid receipt_id",
+                       "expect": "receipt id from a receipt_submit pending response"}
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None, {"error": "unknown receipt", "receipt_id": receipt_id}
+    except (OSError, ValueError) as exc:
+        return None, {"error": "cannot read receipt", "detail": str(exc)}
+    if not isinstance(record, dict) or record.get("receipt_id") != receipt_id:
+        return None, {"error": "unknown receipt", "receipt_id": receipt_id}
+    return record, None
+
+
+def _receipt_worker(receipt_id, tool, args):
+    """Detached continuation of a receipt_submit: runs the target tool with
+    the receipt background budget and records the terminal result."""
+    _run_timeout.s = RECEIPT_TIMEOUT_S
+    try:
+        _, _, func = TOOLS[tool]
+        payload, is_error = func(args)
+    except Exception as exc:  # never leave a receipt stuck running
+        payload, is_error = {"error": "tool crashed", "detail": str(exc)}, True
+    record, err = read_receipt(receipt_id)
+    if err or record is None:
+        return
+    record.update({
+        "status": "failed" if is_error else "done",
+        "finished": utc_now(),
+        ("error_record" if is_error else "result"): payload,
+    })
+    try:
+        write_receipt(record)
+    except OSError:
+        pass
 
 
 def owned_call(argv, label):
@@ -679,6 +786,75 @@ def tool_fleet_poll(args):
     return payload, False
 
 
+# Tools whose schemas carry a required per-call approval string. A
+# receipt_submit for one of these targets only schedules when the nested
+# arguments carry a valid approval; open tools submit freely.
+NEEDS_APPROVAL = frozenset({
+    "lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch",
+    "lifecycle_suspend", "lifecycle_resume", "spawn_crew",
+    "scaffold_brief", "decision_hold", "decision_resolve",
+    "review_decision", "relay_reply", "relay_dismiss", "relay_followup",
+})
+
+
+def tool_receipt_submit(args):
+    target = args.get("tool")
+    nested = args.get("arguments")
+    if not isinstance(target, str) or not target:
+        return {"error": "invalid tool", "expect": "name of a known tool"}, True
+    if not isinstance(nested, dict):
+        return {"error": "invalid arguments", "expect": "object of arguments for the named tool"}, True
+    if target not in TOOLS or target in ("receipt_submit",):
+        return {"error": "unknown tool", "tool": target}, True
+    if target in NEEDS_APPROVAL and not valid_approval(nested.get("approval")):
+        return approval_error(), True
+    receipt_id = new_receipt_id()
+    created = time.time()
+    record = {
+        "receipt_id": receipt_id,
+        "tool": target,
+        "status": "running",
+        "created": utc_now(),
+        "created_epoch": created,
+        "ttl_s": RECEIPT_TTL_S,
+        "note": "long call detached; poll receipt_status for running/done/failed",
+    }
+    try:
+        if not write_receipt(record):
+            return {"error": "cannot record receipt"}, True
+    except OSError as exc:
+        return {"error": "cannot record receipt", "detail": str(exc)}, True
+    worker = threading.Thread(target=_receipt_worker, args=(receipt_id, target, nested), daemon=True)
+    worker.start()
+    return {
+        "status": "pending",
+        "receipt_id": receipt_id,
+        "tool": target,
+        "check": {"tool": "receipt_status", "arguments": {"receipt_id": receipt_id}},
+        "ttl_s": RECEIPT_TTL_S,
+        "note": "call detached past the 30s budget; check receipt_status for the result",
+    }, False
+
+
+def tool_receipt_status(args):
+    receipt_id = args.get("receipt_id")
+    record, err = read_receipt(receipt_id)
+    if err or record is None:
+        return err, True
+    try:
+        age = time.time() - float(record.get("created_epoch", 0))
+    except (TypeError, ValueError):
+        age = RECEIPT_TTL_S + 1
+    ttl = record.get("ttl_s", RECEIPT_TTL_S)
+    if age > ttl:
+        try:
+            (receipt_dir() / (record["receipt_id"] + ".json")).unlink(missing_ok=True)
+        except OSError:
+            pass
+        return {"error": "receipt expired", "receipt_id": record["receipt_id"], "ttl_s": ttl}, True
+    return record, False
+
+
 def approval_schema(extra):
     props = dict(extra)
     props["approval"] = {
@@ -843,6 +1019,29 @@ TOOLS = {
         }),
         tool_relay_followup,
     ),
+    "receipt_submit": (
+        "Detach one tool call past the 30s fail-closed budget; returns a pending receipt to poll with receipt_status.",
+        {
+            "type": "object",
+            "properties": {
+                "tool": {"type": "string", "description": "Name of the tool to run detached"},
+                "arguments": {"type": "object", "description": "Arguments for the named tool, including its approval when it requires one"},
+            },
+            "required": ["tool", "arguments"],
+            "additionalProperties": False,
+        },
+        tool_receipt_submit,
+    ),
+    "receipt_status": (
+        "Read-only check on one detached receipt; reports running, done with the result attached, failed, or expired.",
+        {
+            "type": "object",
+            "properties": {"receipt_id": {"type": "string", "description": "Receipt id from a receipt_submit pending response"}},
+            "required": ["receipt_id"],
+            "additionalProperties": False,
+        },
+        tool_receipt_status,
+    ),
     "fleet_poll": (
         "Read-only convenience poller over fleet_snapshot for clients that need push-like updates.",
         {
@@ -913,8 +1112,13 @@ def handle_tools_call(msg_id, params):
     except Exception as exc:  # never crash the session on a tool failure
         payload, is_error = {"error": "tool crashed", "detail": str(exc)}, True
     decision, reason = audit_decision(args, payload, is_error)
+    approval = args.get("approval")
+    if approval is None and name == "receipt_submit":
+        nested = args.get("arguments")
+        if isinstance(nested, dict):
+            approval = nested.get("approval")
     audit_append(tool_label, decision, reason,
-                 approval=args.get("approval"), target=audit_target(tool_label, args))
+                 approval=approval, target=audit_target(tool_label, args))
     result = {"content": [{"type": "text", "text": json.dumps(payload)}]}
     if is_error:
         result["isError"] = True

@@ -23,10 +23,13 @@ When updating this file, preserve this bar for all agents and keep entries conci
   status into `manifest/COVERAGE.md`; the gate fails on any unclassified command).
 - The repo tree has no `bin/`; the server resolves scripts through `FM_HOME/bin`
   (`fm_mcp_server.py:24-25`), defaulting to the live firstmate checkout.
-- Envelope (fm_mcp_server.py): `SUBPROCESS_TIMEOUT_S=180`, `MAX_OUTPUT_BYTES=1MB`,
-  sized to the live `fm-fleet-snapshot.sh` (~110s, ~500KB, ~42 tasks). `run_script`
-  starts children in their own session and kills the whole process group on
-  timeout, so timed-out fleet reads leave no orphan compute.
+- Envelope (fm_mcp_server.py): `SUBPROCESS_TIMEOUT_S=30`, `MAX_OUTPUT_BYTES=1MB`.
+  No call blocks past 30s: `run_script` starts children in their own session
+  and kills the whole process group on timeout, auditing a typed timeout
+  error. Calls needing longer (live `fm-fleet-snapshot.sh` takes ~110s)
+  go through `receipt_submit`/`receipt_status` (receipts under
+  `state/mcp-receipts/`, `RECEIPT_TIMEOUT_S=180`, `RECEIPT_TTL_S=3600`,
+  per-home confinement).
 - `adapter/dispatch.py` carries its own older envelope constants (30s/128KB) behind
   the conformance suite, which overrides timeouts via its own 60s runner; the two
   boundaries are independent and not drift-checked against each other.
@@ -36,7 +39,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
   node stays as fallback compat (`npm test` must stay green alongside).
   `bash tests/conformance/ts-parity.sh` diffs py/ts payloads field-for-field
   under both runtimes plus the TS fixtures. The TS path follows the live
-  server envelope (180s/1MB), never the adapter's older pair.
+  server envelope (30s/1MB + receipts), never the adapter's older pair.
 - Cutover: `scripts/fm-mcp-launch.sh --home $FM_HOME` serves the fleet
   local-only over stdio (Python default, `--server ts` for parity); pins
   `FM_HOME`, refuses network flags, never add a repo-root `bin/` (it would

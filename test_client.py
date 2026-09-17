@@ -54,13 +54,14 @@ def make_stub_home():
     return str(home)
 
 
-# Emulates the real fleet-snapshot envelope: the first call takes >30s (the old
-# server timeout) and every call emits >128KB (the old output ceiling) of valid
-# snapshot JSON. A marker file short-circuits the sleep after the first call so
-# the suite proves the raised envelope without paying 30s per tool call.
+# Emulates the real fleet-snapshot envelope: the first call takes >30s (past the
+# fail-closed server budget) and every call emits >128KB (past the old output
+# ceiling) of valid snapshot JSON. A marker file short-circuits the sleep after
+# the first call so the suite proves the fail-closed timeout without paying 30s
+# per tool call. Uses /bin/sleep absolutely: bare `sleep` may be a guard shim.
 SLOW_LARGE_SNAPSHOT = '''if [ ! -e "$FM_HOME/.envelope-slow-shown" ]; then
   : > "$FM_HOME/.envelope-slow-shown"
-  sleep 32
+  /bin/sleep 32
 fi
 python3 - <<'PY'
 import json
@@ -81,8 +82,8 @@ PY
 '''
 
 
-def make_envelope_stub_home():
-    home = Path(tempfile.mkdtemp(prefix="fm-mcp-envelope-"))
+def make_stub_home_with_snapshot(prefix, snapshot_body):
+    home = Path(tempfile.mkdtemp(prefix=prefix))
     bindir = home / "bin"
     bindir.mkdir()
     for name, body in STUBS.items():
@@ -90,10 +91,30 @@ def make_envelope_stub_home():
         script.write_text("#!/bin/sh\n" + body, encoding="utf-8")
         script.chmod(script.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     snapshot = bindir / "fm-fleet-snapshot.sh"
-    snapshot.write_text("#!/bin/sh\n" + SLOW_LARGE_SNAPSHOT, encoding="utf-8")
+    snapshot.write_text("#!/bin/sh\n" + snapshot_body, encoding="utf-8")
     snapshot.chmod(snapshot.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     (home / "state").mkdir()
     return str(home)
+
+
+def make_envelope_stub_home():
+    return make_stub_home_with_snapshot("fm-mcp-envelope-", SLOW_LARGE_SNAPSHOT)
+
+
+# Slow snapshot that also spawns a grandchild outliving the 30s budget: if the
+# server kills only the shell instead of the whole process group, the orphan
+# touches the marker after the timeout and the kill proof fails.
+ORPHAN_LARGE_SNAPSHOT = '''rm -f "$FM_HOME/orphan-marker"
+( /bin/sleep 34; touch "$FM_HOME/orphan-marker" ) >/dev/null 2>&1 &
+''' + SLOW_LARGE_SNAPSHOT
+
+
+def make_orphan_stub_home():
+    return make_stub_home_with_snapshot("fm-mcp-orphan-", ORPHAN_LARGE_SNAPSHOT)
+
+
+def make_receipt_stub_home():
+    return make_stub_home_with_snapshot("fm-mcp-receipt-", SLOW_LARGE_SNAPSHOT)
 
 
 def check(name, cond, detail=""):
@@ -207,11 +228,12 @@ def main():
         boxed.notify("notifications/initialized")
         resp = boxed.request("tools/list")
         names = {t["name"] for t in resp["result"]["tools"]}
-        check("smarts server lists 19 tools", len(names) == 19, sorted(names))
+        check("smarts server lists 21 tools", len(names) == 21, sorted(names))
         for required in ("lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch",
                          "lifecycle_suspend", "lifecycle_resume", "spawn_crew", "scaffold_brief",
                          "decision_hold", "decision_resolve", "review_decision", "relay_reply",
-                         "relay_dismiss", "relay_followup", "fleet_poll"):
+                         "relay_dismiss", "relay_followup", "fleet_poll",
+                         "receipt_submit", "receipt_status"):
             check(f"tool present: {required}", required in names)
         for forbidden in ("promote_scout", "teardown_crew", "arm_pr_check",
                           "merge_pr", "merge_local"):
@@ -224,7 +246,8 @@ def main():
         check("every authority tool schema requires approval", all(
             "approval" in (t.get("inputSchema", {}).get("required", []) or [])
             for t in resp["result"]["tools"]
-            if t["name"] not in ("fleet_snapshot", "backlog", "crew_state", "status_tail", "send_message", "fleet_poll")
+            if t["name"] not in ("fleet_snapshot", "backlog", "crew_state", "status_tail", "send_message", "fleet_poll",
+                                "receipt_submit", "receipt_status")
         ))
 
         resp = boxed.call("lifecycle_interrupt", {"id": "no-such-id"})
@@ -295,6 +318,9 @@ def main():
     finally:
         boxed.close()
 
+    # Fail-closed budget: a >30s snapshot never blocks past 30s, the whole
+    # process group dies, and the timeout is audited as an allowed execution
+    # whose downstream run failed (failure stays in the payload).
     envelope = make_envelope_stub_home()
     ebox = Client(env={"FM_HOME": envelope})
     try:
@@ -302,12 +328,17 @@ def main():
         resp = ebox.call("fleet_snapshot", {})
         elapsed = time.time() - started
         snap = payload(resp)
-        check("fleet_snapshot survives a >30s slow snapshot",
-              not is_error(resp) and snap.get("generated") == "envelope-slow-large", str(resp)[:200])
-        check("raised timeout covers the slow real-fleet path",
-              elapsed >= 30, f"{elapsed:.1f}s")
-        check("fleet_snapshot accepts >128KB output",
-              not is_error(resp) and len(snap.get("tasks", [])) == 800, str(resp)[:200])
+        check("slow snapshot fails closed within the 30s budget",
+              is_error(resp) and snap.get("error") == "timed out"
+              and snap.get("timeout_s") == 30, str(resp)[:200])
+        check("no call blocks an external caller past 30s",
+              30 <= elapsed < 45, f"{elapsed:.1f}s")
+        audit_lines = [json.loads(line) for line in
+                       Path(envelope, "state", "mcp-audit.jsonl").read_text().splitlines()]
+        timed_out = [line for line in audit_lines
+                     if line.get("tool") == "fleet_snapshot" and line.get("decision") == "allow"]
+        check("timed-out call is audited as allow with the failure in the payload",
+              len(timed_out) >= 1, str(audit_lines[-1:])[:200])
 
         resp = ebox.call("backlog", {})
         back = payload(resp)
@@ -321,6 +352,107 @@ def main():
               and len(json.dumps(polled).encode("utf-8")) <= 8192, str(resp)[:200])
     finally:
         ebox.close()
+
+    # Timeout kill proof: the orphan grandchild must never touch its marker.
+    orphan_home = make_orphan_stub_home()
+    obox = Client(env={"FM_HOME": orphan_home})
+    try:
+        started = time.time()
+        resp = obox.call("fleet_snapshot", {})
+        check("orphan-home slow snapshot also fails closed",
+              is_error(resp) and payload(resp).get("error") == "timed out", str(resp)[:200])
+        while time.time() - started < 40:
+            time.sleep(1)
+        check("timed-out group leaves no orphan compute",
+              not Path(orphan_home, "orphan-marker").exists())
+    finally:
+        obox.close()
+
+    # Receipt lifecycle: submit detaches immediately, status goes
+    # running -> done with the full result, failures attach too.
+    receipt_home = make_receipt_stub_home()
+    rbox = Client(env={"FM_HOME": receipt_home})
+    try:
+        started = time.time()
+        resp = rbox.call("receipt_submit", {"tool": "fleet_snapshot", "arguments": {}})
+        submit_elapsed = time.time() - started
+        sub = payload(resp)
+        check("receipt_submit detaches immediately with a pending receipt",
+              not is_error(resp) and sub.get("status") == "pending"
+              and sub.get("receipt_id", "").startswith("rcpt-")
+              and sub.get("ttl_s") == 3600, str(resp)[:300])
+        check("submit returns far inside the 30s budget",
+              submit_elapsed < 10, f"{submit_elapsed:.1f}s")
+        check("pending receipt carries its check signature",
+              sub.get("check") == {"tool": "receipt_status",
+                                  "arguments": {"receipt_id": sub.get("receipt_id")}}, str(resp)[:300])
+        rid = sub["receipt_id"]
+        done = None
+        deadline = time.time() + 120
+        while time.time() < deadline:
+            resp = rbox.call("receipt_status", {"receipt_id": rid})
+            state = payload(resp)
+            if state.get("status") != "running":
+                done = state
+                break
+            time.sleep(2)
+        check("receipt reaches done with the >128KB result attached",
+              done is not None and done.get("status") == "done"
+              and done.get("result", {}).get("generated") == "envelope-slow-large"
+              and len(done.get("result", {}).get("tasks", [])) == 800,
+              str(done)[:200])
+
+        resp = rbox.call("receipt_submit", {"tool": "status_tail",
+                                              "arguments": {"id": "../escape"}})
+        fail_rid = payload(resp)["receipt_id"]
+        failed = None
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            resp = rbox.call("receipt_status", {"receipt_id": fail_rid})
+            state = payload(resp)
+            if state.get("status") != "running":
+                failed = state
+                break
+            time.sleep(0.5)
+        check("failed receipt attaches its error record",
+              failed is not None and failed.get("status") == "failed"
+              and "invalid id" in str(failed.get("error_record", {})), str(failed)[:200])
+
+        resp = rbox.call("receipt_submit", {"tool": "nope", "arguments": {}})
+        check("submit refuses unknown tools", is_error(resp))
+        resp = rbox.call("receipt_submit", {"tool": "lifecycle_interrupt",
+                                              "arguments": {"id": "x"}})
+        check("submit still needs nested approval for authority targets",
+              is_error(resp) and "approval" in payload(resp).get("error", ""))
+        resp = rbox.call("receipt_status", {"receipt_id": "../escape"})
+        check("status rejects traversal receipt ids", is_error(resp))
+
+        # Cross-home isolation: this home's receipts are unknown elsewhere.
+        other = Client(env={"FM_HOME": envelope})
+        try:
+            resp = other.call("receipt_status", {"receipt_id": rid})
+            check("receipts never leak across homes",
+                  is_error(resp) and payload(resp).get("error") == "unknown receipt",
+                  str(resp)[:200])
+        finally:
+            other.close()
+
+        # Expiry: a record older than its TTL reads expired and is removed.
+        expired_id = "rcpt-expired-proof"
+        Path(receipt_home, "state", "mcp-receipts").mkdir(exist_ok=True)
+        Path(receipt_home, "state", "mcp-receipts", expired_id + ".json").write_text(json.dumps({
+            "receipt_id": expired_id, "tool": "fleet_snapshot", "status": "done",
+            "created": "stub", "created_epoch": time.time() - 7200,
+            "ttl_s": 3600, "result": {},
+        }))
+        resp = rbox.call("receipt_status", {"receipt_id": expired_id})
+        check("expired receipts report expired with their TTL",
+              is_error(resp) and payload(resp).get("error") == "receipt expired"
+              and payload(resp).get("ttl_s") == 3600, str(resp)[:200])
+        check("expired receipt record is removed",
+              not Path(receipt_home, "state", "mcp-receipts", expired_id + ".json").exists())
+    finally:
+        rbox.close()
     failed = [n for n, ok, _ in CHECKS if not ok]
     print(f"{len(CHECKS) - len(failed)}/{len(CHECKS)} checks passed")
     sys.exit(1 if failed else 0)

@@ -35,6 +35,8 @@ CURRENT_PINS = {
     "send_message": "fm-send.plain-text.v1",
     "spawn_crew": "fm-spawn.safe-subset.v1",
     "scaffold_brief": "fm-brief.safe-subset.v1",
+    "receipt_submit": "mcp-receipt.v1",
+    "receipt_status": "mcp-receipt.v1",
 }
 
 

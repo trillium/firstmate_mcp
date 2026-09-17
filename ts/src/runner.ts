@@ -1,8 +1,9 @@
 /**
  * Fail-closed subprocess runner.
  *
- * Contract: every tool script runs with SUBPROCESS_TIMEOUT_S=180 and a
- * MAX_OUTPUT_BYTES=1MB envelope. Children start at the head of their own
+ * Contract: every tool script runs with SUBPROCESS_TIMEOUT_S=30 and a
+ * MAX_OUTPUT_BYTES=1MB envelope. Receipt continuations (receipt_submit)
+ * run detached with RECEIPT_TIMEOUT_S=180 while the caller stays unblocked. Children start at the head of their own
  * process group (detached) so a timeout can reclaim the whole descendant
  * tree — a bare child-kill would leave fm-*.sh per-task grandchildren
  * running as orphans. On timeout the group gets SIGTERM, a short grace
@@ -96,6 +97,11 @@ export function runScript(argv: string[], opts: RunnerOptions = {}): Promise<Run
     let stdout = "";
     let stderr = "";
     let settled = false;
+    // Once the budget fires, the run is a timeout no matter what the dying
+    // child reports first: the SIGTERM-killed shell's close event (exitCode
+    // null) routinely beats the kill-grace wait, and must not surface as a
+    // downstream "script failed" instead of the typed timeout error.
+    let timedOut = false;
     const finish = (value: RunResult | RunError) => {
       if (!settled) {
         settled = true;
@@ -103,9 +109,11 @@ export function runScript(argv: string[], opts: RunnerOptions = {}): Promise<Run
         resolve(value);
       }
     };
+    const timedOutError = (): RunError => ({ error: "timed out", timeout_s: timeoutS });
     const timer = setTimeout(() => {
+      timedOut = true;
       void killProcessGroup(child).then(() => {
-        finish({ error: "timed out", timeout_s: timeoutS });
+        finish(timedOutError());
       });
     }, timeoutS * 1000);
     // Don't let the kill-grace timer keep the event loop alive on its own.
@@ -125,6 +133,10 @@ export function runScript(argv: string[], opts: RunnerOptions = {}): Promise<Run
       }
     });
     child.on("close", (code) => {
+      if (timedOut) {
+        finish(timedOutError());
+        return;
+      }
       finish({ stdout, stderr, exitCode: code });
     });
   });

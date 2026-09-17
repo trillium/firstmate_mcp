@@ -72,9 +72,13 @@ Refused by the adapter deny-list (no tool, answered unknown):
   `drift/shift.py` diffs the pin against upstream main and reports
   which depended-on surfaces moved, so TS/Python ports start from
   that report.
-- Subprocess envelope — `fm_mcp_server.py` runs every tool script with
-  `SUBPROCESS_TIMEOUT_S=180` and `MAX_OUTPUT_BYTES=1048576`,
+- Subprocess envelope — `fm_mcp_server.py` returns every tool call within
+  `SUBPROCESS_TIMEOUT_S=30` with `MAX_OUTPUT_BYTES=1048576`,
   process-group kill on timeout so timed-out reads leave no orphans.
+- Async receipts — `receipt_submit` detaches one call past the 30s
+  budget and returns a pending receipt; `receipt_status` reports
+  running/done/failed with the result attached, TTL expiry, and
+  per-home confinement so receipts never leak across homes.
 - Auth tiers in code — `auth/tiers.py` assigns every tool a tier,
   `auth/audit.py` writes the JSON-lines audit log; every
   authority-bearing tool refuses without an `I authorize` string.
@@ -84,7 +88,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - Conformance fixtures — `tests/conformance/` proves adapter output
   equals the owning scripts' output via stub homes (skips cleanly
   without a firstmate checkout).
-- TypeScript sibling — `ts/` independently implements the same 19-tool
+- TypeScript sibling — `ts/` independently implements the same 21-tool
   contract over stdio (no dependencies); `tests/conformance/ts-parity.sh`
   diffs py/ts payloads field-for-field plus the TS equivalence fixtures.
 - Proof suites in this tree (all run in gates below):

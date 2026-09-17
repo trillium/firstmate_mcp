@@ -108,6 +108,13 @@ const AUDIT_VALIDATION_ERRORS: ReadonlySet<string> = new Set([
   "invalid final",
   "invalid count",
   "invalid interval_s",
+  "invalid tool",
+  "invalid arguments",
+  "unknown tool",
+  "invalid receipt_id",
+  "unknown receipt",
+  "receipt expired",
+  "cannot read receipt",
   "cannot read status log",
   "no status log for id",
   "unexpected snapshot schema",
@@ -120,7 +127,7 @@ const AUDIT_VALIDATION_ERRORS: ReadonlySet<string> = new Set([
 function auditTarget(args: unknown): string | null {
   if (typeof args !== "object" || args === null || Array.isArray(args)) return null;
   const record = args as Record<string, unknown>;
-  for (const key of ["id", "target", "task_id", "origin_id", "request_id"]) {
+  for (const key of ["id", "target", "task_id", "origin_id", "request_id", "receipt_id", "tool"]) {
     const value = record[key];
     if (typeof value === "string" && value !== "") return value;
   }
@@ -212,8 +219,14 @@ export async function handleToolsCall(
   }
   {
     const [decision, reason] = auditDecision(args, payload, isError);
-    auditAppend(ctx, toolLabel, decision, reason,
-      (args as Record<string, unknown>)["approval"], auditTarget(args));
+    let approval = (args as Record<string, unknown>)["approval"];
+    if (approval === undefined && toolLabel === "receipt_submit") {
+      const nested = (args as Record<string, unknown>)["arguments"];
+      if (typeof nested === "object" && nested !== null && !Array.isArray(nested)) {
+        approval = (nested as Record<string, unknown>)["approval"];
+      }
+    }
+    auditAppend(ctx, toolLabel, decision, reason, approval, auditTarget(args));
   }
   const result: Record<string, unknown> = {
     content: [{ type: "text", text: JSON.stringify(payload) }],
