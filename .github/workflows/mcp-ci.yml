@@ -83,6 +83,23 @@ jobs:
       - name: py/ts wire parity plus ts fixtures (both runtimes)
         run: bash tests/conformance/ts-parity.sh
 
+  upstream:
+    name: upstream preservation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: upstream tests unchanged against py + ts
+        run: bash tests/upstream/run_upstream.sh
+
   drift:
     name: drift-baseline freshness
     runs-on: ubuntu-latest

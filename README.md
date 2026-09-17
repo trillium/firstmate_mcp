@@ -88,6 +88,11 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - Conformance fixtures — `tests/conformance/` proves adapter output
   equals the owning scripts' output via stub homes (skips cleanly
   without a firstmate checkout).
+- Upstream preservation — `tests/upstream/` runs upstream firstmate
+  tests unchanged against both py and ts paths via thin adapters
+  (upstream reference skips cleanly without a checkout); verdicts
+  seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
+  `tests/upstream/divergences.json`.
 - TypeScript sibling — `ts/` independently implements the same 21-tool
   contract over stdio (no dependencies); `tests/conformance/ts-parity.sh`
   diffs py/ts payloads field-for-field plus the TS equivalence fixtures.
@@ -100,6 +105,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   - `tests/fm-coverage.test.sh`
   - `tests/conformance/conformance.sh`
   - `tests/conformance/ts-parity.sh`
+  - `tests/upstream/run_upstream.sh`
   - `tests/test_drift.py`
   - `auth/test_authz.py`
   - `ts/tests/server.test.ts`
@@ -116,7 +122,7 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | --- | --- | --- | --- |
 | Fleet runs | 1 | 0 | 7 |
 | Supervision | 4 | 4 | 32 |
-| Sessions | 2 | 0 | 23 |
+| Sessions | 2 | 0 | 16 |
 | Backlog / decisions | 2 | 0 | 10 |
 | Secondmates / remotes | 0 | 0 | 20 |
 | PR pipeline | 0 | 5 | 6 |

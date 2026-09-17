@@ -1,0 +1,62 @@
+{
+  "version": "v1",
+  "upstream": {
+    "repo": "https://github.com/kunchenguid/firstmate.git",
+    "submodule": "sources/firstmate",
+    "gitlink": "3eb5b6334a80e06083e3837f0032a5cec39b8e52",
+    "note": "Human-readable pointer only; the gitlink is the authoritative pin. Resolved live by run_upstream.py in resolution order: sources/firstmate, $FIRSTMATE_HOME/$FM_REAL_HOME/$FM_CHECKOUT, live checkout sibling. Upstream tests are read-only input and are never patched."
+  },
+  "contracts_source": "schema/contracts.yaml",
+  "selection_rule": "One representative upstream test per depended-on contract in schema/contracts.yaml. backlog is derived from fleet_snapshot and status_tail has no owning script (both adapter-native); their upstream reference is the file tail / derived projection itself, mirroring tests/conformance/test_conformance.py. Representatives were chosen as the fastest hermetic passers at seed time; slower or live-dependent siblings (e.g. fm-bearings-snapshot, fm-spawn-batch) remain tracked upstream but are not seed-gating.",
+  "tests": [
+    {
+      "id": "fleet_snapshot",
+      "contracts": ["fleet_snapshot"],
+      "upstream_test": "fm-fleet-snapshot-view.test.sh",
+      "mcp_tools": ["fleet_snapshot"],
+      "upstream_note": "Read-only fleet snapshot and its human renderer over fm-fleet-snapshot.sh --json with schema fm-fleet-snapshot.v1 (INVENTORY.md). Hermetic and fast at seed time."
+    },
+    {
+      "id": "backlog",
+      "contracts": ["backlog"],
+      "upstream_test": null,
+      "mcp_tools": ["backlog"],
+      "upstream_note": "Derived surface (no owning script): backlog records plus per-state counts derived from the same snapshot. Upstream reference is the snapshot itself; harness proves derivation on both paths."
+    },
+    {
+      "id": "crew_state",
+      "contracts": ["crew_state"],
+      "upstream_test": "fm-crew-state.test.sh",
+      "mcp_tools": ["crew_state"],
+      "upstream_note": "Deterministic current-state read reconciling run-step, pane, and status log; harness additionally pins the stricter-is-conformant traversal refusal (div-stricter-id)."
+    },
+    {
+      "id": "status_tail",
+      "contracts": ["status_tail"],
+      "upstream_test": null,
+      "mcp_tools": ["status_tail"],
+      "upstream_note": "No owning script (adapter-native bounded confined file read). Upstream reference is the file tail itself plus confinement both sides agree on, mirroring conformance StatusTailEquivalenceTest."
+    },
+    {
+      "id": "send_message",
+      "contracts": ["send_message"],
+      "upstream_test": "fm-send-strict.test.sh",
+      "mcp_tools": ["send_message"],
+      "upstream_note": "Plain-text steer path only (500-char single line, slash-command refusal); --key/--raw/lifecycle verbs out of scope per schema/contracts.yaml."
+    },
+    {
+      "id": "spawn_crew",
+      "contracts": ["spawn_crew"],
+      "upstream_test": "fm-spawn-beads.test.sh",
+      "mcp_tools": ["spawn_crew"],
+      "upstream_note": "Safe flag subset only (task, project, mode, yolo) with approval gate; beads-spawn coverage exercises the owning fm-spawn.sh surface hermetically."
+    },
+    {
+      "id": "scaffold_brief",
+      "contracts": ["scaffold_brief"],
+      "upstream_test": "fm-brief.test.sh",
+      "mcp_tools": ["scaffold_brief"],
+      "upstream_note": "Scaffolds instructions without launching; safe subset (task, repo, mode/scout) with approval gate."
+    }
+  ]
+}
