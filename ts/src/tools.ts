@@ -1,0 +1,900 @@
+/**
+ * The 19 smarts-only tools, in feature-manifest order.
+ *
+ * SUPPORTED (no approval): fleet_snapshot, backlog, crew_state,
+ * status_tail, send_message (+ fleet_poll, the read-only poller).
+ * CHANGED (approval-gated): decision_hold, decision_resolve,
+ * lifecycle_interrupt/exit/relaunch/suspend/resume, relay_reply/dismiss/
+ * followup, review_decision, scaffold_brief, spawn_crew.
+ *
+ * Refused by the deny-list (no tool, answered unknown): promote_scout,
+ * teardown_crew, arm_pr_check, merge_pr, merge_local, daemon_start/stop/
+ * restart, watch_start/stop, repo_edit/commit/push/merge.
+ *
+ * Every tool shells to its owning bin/fm-*.sh script and never reimplements
+ * firstmate behavior. Wire payloads match the Python server exactly so the
+ * shared conformance checks are the referee between the two paths.
+ */
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import {
+  APPROVAL_PREFIX,
+  BRIEF_MODES,
+  MAX_OUTPUT_BYTES,
+  MODES,
+  SEND_TEXT_MAX_CHARS,
+  SNAPSHOT_SCHEMA,
+  VERDICTS,
+  YOLO,
+  binDir as defaultBinDir,
+  stateDir as defaultStateDir,
+} from "./constants.js";
+import { ownedCall, runScript, truncate, byteLength, isRunResult } from "./runner.js";
+import {
+  confineStatePath,
+  validApproval,
+  validId,
+  validNote,
+  validProject,
+  validStatusLines,
+} from "./validators.js";
+
+export type ToolArgs = Record<string, unknown>;
+
+export interface ToolResult {
+  payload: Record<string, unknown>;
+  isError: boolean;
+}
+
+export type ToolHandler = (args: ToolArgs, ctx: ToolContext) => Promise<ToolResult>;
+
+export interface ToolContext {
+  binDir: string;
+  stateDir: string;
+  run: typeof runScript;
+}
+
+export function liveContext(): ToolContext {
+  return { binDir: defaultBinDir(), stateDir: defaultStateDir(), run: runScript };
+}
+
+// --- Deny-list: code-writing, landing, daemon, and repo-mutation surfaces
+// have no tool and are refused as unknown before any process starts. ---
+
+export const DENY_LIST: ReadonlySet<string> = new Set([
+  "promote_scout",
+  "teardown_crew",
+  "arm_pr_check",
+  "merge_pr",
+  "merge_local",
+  "daemon_start",
+  "daemon_stop",
+  "daemon_restart",
+  "watch_start",
+  "watch_stop",
+  "repo_edit",
+  "repo_commit",
+  "repo_push",
+  "repo_merge",
+]);
+
+/** Flags no argv builder may ever emit. */
+export const DENIED_FLAGS: ReadonlySet<string> = new Set([
+  "--key",
+  "--raw",
+  "--force",
+  "--yes",
+  "--force-with-lease",
+]);
+
+export function argv(...parts: string[]): string[] {
+  for (const flag of parts) {
+    if (DENIED_FLAGS.has(flag)) throw new Error(`denied flag: ${flag}`);
+  }
+  return [...parts];
+}
+
+function approvalError(): Record<string, unknown> {
+  return {
+    error: "approval required",
+    expect: "explicit approval string starting with 'I authorize'",
+  };
+}
+
+function sleepSyncMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// --- SUPPORTED: open reads + the single safe steer ---
+
+async function toolFleetSnapshot(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const res = await ctx.run([path.join(ctx.binDir, "fm-fleet-snapshot.sh"), "--json"]);
+  if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
+  if (res.exitCode !== 0) {
+    const [out] = truncate(res.stderr || res.stdout || "");
+    return {
+      payload: { error: "snapshot failed", exit: res.exitCode, output: out },
+      isError: true,
+    };
+  }
+  if (byteLength(res.stdout) > MAX_OUTPUT_BYTES) {
+    return { payload: { error: "snapshot too large for PoC envelope" }, isError: true };
+  }
+  let snapshot: Record<string, unknown>;
+  try {
+    snapshot = JSON.parse(res.stdout) as Record<string, unknown>;
+  } catch {
+    const [out] = truncate(res.stdout);
+    return { payload: { error: "snapshot was not JSON", output: out }, isError: true };
+  }
+  if (snapshot["schema"] !== SNAPSHOT_SCHEMA) {
+    return {
+      payload: { error: "unexpected snapshot schema", schema: snapshot["schema"] },
+      isError: true,
+    };
+  }
+  return { payload: snapshot, isError: false };
+}
+
+async function toolBacklog(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const { payload: snapshot, isError } = await toolFleetSnapshot({}, ctx);
+  if (isError) return { payload: snapshot, isError: true };
+  const byState: Record<string, number> = {};
+  const tasks = (snapshot["tasks"] as Array<Record<string, unknown>>) ?? [];
+  for (const task of tasks) {
+    const current = (task["current_state"] as Record<string, unknown> | undefined) ?? {};
+    const state = (current["state"] as string) || "unknown";
+    byState[state] = (byState[state] ?? 0) + 1;
+  }
+  return {
+    payload: {
+      generated: snapshot["generated"],
+      backlog: (snapshot["backlog"] as unknown) ?? {},
+      task_counts: { total: tasks.length, by_state: byState },
+    },
+    isError: false,
+  };
+}
+
+const CREW_STATE_RE = /state:\s*(\S+)\s+·\s*source:\s*(\S+)\s+·\s*(.*)/;
+
+async function toolCrewState(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["id"];
+  if (!validId(taskId)) {
+    return {
+      payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  const res = await ctx.run([path.join(ctx.binDir, "fm-crew-state.sh"), taskId]);
+  if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
+  const rawLines = (res.stdout || "").trim().split("\n");
+  const line = rawLines[0] ?? "";
+  let parsed: Record<string, unknown> = { state: "unknown", source: "none", detail: line };
+  const match = CREW_STATE_RE.exec(line);
+  if (match) {
+    parsed = { state: match[1], source: match[2], detail: match[3] };
+  }
+  return { payload: { id: taskId, current: parsed, raw: line }, isError: false };
+}
+
+async function toolStatusTail(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["id"];
+  if (!validId(taskId)) {
+    return {
+      payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  let lines: number;
+  const rawLines = args["lines"] ?? 10;
+  if (typeof rawLines === "number" && Number.isInteger(rawLines)) {
+    lines = rawLines;
+  } else if (typeof rawLines === "string" && rawLines.trim() !== "" && Number.isInteger(Number(rawLines))) {
+    lines = Number(rawLines);
+  } else {
+    return { payload: { error: "invalid lines", expect: "integer 1..50" }, isError: true };
+  }
+  lines = Math.max(1, Math.min(50, lines));
+  void validStatusLines;
+  let stateResolved: string;
+  try {
+    stateResolved = fs.realpathSync(ctx.stateDir);
+  } catch {
+    return { payload: { error: "no status log for id", id: taskId }, isError: true };
+  }
+  void stateResolved;
+  const confined = confineStatePath(ctx.stateDir, taskId);
+  if (confined === null) {
+    return {
+      payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  let content: string[];
+  try {
+    content = fs.readFileSync(confined, "utf8").split("\n");
+    // Drop the trailing empty element from a final newline, matching
+    // Python's str.splitlines() semantics.
+    if (content.length > 0 && content[content.length - 1] === "") content.pop();
+  } catch (exc) {
+    const nodeErr = exc as NodeJS.ErrnoException;
+    if (nodeErr?.code === "ENOENT") {
+      return { payload: { error: "no status log for id", id: taskId }, isError: true };
+    }
+    return {
+      payload: { error: "cannot read status log", detail: String(exc) },
+      isError: true,
+    };
+  }
+  return {
+    payload: {
+      id: taskId,
+      events: content.slice(-lines),
+      warning:
+        "wake-event history only, never current state; use crew_state for current state",
+    },
+    isError: false,
+  };
+}
+
+async function toolSendMessage(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const target = args["target"];
+  const text = args["text"];
+  if (!validId(target)) {
+    return {
+      payload: { error: "invalid target", expect: "exact task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (typeof text !== "string" || text.length < 1 || text.length > SEND_TEXT_MAX_CHARS) {
+    return {
+      payload: {
+        error: "invalid text",
+        expect: `single line, 1..${SEND_TEXT_MAX_CHARS} chars`,
+      },
+      isError: true,
+    };
+  }
+  if (text.includes("\n") || text.includes("\r")) {
+    return {
+      payload: { error: "invalid text", expect: "single line, no newlines" },
+      isError: true,
+    };
+  }
+  if (text.trimStart().startsWith("/")) {
+    return {
+      payload: { error: "slash commands refused", expect: "plain prose steer only" },
+      isError: true,
+    };
+  }
+  const res = await ctx.run([path.join(ctx.binDir, "fm-send.sh"), target as string, text]);
+  if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
+  const [out, outTrunc] = truncate(res.stdout || "");
+  const [errOut, errTrunc] = truncate(res.stderr || "");
+  if (res.exitCode !== 0) {
+    return {
+      payload: {
+        error: "steer refused or failed",
+        target,
+        exit: res.exitCode,
+        stdout: out,
+        stderr: errOut,
+      },
+      isError: true,
+    };
+  }
+  return {
+    payload: {
+      delivered: true,
+      target,
+      note: "verified submit per fm-send contract; delivery is not reply",
+      stdout: out,
+      stdout_truncated: outTrunc,
+      stderr_truncated: errTrunc,
+    },
+    isError: false,
+  };
+}
+
+// --- CHANGED: approval-gated writes ---
+
+async function lifecycleTool(
+  args: ToolArgs,
+  ctx: ToolContext,
+  verb: string,
+  needsNote: boolean,
+): Promise<ToolResult> {
+  const taskId = args["id"];
+  if (!validId(taskId)) {
+    return {
+      payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = argv(path.join(ctx.binDir, "fm-control.sh"), taskId as string, verb);
+  if (needsNote) {
+    const note = args["note"];
+    if (!validNote(note)) {
+      return {
+        payload: { error: "invalid note", expect: "single line, 1..500 chars" },
+        isError: true,
+      };
+    }
+    cmd.push("--note", note as string);
+  }
+  const { payload, isError } = await ownedCall(cmd, `${verb} refused or failed`, ctx.run);
+  if (!isError) return { payload: { ...payload, verb, id: taskId }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolSpawnCrew(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  const project = args["project"];
+  const mode = args["mode"];
+  const yolo = args["yolo"];
+  if (!validId(taskId)) {
+    return {
+      payload: { error: "invalid task_id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (!validProject(project)) {
+    return {
+      payload: {
+        error: "invalid project",
+        expect: "bare name or projects/<name>, no absolute paths or traversal",
+      },
+      isError: true,
+    };
+  }
+  if (!(MODES as readonly unknown[]).includes(mode)) {
+    return {
+      payload: { error: "invalid mode", expect: "one of no-mistakes, direct-PR, local-only" },
+      isError: true,
+    };
+  }
+  if (!(YOLO as readonly unknown[]).includes(yolo)) {
+    return { payload: { error: "invalid yolo", expect: "one of on, off" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const { payload, isError } = await ownedCall(
+    argv(
+      path.join(ctx.binDir, "fm-spawn.sh"),
+      taskId as string,
+      project as string,
+      "--mode",
+      mode as string,
+      "--yolo",
+      yolo as string,
+    ),
+    "spawn refused or failed",
+    ctx.run,
+  );
+  if (!isError) {
+    return { payload: { ...payload, task_id: taskId, project, mode }, isError: false };
+  }
+  return { payload, isError: true };
+}
+
+async function toolScaffoldBrief(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  const project = args["project"];
+  const mode = args["mode"];
+  if (!validId(taskId)) {
+    return {
+      payload: { error: "invalid task_id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (!validProject(project)) {
+    return {
+      payload: {
+        error: "invalid project",
+        expect: "bare name or projects/<name>, no absolute paths or traversal",
+      },
+      isError: true,
+    };
+  }
+  if (!(BRIEF_MODES as readonly unknown[]).includes(mode)) {
+    return {
+      payload: {
+        error: "invalid mode",
+        expect: "one of no-mistakes, direct-PR, local-only, scout",
+      },
+      isError: true,
+    };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const base = [path.join(ctx.binDir, "fm-brief.sh"), taskId as string, project as string];
+  const cmd =
+    mode === "scout" ? argv(...base, "--scout") : argv(...base, "--mode", mode as string);
+  const { payload, isError } = await ownedCall(cmd, "brief refused or failed", ctx.run);
+  if (!isError) {
+    return { payload: { ...payload, task_id: taskId, project, mode }, isError: false };
+  }
+  return { payload, isError: true };
+}
+
+async function toolDecisionHold(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const originId = args["origin_id"];
+  const decisionKey = args["decision_key"];
+  const title = args["title"];
+  const reason = args["reason"];
+  if (!validId(originId)) {
+    return {
+      payload: { error: "invalid origin_id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (!validId(decisionKey)) {
+    return {
+      payload: { error: "invalid decision_key", expect: "short slug, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (!validNote(title, 200)) {
+    return {
+      payload: { error: "invalid title", expect: "single line, 1..200 chars" },
+      isError: true,
+    };
+  }
+  if (!validNote(reason, 1000)) {
+    return {
+      payload: { error: "invalid reason", expect: "single line, 1..1000 chars" },
+      isError: true,
+    };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const { payload, isError } = await ownedCall(
+    argv(
+      path.join(ctx.binDir, "fm-decision-hold.sh"),
+      "hold",
+      originId as string,
+      decisionKey as string,
+      "--title",
+      title as string,
+      "--reason",
+      reason as string,
+    ),
+    "decision hold refused or failed",
+    ctx.run,
+  );
+  if (!isError) {
+    return { payload: { ...payload, origin_id: originId, decision_key: decisionKey }, isError: false };
+  }
+  return { payload, isError: true };
+}
+
+let tmpCounter = 0;
+function writeTempFile(content: string): string {
+  tmpCounter += 1;
+  const tmp = path.join(
+    os.tmpdir(),
+    `fm-mcp-ts-${process.pid}-${Date.now()}-${tmpCounter}.md`,
+  );
+  fs.writeFileSync(tmp, content, "utf8");
+  return tmp;
+}
+
+function removeTempFile(tmp: string): void {
+  try {
+    fs.unlinkSync(tmp);
+  } catch {
+    /* best effort */
+  }
+}
+
+async function toolDecisionResolve(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const originId = args["origin_id"];
+  const decisionKey = args["decision_key"];
+  const routedTo = args["routed_to"];
+  const decisionText = args["decision_text"];
+  if (!validId(originId)) {
+    return {
+      payload: { error: "invalid origin_id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (!validId(decisionKey)) {
+    return {
+      payload: { error: "invalid decision_key", expect: "short slug, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (!validId(routedTo)) {
+    return {
+      payload: { error: "invalid routed_to", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (typeof decisionText !== "string" || decisionText.length < 1 || decisionText.length > 2000) {
+    return {
+      payload: { error: "invalid decision_text", expect: "1..2000 chars" },
+      isError: true,
+    };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const tmp = writeTempFile(decisionText);
+  try {
+    const { payload, isError } = await ownedCall(
+      argv(
+        path.join(ctx.binDir, "fm-decision-hold.sh"),
+        "resolve",
+        originId as string,
+        decisionKey as string,
+        "--decision-file",
+        tmp,
+        "--routed-to",
+        routedTo as string,
+      ),
+      "decision resolve refused or failed",
+      ctx.run,
+    );
+    if (!isError) {
+      return {
+        payload: { ...payload, origin_id: originId, decision_key: decisionKey },
+        isError: false,
+      };
+    }
+    return { payload, isError: true };
+  } finally {
+    removeTempFile(tmp);
+  }
+}
+
+async function toolReviewDecision(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["id"];
+  const verdict = args["verdict"];
+  const comment = args["comment"] ?? "";
+  if (!validId(taskId)) {
+    return {
+      payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (!(VERDICTS as readonly unknown[]).includes(verdict)) {
+    return {
+      payload: { error: "invalid verdict", expect: "one of approve, decline, comment" },
+      isError: true,
+    };
+  }
+  if (comment !== "" && !validNote(comment)) {
+    return {
+      payload: { error: "invalid comment", expect: "single line, 1..500 chars" },
+      isError: true,
+    };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = argv(path.join(ctx.binDir, "fm-review-decision.sh"), taskId as string, verdict as string);
+  if (comment !== "") cmd.push(comment as string);
+  const { payload, isError } = await ownedCall(cmd, "review decision refused or failed", ctx.run);
+  if (!isError) {
+    return { payload: { ...payload, id: taskId, verdict }, isError: false };
+  }
+  return { payload, isError: true };
+}
+
+async function toolRelayReply(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const requestId = args["request_id"];
+  const text = args["text"];
+  if (!validId(requestId)) {
+    return {
+      payload: { error: "invalid request_id", expect: "short slug, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (typeof text !== "string" || text.length < 1 || text.length > 2000) {
+    return { payload: { error: "invalid text", expect: "1..2000 chars" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-x-reply.sh"), requestId as string, text),
+    "relay reply refused or failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, request_id: requestId }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolRelayDismiss(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const requestId = args["request_id"];
+  if (!validId(requestId)) {
+    return {
+      payload: { error: "invalid request_id", expect: "short slug, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-x-dismiss.sh"), requestId as string),
+    "relay dismiss refused or failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, request_id: requestId }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolRelayFollowup(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  const text = args["text"];
+  const final = args["final"] ?? false;
+  if (!validId(taskId)) {
+    return {
+      payload: { error: "invalid task_id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (typeof text !== "string" || text.length < 1 || text.length > 2000) {
+    return { payload: { error: "invalid text", expect: "1..2000 chars" }, isError: true };
+  }
+  if (typeof final !== "boolean") {
+    return { payload: { error: "invalid final", expect: "boolean" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const tmp = writeTempFile(text);
+  try {
+    const cmd = argv(path.join(ctx.binDir, "fm-x-followup.sh"), taskId as string, "--text-file", tmp);
+    if (final) cmd.push("--final");
+    const { payload, isError } = await ownedCall(cmd, "relay followup refused or failed", ctx.run);
+    if (!isError) return { payload: { ...payload, task_id: taskId }, isError: false };
+    return { payload, isError: true };
+  } finally {
+    removeTempFile(tmp);
+  }
+}
+
+async function toolFleetPoll(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  let count: number;
+  const rawCount = args["count"] ?? 2;
+  if (typeof rawCount === "number" && Number.isInteger(rawCount)) {
+    count = rawCount;
+  } else if (typeof rawCount === "string" && rawCount.trim() !== "" && Number.isInteger(Number(rawCount))) {
+    count = Number(rawCount);
+  } else {
+    return { payload: { error: "invalid count", expect: "integer 1..3" }, isError: true };
+  }
+  let intervalS: number;
+  const rawInterval = args["interval_s"] ?? 0;
+  if (typeof rawInterval === "number" && Number.isFinite(rawInterval)) {
+    intervalS = rawInterval;
+  } else if (typeof rawInterval === "string" && rawInterval.trim() !== "" && Number.isFinite(Number(rawInterval))) {
+    intervalS = Number(rawInterval);
+  } else {
+    return { payload: { error: "invalid interval_s", expect: "number 0..2" }, isError: true };
+  }
+  count = Math.max(1, Math.min(3, count));
+  intervalS = Math.max(0, Math.min(2, intervalS));
+  const polls: Array<Record<string, unknown>> = [];
+  for (let i = 0; i < count; i++) {
+    const { payload: snapshot, isError } = await toolFleetSnapshot({}, ctx);
+    if (isError) return { payload: snapshot, isError: true };
+    polls.push({
+      generated: snapshot["generated"],
+      tasks: ((snapshot["tasks"] as unknown[]) ?? []).length,
+    });
+    if (intervalS > 0) await sleepSyncMs(intervalS * 1000);
+  }
+  const payload: Record<string, unknown> = {
+    polls,
+    warning: "polling convenience only; fleet_snapshot stays canonical",
+  };
+  if (byteLength(JSON.stringify(payload)) > MAX_OUTPUT_BYTES) {
+    return {
+      payload: { error: "poll output too large for PoC envelope", polls: polls.length },
+      isError: true,
+    };
+  }
+  return { payload, isError: false };
+}
+
+// --- Registry (schemas match the Python server's tools/list exactly) ---
+
+export interface ToolDef {
+  description: string;
+  inputSchema: Record<string, unknown>;
+  handler: ToolHandler;
+}
+
+function approvalSchema(extra: Record<string, unknown>): Record<string, unknown> {
+  const properties = { ...extra };
+  (properties as Record<string, unknown>)["approval"] = {
+    type: "string",
+    description: "Explicit authorization starting with 'I authorize'",
+  };
+  return {
+    type: "object",
+    properties,
+    required: [...Object.keys(extra), "approval"],
+    additionalProperties: false,
+  };
+}
+
+function idApprovalSchema(idField = "id"): Record<string, unknown> {
+  return approvalSchema({ [idField]: { type: "string", description: "Task id" } });
+}
+
+export const TOOLS: Record<string, ToolDef> = {
+  fleet_snapshot: {
+    description: "Read-only canonical fleet snapshot (backlog plus per-task state).",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolFleetSnapshot,
+  },
+  backlog: {
+    description:
+      "Read-only backlog records plus per-state task counts, derived from the fleet snapshot.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolBacklog,
+  },
+  crew_state: {
+    description:
+      "Read-only deterministic current state of one crew; never infer state from the status log tail.",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string", description: "Task id" } },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    handler: toolCrewState,
+  },
+  status_tail: {
+    description: "Read-only tail of one task wake-event log; history only, not current state.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Task id" },
+        lines: { type: "integer", minimum: 1, maximum: 50, default: 10 },
+      },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    handler: toolStatusTail,
+  },
+  send_message: {
+    description:
+      "Steer one crew with a single verified prose line; slash commands, keys, raw panes, and lifecycle verbs are refused.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        target: { type: "string", description: "Exact task id" },
+        text: { type: "string", minLength: 1, maxLength: 500 },
+      },
+      required: ["target", "text"],
+      additionalProperties: false,
+    },
+    handler: toolSendMessage,
+  },
+  lifecycle_interrupt: {
+    description:
+      "Authority write: deliver the harness interrupt sequence to one crew; agent keeps running.",
+    inputSchema: idApprovalSchema(),
+    handler: (args, ctx) => lifecycleTool(args, ctx, "interrupt", false),
+  },
+  lifecycle_exit: {
+    description:
+      "Authority write: stop one agent, preserving its endpoint, worktree, and uncommitted changes.",
+    inputSchema: idApprovalSchema(),
+    handler: (args, ctx) => lifecycleTool(args, ctx, "exit", false),
+  },
+  lifecycle_relaunch: {
+    description:
+      "Authority write: transactionally replace one running agent in the same endpoint and worktree.",
+    inputSchema: approvalSchema({
+      id: { type: "string", description: "Task id" },
+      note: { type: "string", description: "Progress note, single line 1..500 chars" },
+    }),
+    handler: (args, ctx) => lifecycleTool(args, ctx, "relaunch", true),
+  },
+  lifecycle_suspend: {
+    description: "Authority write: park one persistent secondmate with a durable note.",
+    inputSchema: approvalSchema({
+      id: { type: "string", description: "Task id" },
+      note: { type: "string", description: "Park note, single line 1..500 chars" },
+    }),
+    handler: (args, ctx) => lifecycleTool(args, ctx, "suspend", true),
+  },
+  lifecycle_resume: {
+    description: "Authority write: restore one parked secondmate with a durable note.",
+    inputSchema: approvalSchema({
+      id: { type: "string", description: "Task id" },
+      note: { type: "string", description: "Resume note, single line 1..500 chars" },
+    }),
+    handler: (args, ctx) => lifecycleTool(args, ctx, "resume", true),
+  },
+  spawn_crew: {
+    description:
+      "Authority write: spawn one direct report via fm-spawn.sh with an explicit delivery contract.",
+    inputSchema: approvalSchema({
+      task_id: { type: "string" },
+      project: { type: "string", description: "Bare name or projects/<name>" },
+      mode: { type: "string", enum: [...MODES] },
+      yolo: { type: "string", enum: ["on", "off"] },
+    }),
+    handler: toolSpawnCrew,
+  },
+  scaffold_brief: {
+    description:
+      "Authority write: scaffold one crewmate brief via fm-brief.sh; does not launch anything.",
+    inputSchema: approvalSchema({
+      task_id: { type: "string" },
+      project: { type: "string", description: "Bare name or projects/<name>" },
+      mode: { type: "string", enum: [...BRIEF_MODES] },
+    }),
+    handler: toolScaffoldBrief,
+  },
+  decision_hold: {
+    description:
+      "Authority write: record one durable captain-held decision via fm-decision-hold.sh hold.",
+    inputSchema: approvalSchema({
+      origin_id: { type: "string" },
+      decision_key: { type: "string", description: "Short slug" },
+      title: { type: "string" },
+      reason: { type: "string" },
+    }),
+    handler: toolDecisionHold,
+  },
+  decision_resolve: {
+    description:
+      "Authority write: resolve one held decision via fm-decision-hold.sh resolve with a decision file.",
+    inputSchema: approvalSchema({
+      origin_id: { type: "string" },
+      decision_key: { type: "string" },
+      routed_to: { type: "string", description: "Task id receiving the decision" },
+      decision_text: { type: "string", description: "Decision record, 1..2000 chars" },
+    }),
+    handler: toolDecisionResolve,
+  },
+  review_decision: {
+    description:
+      "Authority write: record one captain approve, decline, or comment via fm-review-decision.sh.",
+    inputSchema: approvalSchema({
+      id: { type: "string" },
+      verdict: { type: "string", enum: [...VERDICTS] },
+      comment: { type: "string", description: "Optional single-line comment" },
+    }),
+    handler: toolReviewDecision,
+  },
+  relay_reply: {
+    description: "External send: post one public-safe reply to the relay via fm-x-reply.sh.",
+    inputSchema: approvalSchema({
+      request_id: { type: "string" },
+      text: { type: "string", description: "Reply text, 1..2000 chars" },
+    }),
+    handler: toolRelayReply,
+  },
+  relay_dismiss: {
+    description:
+      "External send: dismiss one pending relay mention without replying via fm-x-dismiss.sh.",
+    inputSchema: idApprovalSchema("request_id"),
+    handler: toolRelayDismiss,
+  },
+  relay_followup: {
+    description:
+      "External send: post one completion follow-up for a relay-linked task via fm-x-followup.sh.",
+    inputSchema: approvalSchema({
+      task_id: { type: "string" },
+      text: { type: "string", description: "Follow-up text, 1..2000 chars" },
+      final: { type: "boolean", description: "Clear the link after this post" },
+    }),
+    handler: toolRelayFollowup,
+  },
+  fleet_poll: {
+    description:
+      "Read-only convenience poller over fleet_snapshot for clients that need push-like updates.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        count: { type: "integer", minimum: 1, maximum: 3, default: 2 },
+        interval_s: { type: "number", minimum: 0, maximum: 2, default: 0 },
+      },
+      additionalProperties: false,
+    },
+    handler: toolFleetPoll,
+  },
+};
+
+export const TOOL_NAMES: ReadonlySet<string> = new Set(Object.keys(TOOLS));
+
+void APPROVAL_PREFIX;

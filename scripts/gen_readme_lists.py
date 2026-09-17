@@ -63,8 +63,12 @@ def existing_suites():
         "tests/drift-check.test.sh",
         "tests/fm-mcp-authz.test.sh",
         "tests/conformance/conformance.sh",
+        "tests/conformance/ts-parity.sh",
         "tests/test_drift.py",
         "auth/test_authz.py",
+        "ts/tests/server.test.ts",
+        "ts/tests/conformance.test.ts",
+        "ts/tests/auth.test.ts",
     ]
     return [c for c in candidates if os.path.exists(os.path.join(ROOT, c))]
 
@@ -125,6 +129,9 @@ def generate():
     lines.append("- Conformance fixtures — `tests/conformance/` proves adapter output")
     lines.append("  equals the owning scripts' output via stub homes (skips cleanly")
     lines.append("  without a firstmate checkout).")
+    lines.append("- TypeScript sibling — `ts/` independently implements the same 19-tool")
+    lines.append("  contract over stdio (no dependencies); `tests/conformance/ts-parity.sh`")
+    lines.append("  diffs py/ts payloads field-for-field plus the TS equivalence fixtures.")
     lines.append("- Proof suites in this tree (all run in gates below):")
     for s in suites:
         lines.append(f"  - `{s}`")

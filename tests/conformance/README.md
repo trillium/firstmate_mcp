@@ -25,6 +25,22 @@ Without a checkout carrying `bin/fm-fleet-snapshot.sh` the suite skips
 cleanly (exit 0) so this repo stays standalone in CI. The hermetic adapter
 unit suite in `tests/mcp-adapter.test.py` always runs with no checkout.
 
+## TypeScript sibling parity
+
+The TS implementation in `ts/` is proved against the same contract two ways:
+
+```sh
+bash tests/conformance/ts-parity.sh
+```
+
+`parity-py-ts.mjs` replays one stub-home call sequence against both
+`python3 fm_mcp_server.py` and `node ts/dist/server.js` and diffs every
+payload field-for-field (reads, validation refusals, fail-closed stub
+errors, `tools/list`, `ping`). `npm run conformance` in `ts/` runs the TS
+read-tool equivalence fixtures, which mirror `test_conformance.py`
+hermetically with no live checkout. Both halves are side-effect-free by
+construction (stub homes only, read boundary plus validation refusals).
+
 ## What equivalence means here
 
 Same read input, same observable read result. The adapter's typed
