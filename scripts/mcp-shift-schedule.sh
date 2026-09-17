@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Scheduled upstream-shift gate: runs drift/shift.py and decides fire vs silence.
 #
+# Fast path first: shift.py polls the upstream Atom feed for the latest main
+# SHA against the pin (the pin is the cached SHA, quiet when unchanged) and
+# only runs the heavier ls-remote + bin/ diff when the feed moved or is
+# unreadable. This script needs no atom-specific logic: --atom/--no-atom,
+# --atom-branch, --atom-timeout, --atom-url, and --atom-feed-file all
+# forward to shift.py like --fetch/--no-fetch already do.
+#
 # - Shift detected (shift.py exit 1): writes the PORT/IGNORE markdown report to
 #   --body PATH, records shift=true (+ pinned/upstream SHAs) in $GITHUB_OUTPUT
 #   when set, prints a SHIFT line, and exits 0 so a scheduled job can gate the

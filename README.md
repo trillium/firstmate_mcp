@@ -339,6 +339,16 @@ Exit 0 means the `sources/firstmate` pin tracks upstream main; exit 1
 names the depended-on surfaces that moved (the port starting point)
 apart from unrelated script churn; exit 2 is a usage or read error.
 
+The detector polls the upstream Atom feed first
+(`github.com/kunchenguid/firstmate/commits/main.atom`: no API auth, no
+rate limit) against the pin - the pin is the cached SHA, quiet when
+unchanged - and runs the heavier `ls-remote` + `bin/` diff only when the
+feed moved or is unreadable (loud warning, fail-open to the full path).
+`drift/atom.py` owns the poll and parse; `--no-atom` forces the full git
+path and `--no-fetch` implies it. Fake-feed cases (moved fires,
+unchanged silent, malformed warns loudly) live in
+`tests/mcp-shift-atom.test.sh`.
+
 ## Design choices
 
 **Why typed tools, not shell.** Raw shell passes strings to scripts; the MCP

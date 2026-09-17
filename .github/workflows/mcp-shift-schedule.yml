@@ -3,7 +3,12 @@ name: mcp-shift-schedule
 # Daily upstream-shift watch: diffs the sources/firstmate submodule pin against
 # upstream main and opens an issue with the PORT/IGNORE breakdown only when a
 # depended-on surface moved. Quiet when nothing moved (no noise, no empty issues).
-# Detector lives in drift/shift.py; fire-vs-silence gating lives in
+# Fast path first: drift/shift.py polls the upstream Atom feed
+# (github.com/kunchenguid/firstmate/commits/main.atom, no API auth, no rate
+# limit) against the pin - the pin is the cached SHA, quiet when unchanged -
+# and runs the heavier ls-remote + bin/ diff only when the feed moved or is
+# unreadable (loud warning, fail-open to the full path).
+# Detector lives in drift/shift.py (Atom poll in drift/atom.py); fire-vs-silence gating lives in
 # scripts/mcp-shift-schedule.sh (covered hermetically by
 # tests/mcp-shift-schedule.test.sh). Read-only against upstream (ls-remote/fetch).
 
@@ -30,7 +35,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: run shift detector (fire writes report, silence writes nothing)
+      - name: run shift detector (atom fast-path first; fire writes report, silence writes nothing)
         id: shift
         run: bash scripts/mcp-shift-schedule.sh --body "${RUNNER_TEMP}/shift-report.md"
       - name: open issue on detected movement
