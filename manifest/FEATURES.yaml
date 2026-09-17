@@ -1,0 +1,378 @@
+# Durable feature manifest for firstmate_mcp (beads epic task-8d0ah, ARCHITECTURE).
+#
+# Every tracked capability carries a stable identity, upstream provenance,
+# behavioral contract pointer, upstream test provenance, Python and TypeScript
+# implementation status, and explicit divergence status/reason where our
+# behavior intentionally differs. Local-only Trillium extensions live in the
+# same manifest with kind `local` so they survive upstream reconciliation.
+#
+# Authority rules:
+#   - Script headers own behavior; schema/contracts.yaml owns the depended-on
+#     declaration; drift/baseline.json owns the observed-surface pin.
+#   - This file tracks capability identity and status only. It never
+#     re-declares output schemas, flag subsets, or envelope constants — it
+#     points at the files that do.
+#   - A status must never claim an implementation that does not exist:
+#     `manifest/validate.py` spot-checks every `implemented` evidence pointer
+#     against the tree.
+#
+# Validate: python3 manifest/validate.py
+# Human view: manifest/README.md
+version: v1
+upstream:
+  repo: https://github.com/kunchenguid/firstmate.git
+  submodule: sources/firstmate
+  gitlink_at_seed: 3eb5b6334a80e06083e3837f0032a5cec39b8e52
+  baseline: drift/baseline.json
+  baseline_rev_at_seed: aaf67489
+  baseline_surfaces_at_seed: 163
+  note: >-
+    Upstream provenance for mirrored entries is the owning bin/fm-*.sh path at
+    the tracked firstmate revision (drift/baseline.json is the quantitative
+    pin; drift/shift.py diffs the submodule pin against upstream main).
+    The submodule is not checked out in every worktree, so per-entry
+    provenance names the owning command path rather than a vendored line.
+features:
+  # ---- SUPPORTED: behavior-identical reads + safe steer (no approval) ----
+  - id: fleet_snapshot
+    kind: upstream-mirror
+    summary: Canonical whole-fleet read; typed projection equals the owning script's observable output modulo the envelope wrap.
+    upstream_command: bin/fm-fleet-snapshot.sh
+    upstream_flags: ["--json"]
+    contract: schema/contracts.yaml#fleet_snapshot
+    upstream_test: "tests/conformance/test_conformance.py::test_fleet_snapshot_matches_direct (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_fleet_snapshot", "adapter/dispatch.py:\"fleet_snapshot\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:fleet_snapshot"]}
+    divergence: {status: none, reason: ""}
+  - id: backlog
+    kind: upstream-mirror
+    summary: Backlog records plus per-state counts derived from the fleet snapshot instead of reimplementing a backend.
+    upstream_command: "derived: fleet_snapshot (bin/fm-fleet-snapshot.sh --json)"
+    upstream_flags: ["--json"]
+    contract: schema/contracts.yaml#backlog
+    upstream_test: "tests/conformance/test_conformance.py::test_backlog_derives_counts_from_same_snapshot"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_backlog", "adapter/dispatch.py:\"backlog\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:backlog"]}
+    divergence: {status: none, reason: ""}
+  - id: crew_state
+    kind: upstream-mirror
+    summary: Deterministic current-state read; never infers state from the status log tail.
+    upstream_command: bin/fm-crew-state.sh
+    upstream_flags: ["<id>"]
+    contract: schema/contracts.yaml#crew_state
+    upstream_test: "tests/conformance/test_conformance.py::test_crew_state_unknown_matches_direct_line"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_crew_state", "adapter/dispatch.py:\"crew_state\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:crew_state"]}
+    divergence: {status: none, reason: ""}
+  - id: status_tail
+    kind: upstream-mirror
+    summary: Wake-event history tail for one task; history only, never current state.
+    upstream_command: "file: state/<id>.status"
+    upstream_flags: ["<id>", "lines=1..50"]
+    contract: schema/contracts.yaml#status_tail
+    upstream_test: "tests/conformance/test_conformance.py::test_status_tail_matches_file_tail (plus traversal-refusal proof)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_status_tail", "adapter/dispatch.py:\"status_tail\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:status_tail"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Bounded 50-line cap with id validation and path confinement; the
+        upstream state file itself is unbounded. History only by contract —
+        never presented as current state.
+  - id: send_message
+    kind: upstream-mirror
+    summary: Safest exposed write; steers one crew with a verified literal prose line.
+    upstream_command: bin/fm-send.sh
+    upstream_flags: ["<target>", "<text>"]
+    contract: schema/contracts.yaml#send_message
+    upstream_test: "test_client.py (stub-home server proof; writes never dispatch in conformance by design — tests/conformance/test_conformance.py::test_write_tools_never_dispatch)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_send_message", "adapter/dispatch.py:\"send_message\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:send_message"]}
+    divergence:
+      status: intentional
+      reason: >-
+        500-char single-line cap with slash-command refusal on the plain-text
+        path only; upstream fm-send.sh accepts broader input and --key/--raw
+        lifecycle verbs, which stay out of scope per the smarts-only line.
+  - id: fleet_poll
+    kind: upstream-mirror
+    summary: Polling convenience over the fleet snapshot; the snapshot stays canonical.
+    upstream_command: bin/fm-fleet-snapshot.sh
+    upstream_flags: ["--json"]
+    contract: adapter/dispatch.py#TOOLS[fleet_poll] (poll projection over the fleet_snapshot contract)
+    upstream_test: "tests/conformance/test_conformance.py::test_fleet_poll_agrees_with_snapshot"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_fleet_poll", "adapter/dispatch.py:\"fleet_poll\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:fleet_poll"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Adapter-native poll projection; upstream ships no poll surface. Derived
+        from fleet_snapshot output on every call, and fleet_snapshot stays the
+        canonical read.
+  # ---- CHANGED: same owning scripts, narrower surface, per-call approval ----
+  - id: lifecycle_interrupt
+    kind: upstream-mirror
+    summary: Deliver the harness interrupt sequence to one crew; the agent keeps running.
+    upstream_command: bin/fm-control.sh
+    upstream_flags: ["<id>", "interrupt"]
+    contract: adapter/dispatch.py#TOOLS[lifecycle_interrupt] (safe verb subset + approval gate)
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_lifecycle_interrupt", "adapter/dispatch.py:\"lifecycle_interrupt\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_interrupt"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the closed interrupt verb;
+        upstream fm-control.sh knows no MCP approval string. Same owning
+        script, narrower surface.
+  - id: lifecycle_exit
+    kind: upstream-mirror
+    summary: Stop one agent, preserving its endpoint, worktree, and uncommitted changes.
+    upstream_command: bin/fm-control.sh
+    upstream_flags: ["<id>", "exit"]
+    contract: adapter/dispatch.py#TOOLS[lifecycle_exit] (safe verb subset + approval gate)
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_lifecycle_exit", "adapter/dispatch.py:\"lifecycle_exit\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_exit"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the closed exit verb;
+        upstream fm-control.sh knows no MCP approval string. Same owning
+        script, narrower surface.
+  - id: lifecycle_relaunch
+    kind: upstream-mirror
+    summary: Transactionally replace one running agent in the same endpoint and worktree.
+    upstream_command: bin/fm-control.sh
+    upstream_flags: ["<id>", "relaunch"]
+    contract: adapter/dispatch.py#TOOLS[lifecycle_relaunch] (safe verb subset + approval gate)
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_lifecycle_relaunch", "adapter/dispatch.py:\"lifecycle_relaunch\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_relaunch"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the closed relaunch verb with
+        progress note; upstream fm-control.sh knows no MCP approval string.
+        Same owning script, narrower surface.
+  - id: lifecycle_suspend
+    kind: upstream-mirror
+    summary: Park one persistent secondmate with a durable note.
+    upstream_command: bin/fm-control.sh
+    upstream_flags: ["<id>", "suspend"]
+    contract: adapter/dispatch.py#TOOLS[lifecycle_suspend] (safe verb subset + approval gate)
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_lifecycle_suspend", "adapter/dispatch.py:\"lifecycle_suspend\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_suspend"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the closed suspend verb with
+        park note; upstream fm-control.sh knows no MCP approval string. Same
+        owning script, narrower surface.
+  - id: lifecycle_resume
+    kind: upstream-mirror
+    summary: Resume one parked persistent secondmate.
+    upstream_command: bin/fm-control.sh
+    upstream_flags: ["<id>", "resume"]
+    contract: adapter/dispatch.py#TOOLS[lifecycle_resume] (safe verb subset + approval gate)
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_lifecycle_resume", "adapter/dispatch.py:\"lifecycle_resume\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_resume"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the closed resume verb;
+        upstream fm-control.sh knows no MCP approval string. Same owning
+        script, narrower surface.
+  - id: spawn_crew
+    kind: upstream-mirror
+    summary: Spawn one direct report under an explicit delivery contract.
+    upstream_command: bin/fm-spawn.sh
+    upstream_flags: ["<task-id>", "<project>", "--mode", "--yolo"]
+    contract: schema/contracts.yaml#spawn_crew
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_spawn_crew", "adapter/dispatch.py:\"spawn_crew\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:spawn_crew"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the safe flag subset only
+        (no repo-mutation options); upstream fm-spawn.sh knows no MCP approval
+        string. Dispatch write with no repo-mutation surface.
+  - id: scaffold_brief
+    kind: upstream-mirror
+    summary: Scaffold one crewmate brief; launches nothing.
+    upstream_command: bin/fm-brief.sh
+    upstream_flags: ["<task-id>", "<repo>", "--mode/--scout"]
+    contract: schema/contracts.yaml#scaffold_brief
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_scaffold_brief", "adapter/dispatch.py:\"scaffold_brief\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:scaffold_brief"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the safe flag subset only;
+        upstream fm-brief.sh knows no MCP approval string. Scaffolds
+        instructions without launching.
+  - id: decision_hold
+    kind: upstream-mirror
+    summary: Record a durable captain-held decision with a stable hold identity.
+    upstream_command: bin/fm-decision-hold.sh
+    upstream_flags: ["hold", "<origin-id>", "<decision-key>"]
+    contract: adapter/dispatch.py#TOOLS[decision_hold] (safe subcommand subset + approval gate)
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_decision_hold", "adapter/dispatch.py:\"decision_hold\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_hold"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the safe hold-subcommand
+        subset; upstream fm-decision-hold.sh knows no MCP approval string.
+        Same owning script, narrower surface.
+  - id: decision_resolve
+    kind: upstream-mirror
+    summary: Resolve a captain-held decision after a durable decision record is linked.
+    upstream_command: bin/fm-decision-hold.sh
+    upstream_flags: ["resolve", "<origin-id>", "<decision-key>"]
+    contract: adapter/dispatch.py#TOOLS[decision_resolve] (safe subcommand subset + approval gate)
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_decision_resolve", "adapter/dispatch.py:\"decision_resolve\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_resolve"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the safe resolve-subcommand
+        subset; upstream fm-decision-hold.sh knows no MCP approval string.
+        Same owning script, narrower surface.
+  - id: review_decision
+    kind: upstream-mirror
+    summary: Record a captain approve, decline, or comment and wake firstmate.
+    upstream_command: bin/fm-review-decision.sh
+    upstream_flags: ["approve|decline|comment"]
+    contract: adapter/dispatch.py#TOOLS[review_decision] (safe verdict subset + approval gate)
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_review_decision", "adapter/dispatch.py:\"review_decision\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:review_decision"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the closed
+        approve/decline/comment verdict set; upstream fm-review-decision.sh
+        knows no MCP approval string. Same owning script, narrower surface.
+  - id: relay_reply
+    kind: upstream-mirror
+    summary: Send one public reply; inert without relay consent, which lives outside MCP.
+    upstream_command: bin/fm-x-reply.sh
+    upstream_flags: ["<target>", "<text>"]
+    contract: adapter/dispatch.py#TOOLS[relay_reply] (approval + external relay consent)
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_relay_reply", "adapter/dispatch.py:\"relay_reply\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:relay_reply"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate on top of external relay consent,
+        which is never duplicated inside MCP; upstream fm-x-reply.sh knows no
+        MCP approval string. Inert without that consent.
+  - id: relay_dismiss
+    kind: upstream-mirror
+    summary: Dismiss one public item; inert without relay consent, which lives outside MCP.
+    upstream_command: bin/fm-x-dismiss.sh
+    upstream_flags: ["<target>"]
+    contract: adapter/dispatch.py#TOOLS[relay_dismiss] (approval + external relay consent)
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_relay_dismiss", "adapter/dispatch.py:\"relay_dismiss\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:relay_dismiss"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate on top of external relay consent,
+        which is never duplicated inside MCP; upstream fm-x-dismiss.sh knows no
+        MCP approval string. Inert without that consent.
+  - id: relay_followup
+    kind: upstream-mirror
+    summary: Send one public followup; inert without relay consent, which lives outside MCP.
+    upstream_command: bin/fm-x-followup.sh
+    upstream_flags: ["<target>", "<text>"]
+    contract: adapter/dispatch.py#TOOLS[relay_followup] (approval + external relay consent)
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_relay_followup", "adapter/dispatch.py:\"relay_followup\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:relay_followup"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate on top of external relay consent,
+        which is never duplicated inside MCP; upstream fm-x-followup.sh knows
+        no MCP approval string. Inert without that consent.
+  # ---- NEW: local-only Trillium extensions (survive upstream reconciliation) ----
+  - id: drift_detection
+    kind: local
+    summary: Observed-surface drift detection seeded from the live fleet; diffs feature drift from behavior drift.
+    local_path: drift/
+    contract: drift/check.py (snapshot-compare CLI over drift/baseline.json)
+    upstream_test: "n/a (local) — proof: tests/drift-check.test.sh + tests/test_drift.py"
+    readme_anchor: Drift detection
+    py: {status: implemented, evidence: ["drift/check.py:diff_snapshots", "drift/snapshot.py:def ", "drift/baseline.json:\"surfaces\""]}
+    ts: {status: missing}
+    divergence: {status: not-applicable, reason: ""}
+  - id: upstream_shift_signal
+    kind: local
+    summary: Diffs the sources/firstmate pin against upstream main and reports which depended-on surfaces moved.
+    local_path: drift/shift.py
+    contract: drift/shift.py (pin-vs-main report feeding TS/Python port starts)
+    upstream_test: "n/a (local) — proof: drift/shift.py CLI itself, documented in README Drift section (no dedicated suite)"
+    readme_anchor: Upstream-shift signal
+    py: {status: implemented, evidence: ["drift/shift.py:def build_report"]}
+    ts: {status: missing}
+    divergence: {status: not-applicable, reason: ""}
+  - id: subprocess_envelope
+    kind: local
+    summary: Every tool script runs bounded with process-group kill on timeout so timed-out reads leave no orphans.
+    local_path: fm_mcp_server.py
+    contract: fm_mcp_server.py (SUBPROCESS_TIMEOUT_S=180, MAX_OUTPUT_BYTES=1MB; TS mirrors in ts/src/constants.ts + ts/src/runner.ts)
+    upstream_test: "n/a (local) — proof: test_client.py envelope fixture (fakes a >30s, >128KB snapshot)"
+    readme_anchor: Subprocess envelope
+    py: {status: implemented, evidence: ["fm_mcp_server.py:SUBPROCESS_TIMEOUT_S", "fm_mcp_server.py:MAX_OUTPUT_BYTES"]}
+    ts: {status: implemented, evidence: ["ts/src/constants.ts:SUBPROCESS_TIMEOUT_S", "ts/src/runner.ts:MAX_OUTPUT_BYTES"]}
+    divergence: {status: not-applicable, reason: ""}
+  - id: auth_tiers
+    kind: local
+    summary: Every tool carries a code-assigned tier; the audit log records authority use; authority tools refuse without an authorization string.
+    local_path: auth/
+    contract: auth/tiers.py (TOOL_TIERS + approval strings; TS mirrors in ts/src/auth.ts)
+    upstream_test: "n/a (local) — proof: tests/fm-mcp-authz.test.sh + auth/test_authz.py + ts/tests/auth.test.ts"
+    readme_anchor: Auth tiers in code
+    py: {status: implemented, evidence: ["auth/tiers.py:TOOL_TIERS", "auth/audit.py:def "]}
+    ts: {status: implemented, evidence: ["ts/src/auth.ts:APPROVAL_PREFIX"]}
+    divergence: {status: not-applicable, reason: ""}
+  - id: contract_map
+    kind: local
+    summary: Depended-on subset declaration with stability tiers; the validator fails naming the stale pin.
+    local_path: schema/
+    contract: schema/contracts.yaml (declared subset) + schema/contracts.schema.json (shape)
+    upstream_test: "n/a (local) — proof: tests/mcp-schema.test.sh over schema/validate.py"
+    readme_anchor: Contract map
+    py: {status: implemented, evidence: ["schema/validate.py:CURRENT_PINS", "schema/contracts.yaml:name:"]}
+    ts: {status: missing}
+    divergence: {status: not-applicable, reason: ""}
+  - id: conformance_fixtures
+    kind: local
+    summary: Stub-home fixtures proving adapter output equals the owning scripts' output for both implementations.
+    local_path: tests/conformance/
+    contract: tests/conformance/README.md (shared conformance referee for Python and TypeScript)
+    upstream_test: "n/a (local) — proof: tests/conformance/conformance.sh + tests/conformance/ts-parity.sh (py/ts payloads field-for-field)"
+    readme_anchor: Conformance fixtures
+    py: {status: implemented, evidence: ["tests/conformance/test_conformance.py:test_fleet_snapshot_matches_direct"]}
+    ts: {status: implemented, evidence: ["ts/tests/conformance.test.ts:test", "tests/conformance/parity-py-ts.mjs:diffed payloads"]}
+    divergence: {status: not-applicable, reason: ""}
+  - id: typescript_sibling
+    kind: local
+    summary: Independent TypeScript implementation of the same tool contract over stdio with no runtime dependencies.
+    local_path: ts/
+    contract: ts/src/tools.ts (tool registry) + ts/src/server.ts (stdio server); behavioral contract shared with Python, tests are the referee.
+    upstream_test: "n/a (local) — proof: ts/tests/server.test.ts (71-check suite) via bun run test:bun and npm test"
+    readme_anchor: TypeScript sibling
+    py: {status: missing}
+    ts: {status: implemented, evidence: ["ts/src/server.ts:server", "ts/src/tools.ts:fleet_snapshot"]}
+    divergence: {status: not-applicable, reason: ""}

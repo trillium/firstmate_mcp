@@ -13,8 +13,19 @@ Sources (all live-probed, nothing hand-listed):
     (existence-probed; only existing suites are listed)
 
 Usage:
-  python3 scripts/gen_readme_lists.py          # print fragment to stdout
-  python3 scripts/gen_readme_lists.py --check  # verify README embed is current
+  python3 scripts/gen_readme_lists.py                 # print fragment to stdout
+  python3 scripts/gen_readme_lists.py --check         # verify README embed is current
+  python3 scripts/gen_readme_lists.py --check-manifest  # verify manifest/FEATURES.yaml
+                                                        # agrees with these lists:
+                                                        # mirrored ids equal the
+                                                        # adapter registry, every local
+                                                        # entry's readme_anchor
+                                                        # appears in the NEW list.
+                                                        # (The generator keeps
+                                                        # live-probing authoritative
+                                                        # sources rather than reading
+                                                        # the manifest; see
+                                                        # manifest/README.md.)
 
 Regen: python3 scripts/gen_readme_lists.py > /tmp/lists.md, then paste
 between the GENERATED markers in README.md (or re-run and diff with --check).
@@ -138,8 +149,44 @@ def generate():
     return "\n".join(lines) + "\n"
 
 
+def check_manifest(fragment):
+    """Manifest consistency: FEATURES.yaml agrees with the generated lists."""
+    import yaml
+
+    manifest = yaml.safe_load(
+        open(os.path.join(ROOT, "manifest", "FEATURES.yaml"))
+    )
+    features = manifest.get("features", [])
+    mirrored = sorted(f["id"] for f in features if f.get("kind") == "upstream-mirror")
+    local = [f for f in features if f.get("kind") == "local"]
+    errors = []
+    if mirrored != sorted(TOOLS):
+        errors.append(
+            "mirrored manifest ids != adapter registry: manifest=%s registry=%s"
+            % (mirrored, sorted(TOOLS))
+        )
+    for f in local:
+        anchor = f.get("readme_anchor", "")
+        if not anchor or anchor not in fragment:
+            errors.append(
+                "local feature '%s' readme_anchor missing from NEW list" % f.get("id")
+            )
+    return errors
+
+
 def main():
     fragment = generate()
+    if "--check-manifest" in sys.argv:
+        errors = check_manifest(fragment)
+        if errors:
+            for e in errors:
+                print(f"manifest check: {e}", file=sys.stderr)
+            return 1
+        print(
+            f"manifest check: {len(fragment.splitlines())}-line fragment agrees "
+            f"with FEATURES.yaml"
+        )
+        return 0
     if "--check" in sys.argv:
         readme = open(os.path.join(ROOT, "README.md")).read()
         m = re.search(
