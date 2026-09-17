@@ -3,6 +3,11 @@
   "generated": "2026-09-13T21:08:58+00:00",
   "fm_home": "/Users/trilliumsmith/code/firstmate",
   "firstmate_revision": "9bf454f4",
+  "upstream": {
+    "repo": "https://github.com/kunchenguid/firstmate.git",
+    "submodule": "sources/firstmate",
+    "note": "Human-readable pointer only; the gitlink is the authoritative pin. drift/shift.py reads the live pin and diffs it against upstream main."
+  },
   "surfaces": [
     {
       "name": "fm-afk-launch.sh",
