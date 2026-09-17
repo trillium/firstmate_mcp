@@ -7,11 +7,13 @@
  * No SSE / streamable HTTP (out of scope, same as the Python path).
  */
 import readline from "node:readline";
+import path from "node:path";
 import {
   SERVER_NAME,
   SERVER_VERSION,
   SUPPORTED_PROTOCOL_VERSIONS,
 } from "./constants.js";
+import { appendAudit, buildLine } from "./auth.js";
 import { TOOLS, liveContext, type ToolContext } from "./tools.js";
 
 export interface RpcMessage {
@@ -79,6 +81,96 @@ export function handleToolsList(
   });
 }
 
+// --- JSON-lines audit log (side-channel; never touches wire payloads). ---
+// Mirrors the Python server's inline audit block, which mirrors
+// auth/tiers.py + auth/audit.py: one line per tools/call, allow or refuse.
+
+const AUDIT_VALIDATION_ERRORS: ReadonlySet<string> = new Set([
+  "invalid id",
+  "invalid target",
+  "invalid text",
+  "slash commands refused",
+  "invalid lines",
+  "invalid note",
+  "invalid task_id",
+  "invalid project",
+  "invalid mode",
+  "invalid yolo",
+  "invalid origin_id",
+  "invalid decision_key",
+  "invalid title",
+  "invalid reason",
+  "invalid routed_to",
+  "invalid decision_text",
+  "invalid verdict",
+  "invalid comment",
+  "invalid request_id",
+  "invalid final",
+  "invalid count",
+  "invalid interval_s",
+  "cannot read status log",
+  "no status log for id",
+  "unexpected snapshot schema",
+  "snapshot was not JSON",
+  "snapshot too large for PoC envelope",
+  "poll output too large for PoC envelope",
+  "tool crashed",
+]);
+
+function auditTarget(args: unknown): string | null {
+  if (typeof args !== "object" || args === null || Array.isArray(args)) return null;
+  const record = args as Record<string, unknown>;
+  for (const key of ["id", "target", "task_id", "origin_id", "request_id"]) {
+    const value = record[key];
+    if (typeof value === "string" && value !== "") return value;
+  }
+  return null;
+}
+
+function auditDecision(
+  args: unknown,
+  payload: Record<string, unknown>,
+  isError: boolean,
+): [string, string] {
+  if (!isError) return ["allow", "ok"];
+  const error = (payload as Record<string, unknown>)["error"];
+  if (error === "approval required") {
+    const approval =
+      typeof args === "object" && args !== null && !Array.isArray(args)
+        ? (args as Record<string, unknown>)["approval"]
+        : undefined;
+    if (approval === undefined || approval === null) return ["refuse", "approval-required"];
+    return ["refuse", "approval-invalid"];
+  }
+  if (typeof error === "string" && AUDIT_VALIDATION_ERRORS.has(error)) {
+    return ["refuse", "validation-failed"];
+  }
+  return ["allow", "ok"];
+}
+
+function auditPath(ctx: ToolContext): string {
+  return process.env.FM_AUDIT_LOG ?? path.join(ctx.stateDir, "mcp-audit.jsonl");
+}
+
+function auditAppend(
+  ctx: ToolContext,
+  tool: string,
+  decision: string,
+  reason: string,
+  approval: unknown,
+  target: string | null,
+): void {
+  try {
+    const actor = process.env.FM_ACTOR ?? "local";
+    appendAudit(
+      auditPath(ctx),
+      buildLine(actor, tool, decision, reason, { approval, target }),
+    );
+  } catch {
+    /* audit is best-effort; never break a tool call */
+  }
+}
+
 export async function handleToolsCall(
   msgId: string | number | null | undefined,
   params: Record<string, unknown>,
@@ -87,7 +179,13 @@ export async function handleToolsCall(
 ): Promise<void> {
   const name = params?.["name"] as string | undefined;
   const args = (params?.["arguments"] as Record<string, unknown> | undefined) ?? {};
+  const toolLabel = typeof name === "string" ? name : "unknown";
   if (typeof name !== "string" || !(name in TOOLS)) {
+    auditAppend(ctx, toolLabel, "refuse", "unknown-tool",
+      typeof args === "object" && args !== null && !Array.isArray(args)
+        ? (args as Record<string, unknown>)["approval"]
+        : undefined,
+      auditTarget(args));
     send({
       jsonrpc: "2.0",
       id: msgId ?? null,
@@ -96,6 +194,7 @@ export async function handleToolsCall(
     return;
   }
   if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    auditAppend(ctx, toolLabel, "refuse", "validation-failed", undefined, null);
     send({
       jsonrpc: "2.0",
       id: msgId ?? null,
@@ -110,6 +209,11 @@ export async function handleToolsCall(
   } catch (exc) {
     payload = { error: "tool crashed", detail: String(exc) };
     isError = true;
+  }
+  {
+    const [decision, reason] = auditDecision(args, payload, isError);
+    auditAppend(ctx, toolLabel, decision, reason,
+      (args as Record<string, unknown>)["approval"], auditTarget(args));
   }
   const result: Record<string, unknown> = {
     content: [{ type: "text", text: JSON.stringify(payload) }],
