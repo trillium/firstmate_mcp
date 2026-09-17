@@ -90,6 +90,33 @@ export function makeEnvelopeStubHome(): string {
   return home;
 }
 
+// Slow snapshot that also spawns a grandchild outliving the 30s budget: if
+// the server kills only the child instead of the whole process group, the
+// orphan touches the marker after the timeout and the kill proof fails.
+export function makeOrphanStubHome(): string {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "fm-mcp-ts-orphan-"));
+  fs.mkdirSync(path.join(home, "bin"));
+  for (const [name, body] of Object.entries(STUBS)) writeStub(home, name, body);
+  writeStub(
+    home,
+    "fm-fleet-snapshot.sh",
+    `rm -f "$FM_HOME/orphan-marker"
+( /bin/sleep 34; touch "$FM_HOME/orphan-marker" ) >/dev/null 2>&1 &
+` + slowLargeSnapshot(),
+  );
+  fs.mkdirSync(path.join(home, "state"));
+  return home;
+}
+
+export function makeReceiptStubHome(): string {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "fm-mcp-ts-receipt-"));
+  fs.mkdirSync(path.join(home, "bin"));
+  for (const [name, body] of Object.entries(STUBS)) writeStub(home, name, body);
+  writeStub(home, "fm-fleet-snapshot.sh", slowLargeSnapshot());
+  fs.mkdirSync(path.join(home, "state"));
+  return home;
+}
+
 /** Path to the built TS server under test (dist/, compiled from src/). */
 export function serverEntry(): string {
   // testbuild/tests/helpers.js -> ts/testbuild/tests/helpers.js;

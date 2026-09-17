@@ -2,21 +2,27 @@
  * End-to-end proof for the TypeScript smarts-only server.
  *
  * Preserved-provenance suite: every check mirrors test_client.py (the
- * upstream 67-check proof for the Python path) against the TS server, so
+ * upstream 87-check proof for the Python path) against the TS server, so
  * the shared behavioral contract is the referee between the two
  * implementations. Self-contained: stub firstmate homes pinned via FM_HOME.
  */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import {
   APPROVAL,
   Client,
   isError,
   makeEnvelopeStubHome,
+  makeOrphanStubHome,
+  makeReceiptStubHome,
   makeStubHome,
   payload,
   removeHome,
 } from "./helpers.js";
+
+const sleepMs = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 describe("handshake and reads", () => {
   let client: Client;
@@ -122,7 +128,7 @@ describe("handshake and reads", () => {
   });
 });
 
-describe("smarts surface: 19 tools, forbidden absent", () => {
+describe("smarts surface: 21 tools, forbidden absent", () => {
   let boxed: Client;
   let sandbox: string;
   before(() => {
@@ -140,13 +146,14 @@ describe("smarts surface: 19 tools, forbidden absent", () => {
     "lifecycle_suspend", "lifecycle_resume", "spawn_crew", "scaffold_brief",
     "decision_hold", "decision_resolve", "review_decision", "relay_reply",
     "relay_dismiss", "relay_followup", "fleet_poll",
+    "receipt_submit", "receipt_status",
   ];
   const FORBIDDEN = ["promote_scout", "teardown_crew", "arm_pr_check", "merge_pr", "merge_local"];
 
-  it("smarts server lists 19 tools", async () => {
+  it("smarts server lists 21 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 19);
+    assert.equal(tools.length, 21);
   });
 
   for (const required of REQUIRED) {
@@ -181,6 +188,7 @@ describe("smarts surface: 19 tools, forbidden absent", () => {
     }>;
     const open = new Set([
       "fleet_snapshot", "backlog", "crew_state", "status_tail", "send_message", "fleet_poll",
+      "receipt_submit", "receipt_status",
     ]);
     for (const tool of tools) {
       if (open.has(tool.name)) continue;
@@ -338,7 +346,7 @@ describe("smarts surface: 19 tools, forbidden absent", () => {
   });
 });
 
-describe("subprocess envelope", () => {
+describe("fail-closed budget: slow calls time out inside 30s", () => {
   let ebox: Client;
   let envelope: string;
   before(() => {
@@ -350,18 +358,26 @@ describe("subprocess envelope", () => {
     removeHome(envelope);
   });
 
-  it("fleet_snapshot survives a >30s slow snapshot", { timeout: 120000 }, async () => {
+  it("slow snapshot fails closed with a typed timeout", { timeout: 60000 }, async () => {
     const started = Date.now();
     const resp = await ebox.call("fleet_snapshot", {});
     const elapsedS = (Date.now() - started) / 1000;
     const snap = payload(resp);
-    assert.equal(isError(resp), false);
-    assert.equal(snap["generated"], "envelope-slow-large");
-    assert.ok(elapsedS >= 30, `raised timeout must cover the slow path, took ${elapsedS.toFixed(1)}s`);
+    assert.equal(isError(resp), true);
+    assert.equal(snap["error"], "timed out");
+    assert.equal(snap["timeout_s"], 30);
+    assert.ok(elapsedS >= 30 && elapsedS < 45, `no call blocks past 30s, took ${elapsedS.toFixed(1)}s`);
   });
-  it("fleet_snapshot accepts >128KB output", async () => {
-    const snap = payload(await ebox.call("fleet_snapshot", {}));
-    assert.equal(((snap["tasks"] as unknown[]) ?? []).length, 800);
+  it("timed-out call is audited as allow with the failure in the payload", async () => {
+    const lines = fs
+      .readFileSync(path.join(envelope, "state", "mcp-audit.jsonl"), "utf8")
+      .split("\n")
+      .filter((l) => l !== "")
+      .map((l) => JSON.parse(l) as Record<string, unknown>);
+    assert.ok(
+      lines.some((l) => l["tool"] === "fleet_snapshot" && l["decision"] === "allow"),
+      "expected an allow audit line for the timed-out fleet_snapshot",
+    );
   });
   it("backlog derives counts from a >128KB snapshot", async () => {
     const back = payload(await ebox.call("backlog", {}));
@@ -376,5 +392,135 @@ describe("subprocess envelope", () => {
     assert.equal(isError(resp), false);
     assert.equal(((polled["polls"] as unknown[]) ?? []).length, 1);
     assert.ok(Buffer.byteLength(JSON.stringify(polled), "utf8") <= 8192);
+  });
+});
+
+describe("timeout kills the whole process group", () => {
+  let obox: Client;
+  let orphanHome: string;
+  before(() => {
+    orphanHome = makeOrphanStubHome();
+    obox = new Client({ FM_HOME: orphanHome });
+  });
+  after(async () => {
+    await obox.close();
+    removeHome(orphanHome);
+  });
+
+  it("timed-out group leaves no orphan compute", { timeout: 90000 }, async () => {
+    const started = Date.now();
+    const resp = await obox.call("fleet_snapshot", {});
+    assert.equal(isError(resp), true);
+    assert.equal(payload(resp)["error"], "timed out");
+    while (Date.now() - started < 40000) await sleepMs(1000);
+    assert.equal(fs.existsSync(path.join(orphanHome, "orphan-marker")), false);
+  });
+});
+
+describe("async receipts: submit, lifecycle, isolation, expiry", () => {
+  let rbox: Client;
+  let receiptHome: string;
+  let envelopeHome: string;
+  let other: Client;
+  before(() => {
+    receiptHome = makeReceiptStubHome();
+    rbox = new Client({ FM_HOME: receiptHome });
+    envelopeHome = makeEnvelopeStubHome();
+    other = new Client({ FM_HOME: envelopeHome });
+  });
+  after(async () => {
+    await rbox.close();
+    await other.close();
+    removeHome(receiptHome);
+    removeHome(envelopeHome);
+  });
+
+  let receiptId = "";
+  it("receipt_submit detaches immediately with a pending receipt", { timeout: 30000 }, async () => {
+    const started = Date.now();
+    const resp = await rbox.call("receipt_submit", { tool: "fleet_snapshot", arguments: {} });
+    const elapsedS = (Date.now() - started) / 1000;
+    const sub = payload(resp);
+    assert.equal(isError(resp), false);
+    assert.equal(sub["status"], "pending");
+    assert.ok(String(sub["receipt_id"]).startsWith("rcpt-"));
+    assert.equal(sub["ttl_s"], 3600);
+    assert.ok(elapsedS < 10, `submit must return far inside 30s, took ${elapsedS.toFixed(1)}s`);
+    assert.deepEqual(sub["check"], {
+      tool: "receipt_status",
+      arguments: { receipt_id: sub["receipt_id"] },
+    });
+    receiptId = sub["receipt_id"] as string;
+  });
+  it("receipt reaches done with the >128KB result attached", { timeout: 150000 }, async () => {
+    let done: Record<string, unknown> | null = null;
+    const deadline = Date.now() + 120000;
+    while (Date.now() < deadline) {
+      const state = payload(await rbox.call("receipt_status", { receipt_id: receiptId }));
+      if (state["status"] !== "running") {
+        done = state;
+        break;
+      }
+      await sleepMs(2000);
+    }
+    assert.ok(done !== null, "receipt never left running");
+    assert.equal(done["status"], "done");
+    const result = done["result"] as Record<string, unknown>;
+    assert.equal(result["generated"], "envelope-slow-large");
+    assert.equal(((result["tasks"] as unknown[]) ?? []).length, 800);
+  });
+  it("failed receipt attaches its error record", { timeout: 60000 }, async () => {
+    const sub = payload(
+      await rbox.call("receipt_submit", { tool: "status_tail", arguments: { id: "../escape" } }),
+    );
+    let failed: Record<string, unknown> | null = null;
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline) {
+      const state = payload(
+        await rbox.call("receipt_status", { receipt_id: sub["receipt_id"] as string }),
+      );
+      if (state["status"] !== "running") {
+        failed = state;
+        break;
+      }
+      await sleepMs(500);
+    }
+    assert.ok(failed !== null, "receipt never left running");
+    assert.equal(failed["status"], "failed");
+    assert.ok(String(JSON.stringify(failed["error_record"])).includes("invalid id"));
+  });
+  it("submit refuses unknown tools and missing nested approval", async () => {
+    assert.equal(isError(await rbox.call("receipt_submit", { tool: "nope", arguments: {} })), true);
+    const resp = await rbox.call("receipt_submit", {
+      tool: "lifecycle_interrupt",
+      arguments: { id: "x" },
+    });
+    assert.ok(isError(resp) && String(payload(resp)["error"] ?? "").includes("approval"));
+  });
+  it("status rejects traversal receipt ids", async () => {
+    assert.equal(isError(await rbox.call("receipt_status", { receipt_id: "../escape" })), true);
+  });
+  it("receipts never leak across homes", async () => {
+    const resp = await other.call("receipt_status", { receipt_id: receiptId });
+    assert.ok(isError(resp));
+    assert.equal(payload(resp)["error"], "unknown receipt");
+  });
+  it("expired receipts report expired with their TTL and are removed", async () => {
+    const expiredId = "rcpt-expired-proof";
+    const dir = path.join(receiptHome, "state", "mcp-receipts");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, `${expiredId}.json`),
+      JSON.stringify({
+        receipt_id: expiredId, tool: "fleet_snapshot", status: "done",
+        created: "stub", created_epoch: Date.now() / 1000 - 7200,
+        ttl_s: 3600, result: {},
+      }),
+    );
+    const resp = await rbox.call("receipt_status", { receipt_id: expiredId });
+    assert.ok(isError(resp));
+    assert.equal(payload(resp)["error"], "receipt expired");
+    assert.equal(payload(resp)["ttl_s"], 3600);
+    assert.equal(fs.existsSync(path.join(dir, `${expiredId}.json`)), false);
   });
 });

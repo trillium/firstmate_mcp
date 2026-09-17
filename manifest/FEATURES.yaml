@@ -328,13 +328,33 @@ features:
     divergence: {status: not-applicable, reason: ""}
   - id: subprocess_envelope
     kind: local
-    summary: Every tool script runs bounded with process-group kill on timeout so timed-out reads leave no orphans.
+    summary: Every tool call returns within 30s with process-group kill on timeout so timed-out reads leave no orphans; longer work detaches via async receipts.
     local_path: fm_mcp_server.py
-    contract: fm_mcp_server.py (SUBPROCESS_TIMEOUT_S=180, MAX_OUTPUT_BYTES=1MB; TS mirrors in ts/src/constants.ts + ts/src/runner.ts)
-    upstream_test: "n/a (local) — proof: test_client.py envelope fixture (fakes a >30s, >128KB snapshot)"
+    contract: fm_mcp_server.py (SUBPROCESS_TIMEOUT_S=30, MAX_OUTPUT_BYTES=1MB, RECEIPT_TIMEOUT_S=180, RECEIPT_TTL_S=3600; TS mirrors in ts/src/constants.ts + ts/src/runner.ts + ts/src/tools.ts)
+    upstream_test: "n/a (local) — proof: test_client.py fail-closed fixture (30s timeout kill, receipt lifecycle, cross-home isolation, expiry) + ts/tests/server.test.ts mirror"
     readme_anchor: Subprocess envelope
     py: {status: implemented, evidence: ["fm_mcp_server.py:SUBPROCESS_TIMEOUT_S", "fm_mcp_server.py:MAX_OUTPUT_BYTES"]}
     ts: {status: implemented, evidence: ["ts/src/constants.ts:SUBPROCESS_TIMEOUT_S", "ts/src/runner.ts:MAX_OUTPUT_BYTES"]}
+    divergence: {status: not-applicable, reason: ""}
+  - id: receipt_submit
+    kind: local
+    summary: Detaches one tool call past the 30s fail-closed budget and returns a pending receipt with a receipt_status check signature; authority targets still need their nested approval.
+    local_path: fm_mcp_server.py
+    contract: schema/contracts.yaml#receipt_submit
+    upstream_test: "n/a (local) — proof: test_client.py receipt lifecycle (pending submit, done retrieval, cross-home isolation) + ts/tests/server.test.ts mirror"
+    readme_anchor: Async receipts
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_receipt_submit", "auth/tiers.py:receipt_submit"]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:toolReceiptSubmit", "ts/src/auth.ts:receipt_submit"]}
+    divergence: {status: not-applicable, reason: ""}
+  - id: receipt_status
+    kind: local
+    summary: Read-only check on one detached receipt; reports running, done with the result attached, failed, or expired past the TTL, confined to the serving home.
+    local_path: fm_mcp_server.py
+    contract: schema/contracts.yaml#receipt_status
+    upstream_test: "n/a (local) — proof: test_client.py receipt lifecycle (running/done/failed, expiry, cross-home isolation) + ts/tests/server.test.ts mirror"
+    readme_anchor: Async receipts
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_receipt_status", "auth/tiers.py:receipt_status"]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:toolReceiptStatus", "ts/src/auth.ts:receipt_status"]}
     divergence: {status: not-applicable, reason: ""}
   - id: auth_tiers
     kind: local

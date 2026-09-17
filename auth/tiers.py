@@ -15,6 +15,8 @@ TOOL_TIERS = {
     "crew_state": TIER_OPEN,
     "status_tail": TIER_OPEN,
     "fleet_poll": TIER_OPEN,
+    "receipt_submit": TIER_OPEN,
+    "receipt_status": TIER_OPEN,
     "send_message": TIER_STEER,
     "lifecycle_interrupt": TIER_AUTHORITY,
     "lifecycle_exit": TIER_AUTHORITY,

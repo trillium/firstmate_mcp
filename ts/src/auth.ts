@@ -3,7 +3,9 @@
  *
  * Contract (shared with auth/tiers.py and auth/audit.py):
  * - Tier 1 (open reads): fleet_snapshot, backlog, crew_state, status_tail,
- *   fleet_poll — no approval.
+ *   fleet_poll, receipt_submit, receipt_status — no approval.
+ *   (receipt_submit detaches one call past the 30s budget; authority
+ *   targets still need their own nested approval string.)
  * - Tier 2 (reversible steer): send_message — no approval, validated text.
  * - Tier 3 (launch-authorized writes): lifecycle_*, spawn_crew,
  *   scaffold_brief, decision_hold, decision_resolve, review_decision —
@@ -34,6 +36,8 @@ export const TOOL_TIERS: Record<string, Tier> = {
   crew_state: TIER_OPEN,
   status_tail: TIER_OPEN,
   fleet_poll: TIER_OPEN,
+  receipt_submit: TIER_OPEN,
+  receipt_status: TIER_OPEN,
   send_message: TIER_STEER,
   lifecycle_interrupt: TIER_AUTHORITY,
   lifecycle_exit: TIER_AUTHORITY,

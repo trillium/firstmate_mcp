@@ -31,7 +31,10 @@ import {
 
 const APPROVAL = "I authorize lifecycle_interrupt on fm-task1 (2026-09-13)";
 
-const TIER1_TOOLS = ["fleet_snapshot", "backlog", "crew_state", "status_tail", "fleet_poll"];
+const TIER1_TOOLS = [
+  "fleet_snapshot", "backlog", "crew_state", "status_tail", "fleet_poll",
+  "receipt_submit", "receipt_status",
+];
 const TIER3_TOOLS = Object.entries(TOOL_TIERS)
   .filter(([, tier]) => tier === TIER_AUTHORITY)
   .map(([tool]) => tool);
@@ -41,7 +44,7 @@ const TIER4_TOOLS = Object.entries(TOOL_TIERS)
 
 describe("tier assignments", () => {
   it("covers every tool", () => {
-    assert.equal(Object.keys(TOOL_TIERS).length, 19);
+    assert.equal(Object.keys(TOOL_TIERS).length, 21);
   });
   it("tier 1 is open reads", () => {
     for (const tool of TIER1_TOOLS) assert.equal(tierOf(tool), TIER_OPEN, tool);

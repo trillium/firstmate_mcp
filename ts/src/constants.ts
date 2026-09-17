@@ -50,8 +50,23 @@ export function stateDir(): string {
   return process.env.FM_STATE_OVERRIDE ?? path.join(homeDir(), "state");
 }
 
-/** Subprocess envelope: sized to the live fm-fleet-snapshot.sh path. */
-export const SUBPROCESS_TIMEOUT_S = 180;
+/**
+ * Fail-closed call budget: no tool call ever blocks an external caller
+ * past this. A script that cannot finish in time is killed as a whole
+ * process group and answered with a typed timeout error; callers that need
+ * longer work submit it via receipt_submit and poll receipt_status instead.
+ */
+export const SUBPROCESS_TIMEOUT_S = 30;
+/** Background budget for receipt runs: the detached continuation of a
+ * receipt_submit may run this long while the caller stays unblocked. */
+export const RECEIPT_TIMEOUT_S = 180;
+/**
+ * Receipt lifetime: completed receipt records stay retrievable this long,
+ * then expire. Receipts live under the serving home's state dir, so they
+ * never leak across homes.
+ */
+export const RECEIPT_TTL_S = 3600;
+export const RECEIPT_DIRNAME = "mcp-receipts";
 export const MAX_OUTPUT_BYTES = 1048576;
 export const TAIL_CAP_BYTES = 8192;
 export const PROCESS_GROUP_GRACE_S = 5;

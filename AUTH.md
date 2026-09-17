@@ -3,7 +3,8 @@ First Mate MCP authorization tiers (smarts-only)
 Trillium is the sole authorizer under the owner-ordered smarts-only line of 2026-09-13.
 Every authority-bearing or externally visible tool takes an explicit `approval` string starting with `I authorize` and refuses without it.
 Reads stay open because they change nothing.
-Tier 1 - open reads (no approval): `fleet_snapshot`, `backlog`, `crew_state`, `status_tail`, `fleet_poll`.
+Tier 1 - open reads (no approval): `fleet_snapshot`, `backlog`, `crew_state`, `status_tail`, `fleet_poll`, `receipt_submit`, `receipt_status`.
+`receipt_submit` detaches one tool call past the 30s fail-closed budget and returns a pending receipt; authority targets still need their own nested approval string. `receipt_status` reports running/done/failed for one receipt.
 Tier 2 - reversible steers (no approval, validated text): `send_message` wraps only the plain-text `fm-send.sh` path with a 500-char single-line cap and a slash-command refusal.
 Tier 3 - launch-authorized writes (approval required): `lifecycle_interrupt`, `lifecycle_exit`, `lifecycle_relaunch`, `lifecycle_suspend`, `lifecycle_resume`, `spawn_crew`, `scaffold_brief`, `decision_hold`, `decision_resolve`, `review_decision`.
 Lifecycle verbs are launch control only: they drive agent lifecycle and never touch repos directly.

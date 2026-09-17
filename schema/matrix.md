@@ -12,6 +12,8 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | send_message | bin/fm-send.sh | stable | <target> <text> | safe steer write |
 | spawn_crew | bin/fm-spawn.sh | evolving | task, project, mode, yolo | dispatch writes |
 | scaffold_brief | bin/fm-brief.sh | evolving | task, repo, mode/scout | dispatch writes |
+| receipt_submit | native: receipt store (state/mcp-receipts/) | experimental | <tool> <arguments> | detach long calls past the 30s budget |
+| receipt_status | native: receipt store (state/mcp-receipts/) | experimental | <receipt_id> | running/done/failed checks with result on completion |
 
 ## How to use this view
 
