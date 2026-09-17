@@ -40,6 +40,13 @@ When updating this file, preserve this bar for all agents and keep entries conci
   `bash tests/conformance/ts-parity.sh` diffs py/ts payloads field-for-field
   under both runtimes plus the TS fixtures. The TS path follows the live
   server envelope (30s/1MB + receipts), never the adapter's older pair.
+- Upstream-shift watch: `drift/shift.py` polls the upstream Atom feed
+  first (`drift/atom.py`: feed SHA vs the pin as cached SHA, quiet when
+  unchanged, loud `ATOM PARSE FAILURE` on malformed feeds, fail-open to
+  the full `ls-remote` + `bin/` diff); gate
+  `scripts/mcp-shift-schedule.sh`, daily job
+  `.github/workflows/mcp-shift-schedule.yml`, fake-feed proof
+  `tests/mcp-shift-atom.test.sh` (plus `tests/mcp-shift-schedule.test.sh`).
 - Cutover: `scripts/fm-mcp-launch.sh --home $FM_HOME` serves the fleet
   local-only over stdio (Python default, `--server ts` for parity); pins
   `FM_HOME`, refuses network flags, never add a repo-root `bin/` (it would

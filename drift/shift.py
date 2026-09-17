@@ -7,11 +7,25 @@ the TS/Python impls start from that report instead of a blind re-read.
 
 Usage:
     python3 drift/shift.py [--format json|markdown|text] [--fetch/--no-fetch]
+                           [--atom/--no-atom] [--atom-branch BRANCH]
+                           [--atom-timeout SECS] [--atom-url URL]
+                           [--atom-feed-file PATH]
+
+Atom fast path (default when fetching): before any git network call, poll
+the repo's Atom feed for the latest branch SHA and compare it against the
+pin - the pin is the cached SHA, quiet when unchanged. On agreement the
+detector reports no shift without ls-remote or the bin/ diff. On
+disagreement, or when the feed is unreachable or malformed (loud warning
+on stderr), it falls through to the full git path, which stays
+authoritative. --no-atom forces the full path; --no-fetch implies it
+(fully offline, local origin refs only).
 
 - Pinned commit: read live from the gitlink (`git ls-tree HEAD
   sources/firstmate`); the `upstream` stanza in drift/baseline.json records
   the repo URL and the pin at capture time for humans.
-- Upstream main: resolved via `git ls-remote <url> HEAD` (network). With
+- Upstream main: resolved via `git ls-remote <url> HEAD` (network), unless
+  the Atom fast path already agreed with the pin (feed SHA == pin: no
+  shift, ls-remote skipped). With
   --no-fetch, or when the network is unreachable, falls back to the
   submodule's local origin refs and says so.
 - Shift diff: `git diff --name-only <pinned> <upstream> -- bin/` inside the
@@ -27,6 +41,11 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+try:
+    from drift import atom as atom_mod
+except ImportError:  # invoked as `python3 drift/shift.py`
+    import atom as atom_mod
 
 ROOT = Path(__file__).resolve().parent.parent
 SUBMODULE = "sources/firstmate"
@@ -92,6 +111,40 @@ def upstream_commit(url, do_fetch):
         f"cannot resolve upstream main for {url} "
         "(network unreachable and no local origin refs; retry with --fetch)"
     )
+
+
+def atom_short_circuit(url, pinned, mapping, branch="main", timeout=15,
+                       feed_url="", feed_file=""):
+    """Atom-feed fast path: cheap change detector ahead of the git path.
+
+    Returns a no-shift report when the feed SHA agrees with the pin (no
+    ls-remote, no bin/ diff), else None meaning "run the full git path".
+    Feed trouble warns loudly on stderr and returns None - atom never
+    vetoes the authoritative diff, and a changed SHA never skips it.
+    """
+    try:
+        if feed_file:
+            try:
+                xml_text = Path(feed_file).read_text(encoding="utf-8")
+            except OSError as exc:
+                raise ValueError(
+                    f"cannot read atom feed file {feed_file}: {exc}")
+            feed_sha = atom_mod.parse_feed_sha(xml_text)
+            source = f"atom:feed-file:{feed_file}"
+        else:
+            feed = feed_url or atom_mod.atom_url_for_repo(url, branch)
+            xml_text = atom_mod.fetch_feed(feed, timeout=timeout)
+            feed_sha = atom_mod.parse_feed_sha(xml_text)
+            source = f"atom:{feed}"
+    except atom_mod.AtomError as exc:
+        print(f"shift: WARN: atom fast-path unavailable ({exc}); "
+              f"falling through to git", file=sys.stderr)
+        return None
+    if feed_sha == pinned:
+        return build_report(pinned, pinned,
+                            f"atom:unchanged ({source}, ls-remote skipped)",
+                            mapping, [])
+    return None
 
 
 def depended_on_commands():
@@ -182,16 +235,34 @@ def main(argv=None):
     parser.add_argument("--format", choices=("json", "markdown", "text"), default="text")
     parser.add_argument("--fetch", dest="fetch", action="store_true", default=True)
     parser.add_argument("--no-fetch", dest="fetch", action="store_false")
+    parser.add_argument("--atom", dest="atom", action="store_true", default=True)
+    parser.add_argument("--no-atom", dest="atom", action="store_false")
+    parser.add_argument("--atom-branch", default="main")
+    parser.add_argument("--atom-timeout", type=float, default=15)
+    parser.add_argument("--atom-url", default="",
+                        help="override the Atom feed URL "
+                             "(default: derived from the submodule URL)")
+    parser.add_argument("--atom-feed-file", default="",
+                        help="read the Atom feed from PATH instead of the "
+                             "network (offline use and hermetic tests)")
     args = parser.parse_args(argv)
     try:
         url = submodule_url()
         if not url:
             raise ValueError("no submodule URL in .gitmodules or drift/baseline.json")
         pinned = pinned_commit()
-        upstream, how = upstream_commit(url, args.fetch)
         mapping = depended_on_commands()
-        changed = changed_scripts(pinned, upstream) if pinned != upstream else []
-        rep = build_report(pinned, upstream, how, mapping, changed)
+        rep = None
+        if args.atom and args.fetch:
+            rep = atom_short_circuit(url, pinned, mapping,
+                                     branch=args.atom_branch,
+                                     timeout=args.atom_timeout,
+                                     feed_url=args.atom_url,
+                                     feed_file=args.atom_feed_file)
+        if rep is None:
+            upstream, how = upstream_commit(url, args.fetch)
+            changed = changed_scripts(pinned, upstream) if pinned != upstream else []
+            rep = build_report(pinned, upstream, how, mapping, changed)
     except ValueError as exc:
         print(f"shift: {exc}", file=sys.stderr)
         return 2
