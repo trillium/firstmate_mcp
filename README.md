@@ -164,6 +164,7 @@ refusal reason; gap is the explicitly unmirrored port backlog.
 ## Contents
 
 - [What this is](#what-this-is)
+- [Line binding and checkout resolution](#line-binding-and-checkout-resolution)
 - [Quickstart](#quickstart)
 - [Cutover](#cutover)
 - [Tools](#tools)
@@ -187,6 +188,48 @@ layer may observe the fleet, steer workers, and launch or control crews. It
 has no code-writing surface: no edit, commit, merge, or PR tools, no direct
 repo mutation, no teardown that discards work, no promote-to-ship paths.
 Firstmate stays the implementation; this repo is only the typed doorway.
+
+## Line binding and checkout resolution
+
+**Line:** this repo targets the `trillium/firstmate` fork line,
+fork-pinned — not upstream `kunchenguid/firstmate` as a live dependency.
+(Ratification: bead `task-8d0ah.1`; the why: epic `task-8d0ah`.)
+
+**Pinned rev:** two pins, each with one job. The `sources/firstmate`
+submodule gitlink (currently `3eb5b63`) is the authoritative checkout pin —
+confirm it with `git ls-tree HEAD sources/firstmate`.
+`drift/baseline.json` (`firstmate_revision`, currently `aaf67489`, 163
+`bin/fm-*.sh` surfaces inventoried 2026-09-17) is the drift inventory the
+depended-on contracts are checked against. The two advance separately.
+
+**Runtime resolution order** (server, both implementations:
+`fm_mcp_server.py:30-31`, `ts/src/constants.ts`):
+
+1. `CHECKOUT_BIN` — repo-root `bin/` if present. Absent by design (never
+   add one; it would shadow the live binding), so this always falls through.
+2. `FM_HOME/bin` — the live binding. `FM_HOME` defaults to the checkout
+   root; `scripts/fm-mcp-launch.sh` requires it pinned (absolute, carrying
+   `bin/fm-fleet-snapshot.sh`). With no checkout behind it, tool calls fail
+   closed with `executable not found`.
+
+Test/conformance reference lookup only (never the server:
+`tests/conformance/test_conformance.py`, `tests/upstream/run_upstream.py`):
+`FIRSTMATE_HOME` > `FM_REAL_HOME` > `FM_CHECKOUT` > well-known sibling
+checkout; the suite skips cleanly when none resolves.
+
+Example — point the server at a checkout:
+
+```sh
+FM_HOME=/path/to/firstmate python3 fm_mcp_server.py
+```
+
+`fleet_snapshot` then dispatches `$FM_HOME/bin/fm-fleet-snapshot.sh`.
+
+**Re-baseline procedure:** snapshot the live checkout and diff against the
+baseline (`python3 drift/snapshot.py --fm-home /path/to/firstmate -o
+/tmp/observed.json`, then `python3 drift/check.py drift/baseline.json
+/tmp/observed.json` — full usage under [Drift detection](#drift-detection));
+procedure ownership and cadence live on bead `task-8d0ah.2`.
 
 ## Quickstart
 
@@ -331,8 +374,8 @@ suite skips cleanly; see `tests/conformance/README.md`.
 
 Firstmate changes underneath the depended-on contracts, so `drift/`
 watches the command surface and tells contract drift apart from noise.
-`drift/baseline.json` seeds the observed inventory (165 `bin/fm-*.sh`
-surfaces at firstmate rev `9bf454f4`, captured read-only from `--help`
+`drift/baseline.json` seeds the observed inventory (163 `bin/fm-*.sh`
+surfaces at firstmate rev `aaf67489`, captured read-only from `--help`
 output plus script headers — firstmate itself is never modified).
 
 Snapshot the live checkout, then compare against the baseline:
