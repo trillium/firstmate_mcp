@@ -244,3 +244,147 @@ contracts:
       header: bin/fm-guard.sh:1-40
       doc: INVENTORY.md
     notes: Served with FM_GUARD_READ_ONLY=1 so the mirror never clears banner state.
+  - name: remote_doctor
+    command: bin/fm-remote-doctor.sh
+    flags: ["<none>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: readiness checks printed, one fact per line
+      nonzero: a gating check failed or a required tool is missing; stderr carries the reason
+    stability: stable
+    pinned: fm-remote-doctor.v1
+    evidence:
+      header: bin/fm-remote-doctor.sh:1-40
+      doc: INVENTORY.md
+    notes: Check mode only; the --fix repair path stays out of scope.
+  - name: remote_file
+    command: bin/fm-remote-file.sh
+    flags: ["get", "<relative-path>", "<max-bytes>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["path", "max_bytes", "stdout"]
+    exits:
+      zero: bounded file bytes with path and byte bound echoed
+      nonzero: traversal, symlink, missing file, or unreadable home; stderr carries the reason
+    stability: stable
+    pinned: fm-remote-file.get.v1
+    evidence:
+      header: bin/fm-remote-file.sh:1-40
+      doc: INVENTORY.md
+    notes: Get only; the put handoff-intake path stays out of scope. Bounded 8KB default; envelope truncates at 8KB.
+  - name: remote_delta
+    command: bin/fm-remote-delta-read.sh
+    flags: ["<relative-log>", "<offset>", "<prefix-sha256>", "<wait-seconds>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["log", "offset", "stdout"]
+    exits:
+      zero: appended lines after the validated cursor, at most 64KB, with log and offset echoed
+      nonzero: continuity break, bad cursor, or unreadable log; exit 75 means the wait window closed empty
+    stability: stable
+    pinned: fm-remote-delta-read.v1
+    evidence:
+      header: bin/fm-remote-delta-read.sh:1-30
+      doc: INVENTORY.md
+    notes: Read-only poll; the wait is clamped to 0..10s so no call nears the 30s envelope.
+  - name: handoff_status
+    command: "file: data/handoff/<id>.outbox.md"
+    flags: ["<id>", "lines=1..20"]
+    output:
+      format: text
+      schema_id: handoff-outbox.v1
+      fields: ["outboxes", "id", "bytes", "total_lines", "lines"]
+    exits:
+      zero: staged outbox listing, or one outbox tail with id validation and path confinement
+      nonzero: no outbox for id, or unreadable handoff dir
+    stability: stable
+    pinned: handoff-outbox.v1
+    evidence:
+      header: bin/fm-backlog-handoff.sh:1-40
+      doc: INVENTORY.md
+    notes: Dispatch read; staged moves only, never the move itself. Handoff owns moves, receive owns intake.
+  - name: secondmate_nudge
+    command: bin/fm-secondmate-reconcile.sh
+    flags: ["notify"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: per-home notify lines (sent/cooldown/skipped/stale/failed); empty mismatch set exits 0 silently
+      nonzero: at least one due send failed or its cooldown could not be recorded
+    stability: evolving
+    pinned: fm-reconcile.notify.v1
+    evidence:
+      header: bin/fm-secondmate-reconcile.sh:1-40
+      doc: INVENTORY.md
+    notes: Dispatch write; notify-only subset with cooldown guard. request/process-requests stay out.
+  - name: secondmate_restart
+    command: bin/fm-secondmate-restart.sh
+    flags: ["<secondmate-id>..."]
+    output:
+      format: text
+      schema_id: none
+      fields: ["ids", "stdout"]
+    exits:
+      zero: every named mate restarted; exit 3 means partial (nudged/unreached but accounted for)
+      nonzero: unusable input (1) or invalid use (2); stderr carries the reason
+    stability: evolving
+    pinned: fm-secondmate-restart.v1
+    evidence:
+      header: bin/fm-secondmate-restart.sh:1-40
+      doc: INVENTORY.md
+    notes: Dispatch write; ids only, no flags. Persist-gate semantics stay in the owning script.
+  - name: secondmate_report
+    command: bin/fm-secondmate-report.sh
+    flags: ["<verb>", "<corr>", "<note>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["verb", "corr", "stdout"]
+    exits:
+      zero: correlated report appended to the parent channel the helper resolves
+      nonzero: bad corr, unresolvable parent channel, or unwritable destination
+    stability: evolving
+    pinned: fm-secondmate-report.v1
+    evidence:
+      header: bin/fm-secondmate-report.sh:1-40
+      doc: INVENTORY.md
+    notes: Dispatch write; note-only form. The helper resolves the destination, so no status path crosses the boundary; --doc stays out.
+  - name: remote_control
+    command: bin/fm-remote-secondmate-control.sh
+    flags: ["<verb>", "<id>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["verb", "id", "stdout"]
+    exits:
+      zero: verb output with verb and id echoed
+      nonzero: unknown mate, unavailable home, or refused verb; stderr carries the reason
+    stability: evolving
+    pinned: fm-remote-control.safe-subset.v1
+    evidence:
+      header: bin/fm-remote-secondmate-control.sh:1-40
+      doc: INVENTORY.md
+    notes: Dispatch write; closed state/route/observe/send subset. launch/relaunch, key/capture, and sync/update/retire stay out.
+  - name: handoff_move
+    command: bin/fm-backlog-handoff.sh
+    flags: ["<secondmate-id>", "<item-key>...", "--resume-pending"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["id", "keys", "resumed", "stdout"]
+    exits:
+      zero: queued items moved, or pending wakes resumed, with id echoed
+      nonzero: move refused (in-flight items, beads destination, unknown mate); stderr carries the reason
+    stability: evolving
+    pinned: fm-handoff.safe-subset.v1
+    evidence:
+      header: bin/fm-backlog-handoff.sh:1-40
+      doc: INVENTORY.md
+    notes: Dispatch write; move plus resume-pending only. Moves only Queued items via the backend owner.

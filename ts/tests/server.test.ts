@@ -128,7 +128,7 @@ describe("handshake and reads", () => {
   });
 });
 
-describe("smarts surface: 27 tools, forbidden absent", () => {
+describe("smarts surface: 36 tools, forbidden absent", () => {
   let boxed: Client;
   let sandbox: string;
   before(() => {
@@ -148,14 +148,17 @@ describe("smarts surface: 27 tools, forbidden absent", () => {
     "relay_dismiss", "relay_followup", "fleet_poll",
     "peek", "fleet_view", "review_diff",
     "bearings_snapshot", "wake_drain", "guard_check",
+    "remote_doctor", "remote_file", "remote_delta", "handoff_status",
+    "secondmate_nudge", "secondmate_restart", "secondmate_report",
+    "remote_control", "handoff_move",
     "receipt_submit", "receipt_status",
   ];
   const FORBIDDEN = ["promote_scout", "teardown_crew", "arm_pr_check", "merge_pr", "merge_local"];
 
-  it("smarts server lists 27 tools", async () => {
+  it("smarts server lists 36 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 27);
+    assert.equal(tools.length, 36);
   });
 
   for (const required of REQUIRED) {
@@ -191,6 +194,7 @@ describe("smarts surface: 27 tools, forbidden absent", () => {
     const open = new Set([
       "fleet_snapshot", "backlog", "crew_state", "status_tail", "send_message", "fleet_poll",
       "peek", "fleet_view", "review_diff", "bearings_snapshot", "wake_drain", "guard_check",
+      "remote_doctor", "remote_file", "remote_delta", "handoff_status",
       "receipt_submit", "receipt_status",
     ]);
     for (const tool of tools) {
@@ -388,6 +392,197 @@ describe("smarts surface: 27 tools, forbidden absent", () => {
     const resp = await boxed.call("guard_check", {});
     assert.equal(isError(resp), false);
     assert.ok("stdout" in payload(resp));
+  });
+  it("remote_doctor returns check-mode diagnostic", async () => {
+    const resp = await boxed.call("remote_doctor", {});
+    assert.equal(isError(resp), false);
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("doctor-stub"));
+  });
+  it("remote_file returns bounded bytes with path echoed", async () => {
+    const resp = await boxed.call("remote_file", { path: "data/probe.txt" });
+    const filed = payload(resp);
+    assert.equal(isError(resp), false);
+    assert.equal(filed["path"], "data/probe.txt");
+    assert.equal(filed["max_bytes"], 8192);
+    assert.ok("stdout" in filed);
+  });
+  it("remote_file rejects traversal", async () => {
+    assert.equal(isError(await boxed.call("remote_file", { path: "../escape" })), true);
+  });
+  it("remote_file rejects bad max_bytes", async () => {
+    assert.equal(isError(await boxed.call("remote_file", { path: "x", max_bytes: "big" })), true);
+  });
+  it("remote_delta returns appended bytes with log echoed", async () => {
+    const resp = await boxed.call("remote_delta", {
+      log: "state/job.log", offset: 0, sha256: "e".repeat(64),
+    });
+    const delta = payload(resp);
+    assert.equal(isError(resp), false);
+    assert.equal(delta["log"], "state/job.log");
+    assert.equal(delta["offset"], 0);
+    assert.ok("stdout" in delta);
+  });
+  it("remote_delta rejects traversal", async () => {
+    assert.equal(
+      isError(await boxed.call("remote_delta", { log: "../x", offset: 0, sha256: "e".repeat(64) })),
+      true,
+    );
+  });
+  it("remote_delta rejects bad offset", async () => {
+    assert.equal(
+      isError(await boxed.call("remote_delta", { log: "x", offset: -1, sha256: "e".repeat(64) })),
+      true,
+    );
+  });
+  it("remote_delta rejects bad sha256", async () => {
+    assert.equal(
+      isError(await boxed.call("remote_delta", { log: "x", offset: 0, sha256: "short" })),
+      true,
+    );
+  });
+  it("remote_delta rejects bad wait", async () => {
+    assert.equal(
+      isError(
+        await boxed.call("remote_delta", { log: "x", offset: 0, sha256: "e".repeat(64), wait: "long" }),
+      ),
+      true,
+    );
+  });
+  it("handoff_status lists staged outboxes", async () => {
+    const resp = await boxed.call("handoff_status", {});
+    assert.equal(isError(resp), false);
+    assert.deepEqual(payload(resp)["outboxes"], []);
+  });
+  it("handoff_status rejects traversal", async () => {
+    assert.equal(isError(await boxed.call("handoff_status", { id: "../escape" })), true);
+  });
+  it("handoff_status missing id is structured error", async () => {
+    assert.equal(isError(await boxed.call("handoff_status", { id: "ghost" })), true);
+  });
+  it("nudge refuses without approval", async () => {
+    const resp = await boxed.call("secondmate_nudge", {});
+    assert.ok(isError(resp) && String(payload(resp)["error"] ?? "").includes("approval"));
+  });
+  it("nudge unknown home stays structured", async () => {
+    assert.equal(isError(await boxed.call("secondmate_nudge", { approval: APPROVAL })), true);
+  });
+  it("restart refuses without approval", async () => {
+    const resp = await boxed.call("secondmate_restart", { ids: ["m1"] });
+    assert.ok(isError(resp) && String(payload(resp)["error"] ?? "").includes("approval"));
+  });
+  it("restart rejects traversal ids", async () => {
+    assert.equal(
+      isError(await boxed.call("secondmate_restart", { ids: ["../x"], approval: APPROVAL })),
+      true,
+    );
+  });
+  it("restart rejects empty ids", async () => {
+    assert.equal(
+      isError(await boxed.call("secondmate_restart", { ids: [], approval: APPROVAL })),
+      true,
+    );
+  });
+  it("restart unknown mate stays structured", async () => {
+    assert.equal(
+      isError(await boxed.call("secondmate_restart", { ids: ["m1"], approval: APPROVAL })),
+      true,
+    );
+  });
+  it("report refuses without approval", async () => {
+    const resp = await boxed.call("secondmate_report", {
+      verb: "done", corr: "a".repeat(16), note: "ok",
+    });
+    assert.ok(isError(resp) && String(payload(resp)["error"] ?? "").includes("approval"));
+  });
+  it("report rejects bad corr", async () => {
+    assert.equal(
+      isError(
+        await boxed.call("secondmate_report", {
+          verb: "done", corr: "short", note: "ok", approval: APPROVAL,
+        }),
+      ),
+      true,
+    );
+  });
+  it("report rejects bad verb", async () => {
+    assert.equal(
+      isError(
+        await boxed.call("secondmate_report", {
+          verb: "has space", corr: "a".repeat(16), note: "ok", approval: APPROVAL,
+        }),
+      ),
+      true,
+    );
+  });
+  it("report unknown home stays structured", async () => {
+    assert.equal(
+      isError(
+        await boxed.call("secondmate_report", {
+          verb: "done", corr: "a".repeat(16), note: "ok", approval: APPROVAL,
+        }),
+      ),
+      true,
+    );
+  });
+  it("remote control refuses without approval", async () => {
+    const resp = await boxed.call("remote_control", { verb: "state", id: "m1" });
+    assert.ok(isError(resp) && String(payload(resp)["error"] ?? "").includes("approval"));
+  });
+  it("remote control refuses launch verb", async () => {
+    assert.equal(
+      isError(await boxed.call("remote_control", { verb: "launch", id: "m1", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("remote control refuses retire verb", async () => {
+    assert.equal(
+      isError(await boxed.call("remote_control", { verb: "retire", id: "m1", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("remote control send refuses slash", async () => {
+    assert.equal(
+      isError(
+        await boxed.call("remote_control", {
+          verb: "send", id: "m1", text: "/raw key", approval: APPROVAL,
+        }),
+      ),
+      true,
+    );
+  });
+  it("remote control unknown mate stays structured", async () => {
+    assert.equal(
+      isError(await boxed.call("remote_control", { verb: "state", id: "m1", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("handoff refuses without approval", async () => {
+    const resp = await boxed.call("handoff_move", { id: "m1", keys: ["k1"] });
+    assert.ok(isError(resp) && String(payload(resp)["error"] ?? "").includes("approval"));
+  });
+  it("handoff rejects empty keys", async () => {
+    assert.equal(
+      isError(await boxed.call("handoff_move", { id: "m1", keys: [], approval: APPROVAL })),
+      true,
+    );
+  });
+  it("handoff rejects non-bool resume", async () => {
+    assert.equal(
+      isError(await boxed.call("handoff_move", { id: "m1", resume: "yes", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("handoff unknown mate stays structured", async () => {
+    assert.equal(
+      isError(await boxed.call("handoff_move", { id: "m1", keys: ["k1"], approval: APPROVAL })),
+      true,
+    );
+  });
+  it("handoff resume stays structured", async () => {
+    assert.equal(
+      isError(await boxed.call("handoff_move", { id: "m1", resume: true, approval: APPROVAL })),
+      true,
+    );
   });
 });
 

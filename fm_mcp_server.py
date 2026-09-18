@@ -47,6 +47,20 @@ SEND_TEXT_MAX_CHARS = 500
 APPROVAL_PREFIX = "I authorize"
 ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}")
 PROJECT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_./-]{0,199}")
+REL_PATH_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_./-]{0,255}")
+SHA256_RE = re.compile(r"[0-9a-fA-F]{64}")
+CORR_RE = re.compile(r"(?:corr=)?[0-9a-fA-F]{16}")
+REMOTE_CONTROL_VERBS = ("state", "route", "observe", "send")
+REMOTE_FILE_BYTES_MIN = 1
+REMOTE_FILE_BYTES_MAX = 262144
+REMOTE_FILE_DEFAULT_MAX_BYTES = 8192
+DELTA_WAIT_MIN = 0
+DELTA_WAIT_MAX = 10
+HANDOFF_LINES_MIN = 1
+HANDOFF_LINES_MAX = 20
+HANDOFF_DEFAULT_LINES = 10
+RESTART_IDS_MAX = 8
+HANDOFF_KEYS_MAX = 20
 MODES = ("no-mistakes", "direct-PR", "local-only")
 BRIEF_MODES = ("no-mistakes", "direct-PR", "local-only", "scout")
 VERDICTS = ("approve", "decline", "comment")
@@ -55,6 +69,11 @@ VERDICTS = ("approve", "decline", "comment")
 def state_dir():
     override = os.environ.get("FM_STATE_OVERRIDE")
     return Path(override) if override else home_dir() / "state"
+
+
+def data_dir():
+    override = os.environ.get("FM_DATA_OVERRIDE")
+    return Path(override) if override else home_dir() / "data"
 
 
 def valid_id(value):
@@ -82,6 +101,93 @@ def valid_approval(value):
     return isinstance(value, str) and value.startswith(APPROVAL_PREFIX) and len(value) <= 500
 
 
+def valid_relpath(value):
+    if not isinstance(value, str) or REL_PATH_RE.fullmatch(value) is None:
+        return False
+    if "//" in value:
+        return False
+    if any(part in ("", ".", "..") for part in value.split("/")):
+        return False
+    if any(c in value for c in ("\n", "\r", "\t")):
+        return False
+    return True
+
+
+def valid_sha256(value):
+    return isinstance(value, str) and SHA256_RE.fullmatch(value) is not None
+
+
+def valid_corr(value):
+    return isinstance(value, str) and CORR_RE.fullmatch(value) is not None
+
+
+def valid_nonneg_int(value):
+    if isinstance(value, bool):
+        return None
+    try:
+        offset = int(value)
+    except (TypeError, ValueError):
+        return None
+    if isinstance(value, float) and not value.is_integer():
+        return None
+    if offset < 0:
+        return None
+    return offset
+
+
+def valid_delta_wait(value):
+    if isinstance(value, bool):
+        return None
+    try:
+        wait = int(value)
+    except (TypeError, ValueError):
+        return None
+    if isinstance(value, float) and not value.is_integer():
+        return None
+    return max(DELTA_WAIT_MIN, min(DELTA_WAIT_MAX, wait))
+
+
+def valid_remote_max_bytes(value):
+    if isinstance(value, bool):
+        return None
+    try:
+        cap = int(value)
+    except (TypeError, ValueError):
+        return None
+    if isinstance(value, float) and not value.is_integer():
+        return None
+    return max(REMOTE_FILE_BYTES_MIN, min(REMOTE_FILE_BYTES_MAX, cap))
+
+
+def valid_handoff_lines(value):
+    try:
+        lines = int(value)
+    except (TypeError, ValueError):
+        return None
+    return max(HANDOFF_LINES_MIN, min(HANDOFF_LINES_MAX, lines))
+
+
+def valid_id_list(value, max_items):
+    if not isinstance(value, list) or not 1 <= len(value) <= max_items:
+        return None
+    if not all(valid_id(item) for item in value):
+        return None
+    return list(value)
+
+
+def confine_handoff_path(home_data_dir, task_id):
+    if not valid_id(task_id):
+        return None
+    try:
+        root = Path(home_data_dir).resolve()
+    except OSError:
+        return None
+    path = (root / "handoff" / f"{task_id}.outbox.md").resolve()
+    if path.parent != root / "handoff":
+        return None
+    return path
+
+
 def approval_error():
     return {
         "error": "approval required",
@@ -107,6 +213,10 @@ AUDIT_TOOL_TIERS = {
     "bearings_snapshot": 1,
     "wake_drain": 1,
     "guard_check": 1,
+    "remote_doctor": 1,
+    "remote_file": 1,
+    "remote_delta": 1,
+    "handoff_status": 1,
     "send_message": 2,
     "lifecycle_interrupt": 3,
     "lifecycle_exit": 3,
@@ -123,6 +233,11 @@ AUDIT_TOOL_TIERS = {
     "relay_reply": 4,
     "relay_dismiss": 4,
     "relay_followup": 4,
+    "secondmate_nudge": 3,
+    "secondmate_restart": 3,
+    "secondmate_report": 3,
+    "remote_control": 3,
+    "handoff_move": 3,
 }
 AUDIT_FORBIDDEN_TOOLS = (
     "promote_scout",
@@ -159,6 +274,17 @@ AUDIT_VALIDATION_ERRORS = frozenset({
     "invalid count",
     "invalid interval_s",
     "invalid stat",
+    "invalid path",
+    "invalid max_bytes",
+    "invalid offset",
+    "invalid sha256",
+    "invalid wait",
+    "invalid verb",
+    "invalid corr",
+    "invalid keys",
+    "invalid resume",
+    "no handoff for id",
+    "cannot read handoff",
     "bearings was not JSON",
     "unexpected bearings schema",
     "bearings too large for envelope",
@@ -197,7 +323,7 @@ def audit_target(name, args):
     if not isinstance(args, dict):
         return None
     for key in ("id", "target", "task_id", "origin_id", "request_id",
-                "receipt_id", "tool"):
+                "receipt_id", "tool", "path", "log"):
         value = args.get(key)
         if isinstance(value, str) and value:
             return value
@@ -872,6 +998,228 @@ def tool_guard_check(_args):
             os.environ["FM_GUARD_READ_ONLY"] = prev
 
 
+def tool_remote_doctor(_args):
+    # Check mode only: the --fix repair path stays out of scope.
+    return owned_call([BIN / "fm-remote-doctor.sh"], "doctor failed")
+
+
+def tool_remote_file(args):
+    relpath = args.get("path")
+    if not valid_relpath(relpath):
+        return {"error": "invalid path",
+                "expect": "relative path under the home, no traversal"}, True
+    max_bytes = valid_remote_max_bytes(args.get("max_bytes", REMOTE_FILE_DEFAULT_MAX_BYTES))
+    if max_bytes is None:
+        return {"error": "invalid max_bytes",
+                "expect": "integer 1..262144"}, True
+    payload, is_error = owned_call(
+        [BIN / "fm-remote-file.sh", "get", relpath, str(max_bytes)],
+        "remote file read failed",
+    )
+    if not is_error:
+        payload = dict(payload)
+        payload.update({"path": relpath, "max_bytes": max_bytes})
+    return payload, is_error
+
+
+def tool_remote_delta(args):
+    rel_log = args.get("log")
+    if not valid_relpath(rel_log):
+        return {"error": "invalid path",
+                "expect": "relative log path under the home, no traversal"}, True
+    offset = valid_nonneg_int(args.get("offset", 0))
+    if offset is None:
+        return {"error": "invalid offset",
+                "expect": "nonnegative integer byte cursor"}, True
+    sha = args.get("sha256")
+    if not valid_sha256(sha):
+        return {"error": "invalid sha256",
+                "expect": "64 hex chars of the exact prefix"}, True
+    wait = valid_delta_wait(args.get("wait", 0))
+    if wait is None:
+        return {"error": "invalid wait",
+                "expect": "integer 0..10 seconds"}, True
+    payload, is_error = owned_call(
+        [BIN / "fm-remote-delta-read.sh", rel_log, str(offset), sha, str(wait)],
+        "remote delta read failed",
+    )
+    if not is_error:
+        payload = dict(payload)
+        payload.update({"log": rel_log, "offset": offset})
+    return payload, is_error
+
+
+def tool_handoff_status(args):
+    task_id = args.get("id")
+    if task_id is not None and not valid_id(task_id):
+        return {"error": "invalid id",
+                "expect": "short task id, no slashes or traversal"}, True
+    lines = valid_handoff_lines(args.get("lines", HANDOFF_DEFAULT_LINES))
+    if lines is None:
+        return {"error": "invalid lines", "expect": "integer 1..20"}, True
+    handoff = data_dir() / "handoff"
+    if task_id is None:
+        try:
+            names = sorted(p.name for p in handoff.iterdir()
+                           if p.is_file() and not p.is_symlink()
+                           and p.name.endswith(".outbox.md"))
+        except FileNotFoundError:
+            return {"outboxes": []}, False
+        except OSError as exc:
+            return {"error": "cannot read handoff", "detail": str(exc)}, True
+        outboxes = []
+        for name in names:
+            try:
+                text = (handoff / name).read_text(
+                    encoding="utf-8", errors="replace").splitlines()
+                size = (handoff / name).stat().st_size
+            except OSError as exc:
+                return {"error": "cannot read handoff", "detail": str(exc)}, True
+            outboxes.append({
+                "id": name[: -len(".outbox.md")],
+                "bytes": size,
+                "total_lines": len(text),
+            })
+        return {"outboxes": outboxes}, False
+    path = confine_handoff_path(data_dir(), task_id)
+    if path is None:
+        return {"error": "invalid id",
+                "expect": "short task id, no slashes or traversal"}, True
+    try:
+        content = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        size = path.stat().st_size
+    except FileNotFoundError:
+        return {"error": "no handoff for id", "id": task_id}, True
+    except OSError as exc:
+        return {"error": "cannot read handoff", "detail": str(exc)}, True
+    return {"id": task_id, "bytes": size, "total_lines": len(content),
+            "lines": content[-lines:]}, False
+
+
+def tool_secondmate_nudge(args):
+    # Notify-only subset: the backstop asks mismatched secondmates to
+    # reconcile through the cooldown-guarded notify path.
+    if not valid_approval(args.get("approval")):
+        return approval_error(), True
+    return owned_call([BIN / "fm-secondmate-reconcile.sh", "notify"],
+                      "reconcile notify refused or failed")
+
+
+def tool_secondmate_restart(args):
+    ids = valid_id_list(args.get("ids"), RESTART_IDS_MAX)
+    if ids is None:
+        return {"error": "invalid id",
+                "expect": "1..8 secondmate ids, no slashes or traversal"}, True
+    if not valid_approval(args.get("approval")):
+        return approval_error(), True
+    payload, is_error = owned_call(
+        [BIN / "fm-secondmate-restart.sh", *ids],
+        "secondmate restart refused or failed",
+    )
+    if not is_error:
+        payload = dict(payload)
+        payload.update({"ids": ids})
+    return payload, is_error
+
+
+def tool_secondmate_report(args):
+    verb = args.get("verb")
+    if not valid_id(verb):
+        return {"error": "invalid verb",
+                "expect": "short slug, no slashes or traversal"}, True
+    corr = args.get("corr")
+    if not valid_corr(corr):
+        return {"error": "invalid corr",
+                "expect": "16 hex chars, optional corr= prefix"}, True
+    note = args.get("note")
+    if not valid_note(note):
+        return {"error": "invalid note",
+                "expect": "single line, 1..500 chars"}, True
+    if not valid_approval(args.get("approval")):
+        return approval_error(), True
+    # Note-only form: --doc stays out, and the helper resolves the parent
+    # channel itself, so no status path ever crosses this boundary.
+    payload, is_error = owned_call(
+        [BIN / "fm-secondmate-report.sh", verb, corr, note],
+        "secondmate report refused or failed",
+    )
+    if not is_error:
+        payload = dict(payload)
+        payload.update({"verb": verb, "corr": corr})
+    return payload, is_error
+
+
+def tool_remote_control(args):
+    verb = args.get("verb")
+    if verb not in REMOTE_CONTROL_VERBS:
+        return {"error": "invalid verb",
+                "expect": "one of state, route, observe, send"}, True
+    task_id = args.get("id")
+    if not valid_id(task_id):
+        return {"error": "invalid id",
+                "expect": "short task id, no slashes or traversal"}, True
+    if not valid_approval(args.get("approval")):
+        return approval_error(), True
+    argv = [BIN / "fm-remote-secondmate-control.sh", verb, task_id]
+    if verb == "send":
+        text = args.get("text")
+        if not isinstance(text, str) or not 1 <= len(text) <= SEND_TEXT_MAX_CHARS:
+            return {"error": "invalid text",
+                    "expect": f"single line, 1..{SEND_TEXT_MAX_CHARS} chars"}, True
+        if "\n" in text or "\r" in text:
+            return {"error": "invalid text",
+                    "expect": "single line, no newlines"}, True
+        if text.lstrip().startswith("/"):
+            return {"error": "slash commands refused",
+                    "expect": "plain prose steer only"}, True
+        argv.append(text)
+    # Closed verb subset: launch/relaunch (firstmate-owned provisioning),
+    # key/capture (raw pane access), and sync/update/retire (remote code
+    # and pane teardown) stay out.
+    payload, is_error = owned_call(argv, "remote control refused or failed")
+    if not is_error:
+        payload = dict(payload)
+        payload.update({"verb": verb, "id": task_id})
+    return payload, is_error
+
+
+def tool_handoff_move(args):
+    task_id = args.get("id")
+    if not valid_id(task_id):
+        return {"error": "invalid id",
+                "expect": "short task id, no slashes or traversal"}, True
+    resume = args.get("resume", False)
+    if not isinstance(resume, bool):
+        return {"error": "invalid resume", "expect": "boolean"}, True
+    if not valid_approval(args.get("approval")):
+        return approval_error(), True
+    if resume:
+        keys = args.get("keys", [])
+        if keys not in ([], None):
+            return {"error": "invalid keys",
+                    "expect": "resume takes no keys"}, True
+        payload, is_error = owned_call(
+            [BIN / "fm-backlog-handoff.sh", "--resume-pending"],
+            "handoff refused or failed",
+        )
+        if not is_error:
+            payload = dict(payload)
+            payload.update({"id": task_id, "resumed": True})
+        return payload, is_error
+    keys = valid_id_list(args.get("keys"), HANDOFF_KEYS_MAX)
+    if keys is None:
+        return {"error": "invalid keys",
+                "expect": "1..20 backlog item keys, no slashes or traversal"}, True
+    payload, is_error = owned_call(
+        [BIN / "fm-backlog-handoff.sh", task_id, *keys],
+        "handoff refused or failed",
+    )
+    if not is_error:
+        payload = dict(payload)
+        payload.update({"id": task_id, "keys": keys})
+    return payload, is_error
+
+
 # Tools whose schemas carry a required per-call approval string. A
 # receipt_submit for one of these targets only schedules when the nested
 # arguments carry a valid approval; open tools submit freely.
@@ -880,6 +1228,8 @@ NEEDS_APPROVAL = frozenset({
     "lifecycle_suspend", "lifecycle_resume", "spawn_crew",
     "scaffold_brief", "decision_hold", "decision_resolve",
     "review_decision", "relay_reply", "relay_dismiss", "relay_followup",
+    "secondmate_nudge", "secondmate_restart", "secondmate_report",
+    "remote_control", "handoff_move",
 })
 
 
@@ -1034,6 +1384,51 @@ TOOLS = {
         {"type": "object", "properties": {}, "additionalProperties": False},
         tool_guard_check,
     ),
+    "remote_doctor": (
+        "Read-only remote-home readiness diagnostic (check mode; repairs stay out).",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_remote_doctor,
+    ),
+    "remote_file": (
+        "Read-only bounded read of one home-relative file (get only; intake stays out).",
+        {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Home-relative file path"},
+                "max_bytes": {"type": "integer", "minimum": 1, "maximum": 262144, "default": 8192},
+            },
+            "required": ["path"],
+            "additionalProperties": False,
+        },
+        tool_remote_file,
+    ),
+    "remote_delta": (
+        "Read-only continuity-checked delta read of one append-only log.",
+        {
+            "type": "object",
+            "properties": {
+                "log": {"type": "string", "description": "Home-relative log path"},
+                "offset": {"type": "integer", "minimum": 0, "description": "Byte cursor", "default": 0},
+                "sha256": {"type": "string", "description": "64 hex chars of the exact prefix"},
+                "wait": {"type": "integer", "minimum": 0, "maximum": 10, "default": 0},
+            },
+            "required": ["log", "sha256"],
+            "additionalProperties": False,
+        },
+        tool_remote_delta,
+    ),
+    "handoff_status": (
+        "Read-only staged handoff outboxes: list staged moves, or read one outbox tail.",
+        {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "Secondmate id"},
+                "lines": {"type": "integer", "minimum": 1, "maximum": 20, "default": 10},
+            },
+            "additionalProperties": False,
+        },
+        tool_handoff_status,
+    ),
     "send_message": (
         "Steer one crew with a single verified prose line; slash commands, keys, raw panes, and lifecycle verbs are refused.",
         {
@@ -1150,6 +1545,45 @@ TOOLS = {
             "final": {"type": "boolean", "description": "Clear the link after this post"},
         }),
         tool_relay_followup,
+    ),
+    "secondmate_nudge": (
+        "Authority write: ask mismatched secondmates to reconcile via the cooldown-guarded notify path.",
+        approval_schema({}),
+        tool_secondmate_nudge,
+    ),
+    "secondmate_restart": (
+        "Authority write: restart secondmates onto current wiring after persist; ids only.",
+        approval_schema({
+            "ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 8},
+        }),
+        tool_secondmate_restart,
+    ),
+    "secondmate_report": (
+        "Authority write: append one correlated report to the parent channel; the helper resolves the destination.",
+        approval_schema({
+            "verb": {"type": "string", "description": "Report verb slug"},
+            "corr": {"type": "string", "description": "16 hex chars, optional corr= prefix"},
+            "note": {"type": "string", "description": "Report note, single line 1..500 chars"},
+        }),
+        tool_secondmate_report,
+    ),
+    "remote_control": (
+        "Authority write: closed state/route/observe/send subset of remote secondmate control.",
+        approval_schema({
+            "verb": {"type": "string", "enum": ["state", "route", "observe", "send"]},
+            "id": {"type": "string", "description": "Secondmate id"},
+            "text": {"type": "string", "description": "Prose steer for send, 1..500 chars"},
+        }),
+        tool_remote_control,
+    ),
+    "handoff_move": (
+        "Authority write: hand queued backlog items to a secondmate, or resume pending wakes.",
+        approval_schema({
+            "id": {"type": "string", "description": "Secondmate id"},
+            "keys": {"type": "array", "items": {"type": "string"}, "description": "1..20 backlog item keys"},
+            "resume": {"type": "boolean", "description": "Resume pending wakes; takes no keys", "default": False},
+        }),
+        tool_handoff_move,
     ),
     "receipt_submit": (
         "Detach one tool call past the 30s fail-closed budget; returns a pending receipt to poll with receipt_status.",

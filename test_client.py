@@ -54,6 +54,14 @@ STUBS = {
     "fm-bearings-snapshot.sh": "echo '%s'\n" % json.dumps(BEARINGS),
     "fm-wake-drain.sh": "echo 'wake-drain stub: empty'\n",
     "fm-guard.sh": "exit 0\n",
+    "fm-remote-doctor.sh": "echo 'doctor-stub: mode=check'\n",
+    "fm-remote-file.sh": "echo \"file-stub:$2 max=$3\"\n",
+    "fm-remote-delta-read.sh": "echo \"delta-stub:$1 off=$2 wait=$4\"\n",
+    "fm-secondmate-reconcile.sh": "echo 'stub: refused' >&2\nexit 1\n",
+    "fm-secondmate-restart.sh": "echo 'stub: refused' >&2\nexit 1\n",
+    "fm-secondmate-report.sh": "echo 'stub: refused' >&2\nexit 1\n",
+    "fm-remote-secondmate-control.sh": "echo 'stub: refused' >&2\nexit 1\n",
+    "fm-backlog-handoff.sh": "echo 'stub: refused' >&2\nexit 1\n",
 }
 
 
@@ -243,13 +251,17 @@ def main():
         boxed.notify("notifications/initialized")
         resp = boxed.request("tools/list")
         names = {t["name"] for t in resp["result"]["tools"]}
-        check("smarts server lists 27 tools", len(names) == 27, sorted(names))
+        check("smarts server lists 36 tools", len(names) == 36, sorted(names))
         for required in ("lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch",
                          "lifecycle_suspend", "lifecycle_resume", "spawn_crew", "scaffold_brief",
                          "decision_hold", "decision_resolve", "review_decision", "relay_reply",
                          "relay_dismiss", "relay_followup", "fleet_poll",
                          "peek", "fleet_view", "review_diff",
                          "bearings_snapshot", "wake_drain", "guard_check",
+                         "remote_doctor", "remote_file", "remote_delta",
+                         "handoff_status", "secondmate_nudge",
+                         "secondmate_restart", "secondmate_report",
+                         "remote_control", "handoff_move",
                          "receipt_submit", "receipt_status"):
             check(f"tool present: {required}", required in names)
         for forbidden in ("promote_scout", "teardown_crew", "arm_pr_check",
@@ -265,6 +277,7 @@ def main():
             for t in resp["result"]["tools"]
             if t["name"] not in ("fleet_snapshot", "backlog", "crew_state", "status_tail", "send_message", "fleet_poll",
                                 "peek", "fleet_view", "review_diff", "bearings_snapshot", "wake_drain", "guard_check",
+                                "remote_doctor", "remote_file", "remote_delta", "handoff_status",
                                 "receipt_submit", "receipt_status")
         ))
 
@@ -365,6 +378,97 @@ def main():
 
         resp = boxed.call("guard_check", {})
         check("guard_check returns verdict text", not is_error(resp) and "stdout" in payload(resp))
+
+        resp = boxed.call("remote_doctor", {})
+        check("remote_doctor returns check-mode diagnostic",
+              not is_error(resp) and "doctor-stub" in payload(resp).get("stdout", ""))
+
+        resp = boxed.call("remote_file", {"path": "data/probe.txt"})
+        filed = payload(resp)
+        check("remote_file returns bounded bytes with path echoed",
+              not is_error(resp) and filed.get("path") == "data/probe.txt"
+              and filed.get("max_bytes") == 8192 and "stdout" in filed)
+        resp = boxed.call("remote_file", {"path": "../escape"})
+        check("remote_file rejects traversal", is_error(resp))
+        resp = boxed.call("remote_file", {"path": "x", "max_bytes": "big"})
+        check("remote_file rejects bad max_bytes", is_error(resp))
+
+        resp = boxed.call("remote_delta", {"log": "state/job.log",
+                                             "offset": 0, "sha256": "e" * 64})
+        delta = payload(resp)
+        check("remote_delta returns appended bytes with log echoed",
+              not is_error(resp) and delta.get("log") == "state/job.log"
+              and delta.get("offset") == 0 and "stdout" in delta)
+        resp = boxed.call("remote_delta", {"log": "../x", "offset": 0,
+                                             "sha256": "e" * 64})
+        check("remote_delta rejects traversal", is_error(resp))
+        resp = boxed.call("remote_delta", {"log": "x", "offset": -1,
+                                             "sha256": "e" * 64})
+        check("remote_delta rejects bad offset", is_error(resp))
+        resp = boxed.call("remote_delta", {"log": "x", "offset": 0,
+                                             "sha256": "short"})
+        check("remote_delta rejects bad sha256", is_error(resp))
+        resp = boxed.call("remote_delta", {"log": "x", "offset": 0,
+                                             "sha256": "e" * 64,
+                                             "wait": "long"})
+        check("remote_delta rejects bad wait", is_error(resp))
+
+        resp = boxed.call("handoff_status", {})
+        check("handoff_status lists staged outboxes",
+              not is_error(resp) and payload(resp).get("outboxes") == [])
+        resp = boxed.call("handoff_status", {"id": "../escape"})
+        check("handoff_status rejects traversal", is_error(resp))
+        resp = boxed.call("handoff_status", {"id": "ghost"})
+        check("handoff_status missing id is structured error", is_error(resp))
+
+        resp = boxed.call("secondmate_nudge", {})
+        check("nudge refuses without approval", is_error(resp) and "approval" in payload(resp).get("error", ""))
+        resp = boxed.call("secondmate_nudge", {"approval": APPROVAL})
+        check("nudge unknown home stays structured", is_error(resp))
+
+        resp = boxed.call("secondmate_restart", {"ids": ["m1"]})
+        check("restart refuses without approval", is_error(resp) and "approval" in payload(resp).get("error", ""))
+        resp = boxed.call("secondmate_restart", {"ids": ["../x"], "approval": APPROVAL})
+        check("restart rejects traversal ids", is_error(resp))
+        resp = boxed.call("secondmate_restart", {"ids": [], "approval": APPROVAL})
+        check("restart rejects empty ids", is_error(resp))
+        resp = boxed.call("secondmate_restart", {"ids": ["m1"], "approval": APPROVAL})
+        check("restart unknown mate stays structured", is_error(resp))
+
+        resp = boxed.call("secondmate_report", {"verb": "done", "corr": "a" * 16, "note": "ok"})
+        check("report refuses without approval", is_error(resp) and "approval" in payload(resp).get("error", ""))
+        resp = boxed.call("secondmate_report", {"verb": "done", "corr": "short",
+                                                  "note": "ok", "approval": APPROVAL})
+        check("report rejects bad corr", is_error(resp))
+        resp = boxed.call("secondmate_report", {"verb": "has space", "corr": "a" * 16,
+                                                  "note": "ok", "approval": APPROVAL})
+        check("report rejects bad verb", is_error(resp))
+        resp = boxed.call("secondmate_report", {"verb": "done", "corr": "a" * 16,
+                                                  "note": "ok", "approval": APPROVAL})
+        check("report unknown home stays structured", is_error(resp))
+
+        resp = boxed.call("remote_control", {"verb": "state", "id": "m1"})
+        check("remote control refuses without approval", is_error(resp) and "approval" in payload(resp).get("error", ""))
+        resp = boxed.call("remote_control", {"verb": "launch", "id": "m1", "approval": APPROVAL})
+        check("remote control refuses launch verb", is_error(resp))
+        resp = boxed.call("remote_control", {"verb": "retire", "id": "m1", "approval": APPROVAL})
+        check("remote control refuses retire verb", is_error(resp))
+        resp = boxed.call("remote_control", {"verb": "send", "id": "m1",
+                                               "text": "/raw key", "approval": APPROVAL})
+        check("remote control send refuses slash", is_error(resp))
+        resp = boxed.call("remote_control", {"verb": "state", "id": "m1", "approval": APPROVAL})
+        check("remote control unknown mate stays structured", is_error(resp))
+
+        resp = boxed.call("handoff_move", {"id": "m1", "keys": ["k1"]})
+        check("handoff refuses without approval", is_error(resp) and "approval" in payload(resp).get("error", ""))
+        resp = boxed.call("handoff_move", {"id": "m1", "keys": [], "approval": APPROVAL})
+        check("handoff rejects empty keys", is_error(resp))
+        resp = boxed.call("handoff_move", {"id": "m1", "resume": "yes", "approval": APPROVAL})
+        check("handoff rejects non-bool resume", is_error(resp))
+        resp = boxed.call("handoff_move", {"id": "m1", "keys": ["k1"], "approval": APPROVAL})
+        check("handoff unknown mate stays structured", is_error(resp))
+        resp = boxed.call("handoff_move", {"id": "m1", "resume": True, "approval": APPROVAL})
+        check("handoff resume stays structured", is_error(resp))
     finally:
         boxed.close()
 

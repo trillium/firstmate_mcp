@@ -27,7 +27,11 @@ script's observable output (modulo the envelope wrap).
 - `fleet_snapshot` — via `fm-fleet-snapshot.sh` (pinned in schema/contracts.yaml)
 - `fleet_view` — via `fm-fleet-view.sh` (pinned in schema/contracts.yaml)
 - `guard_check` — via `fm-guard.sh` (pinned in schema/contracts.yaml)
+- `handoff_status` — via `native (no owning script)` (pinned in schema/contracts.yaml)
 - `peek` — via `fm-peek.sh` (pinned in schema/contracts.yaml)
+- `remote_delta` — via `fm-remote-delta-read.sh` (pinned in schema/contracts.yaml)
+- `remote_doctor` — via `fm-remote-doctor.sh` (pinned in schema/contracts.yaml)
+- `remote_file` — via `fm-remote-file.sh` (pinned in schema/contracts.yaml)
 - `review_diff` — via `fm-review-diff.sh` (pinned in schema/contracts.yaml)
 - `send_message` — via `fm-send.sh` (pinned in schema/contracts.yaml)
 - `status_tail` — via `native (no owning script)` (pinned in schema/contracts.yaml)
@@ -40,6 +44,7 @@ revalidated ids/paths/text, explicit per-call approval.
 
 - `decision_hold` — via `fm-decision-hold.sh` (Tier 3 approval, approval required)
 - `decision_resolve` — via `fm-decision-hold.sh` (Tier 3 approval, approval required)
+- `handoff_move` — via `fm-backlog-handoff.sh` (Tier 3 approval, approval required)
 - `lifecycle_exit` — via `fm-control.sh` (Tier 3 approval, approval required)
 - `lifecycle_interrupt` — via `fm-control.sh` (Tier 3 approval, approval required)
 - `lifecycle_relaunch` — via `fm-control.sh` (Tier 3 approval, approval required)
@@ -48,8 +53,12 @@ revalidated ids/paths/text, explicit per-call approval.
 - `relay_dismiss` — via `fm-x-dismiss.sh` (Tier 4 approval+relay, approval required)
 - `relay_followup` — via `fm-x-followup.sh` (Tier 4 approval+relay, approval required)
 - `relay_reply` — via `fm-x-reply.sh` (Tier 4 approval+relay, approval required)
+- `remote_control` — via `fm-remote-secondmate-control.sh` (Tier 3 approval, approval required)
 - `review_decision` — via `fm-review-decision.sh` (Tier 3 approval, approval required)
 - `scaffold_brief` — via `fm-brief.sh` (Tier 3 approval, approval required)
+- `secondmate_nudge` — via `fm-secondmate-reconcile.sh` (Tier 3 approval, approval required)
+- `secondmate_report` — via `fm-secondmate-report.sh` (Tier 3 approval, approval required)
+- `secondmate_restart` — via `fm-secondmate-restart.sh` (Tier 3 approval, approval required)
 - `spawn_crew` — via `fm-spawn.sh` (Tier 3 approval, approval required)
 
 Refused by the adapter deny-list (no tool, answered unknown):
@@ -99,7 +108,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` independently implements the same 27-tool
+- TypeScript sibling — `ts/` independently implements the same 36-tool
   contract over stdio (no dependencies); `tests/conformance/ts-parity.sh`
   diffs py/ts payloads field-for-field plus the TS equivalence fixtures.
 - Proof suites in this tree (all run in gates below):
@@ -129,8 +138,8 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | Fleet runs | 3 | 0 | 5 |
 | Supervision | 6 | 4 | 30 |
 | Sessions | 2 | 0 | 23 |
-| Backlog / decisions | 2 | 0 | 10 |
-| Secondmates / remotes | 0 | 0 | 20 |
+| Backlog / decisions | 4 | 0 | 9 |
+| Secondmates / remotes | 7 | 0 | 13 |
 | PR pipeline | 1 | 5 | 5 |
 | Relay | 3 | 0 | 5 |
 | Voice / mail | 0 | 0 | 2 |
@@ -221,7 +230,9 @@ fleet).
 ## Tools
 
 Reads (open, no side effects): `fleet_snapshot`, `backlog`, `crew_state`,
-`status_tail`.
+`status_tail`, `peek`, `fleet_view`, `review_diff`, `bearings_snapshot`,
+`wake_drain`, `guard_check`, `remote_doctor`, `remote_file`, `remote_delta`,
+`handoff_status`.
 
 Single safe write: `send_message` — one verified plain-text line to one crew
 (500-char cap, single line, slash commands refused).
@@ -229,7 +240,14 @@ Single safe write: `send_message` — one verified plain-text line to one crew
 Launch-authorized writes (approval required): `lifecycle_interrupt`,
 `lifecycle_exit`, `lifecycle_relaunch`, `lifecycle_suspend`,
 `lifecycle_resume`, `spawn_crew`, `scaffold_brief`, `decision_hold`,
-`decision_resolve`, `review_decision`.
+`decision_resolve`, `review_decision`, `secondmate_nudge`,
+`secondmate_restart`, `secondmate_report`, `remote_control`, `handoff_move`.
+
+Secondmate and remote reads stay open (`remote_doctor` check mode,
+`remote_file` get-only, `remote_delta` continuity-checked, `handoff_status`
+staged outboxes); the lifecycle-affecting verbs sit behind approval with the
+same safe-subset discipline as the lifecycle tools, and provisioning new
+secondmate homes stays out.
 
 External sends (approval required, inert without relay consent):
 `relay_reply`, `relay_dismiss`, `relay_followup`.

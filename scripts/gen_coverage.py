@@ -164,6 +164,7 @@ COMMAND_AREAS = {
     "backends/herdr-workspace-move.py": ("sessions", "Herdr workspace-move helper"),
     # ---- backlog / decisions ----
     "fm-backlog-handoff.sh": ("backlog-decisions", "secondmate handoff moves"),
+    "file: data/handoff/<id>.outbox.md": ("backlog-decisions", "staged handoff outbox file; staged moves only"),
     "fm-backlog-receive.sh": ("backlog-decisions", "remote outbox receipt"),
     "fm-backlog-import-beads.sh": ("backlog-decisions", "one-time backlog.md importer; removed upstream since pin"),
     "fm-decision-hold.sh": ("backlog-decisions", "durable captain holds behind approval"),

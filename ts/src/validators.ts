@@ -13,9 +13,18 @@
 import path from "node:path";
 import {
   APPROVAL_PREFIX,
+  CORR_RE,
+  DELTA_WAIT_MAX,
+  DELTA_WAIT_MIN,
+  HANDOFF_LINES_MAX,
+  HANDOFF_LINES_MIN,
   ID_RE,
   PROJECT_RE,
+  REL_PATH_RE,
+  REMOTE_FILE_BYTES_MAX,
+  REMOTE_FILE_BYTES_MIN,
   SEND_TEXT_MAX_CHARS,
+  SHA256_RE,
 } from "./constants.js";
 
 export const NOTE_MAX_CHARS = 500;
@@ -96,6 +105,87 @@ export function validStatusLines(value: unknown): number | null {
 }
 
 /**
+ * Home-relative file path: no absolute paths, no traversal, no controls.
+ * Mirrors the confinement bin/fm-remote-file.sh resolve_file enforces.
+ */
+export function validRelpath(value: unknown): value is string {
+  if (typeof value !== "string" || !REL_PATH_RE.test(value)) return false;
+  if (value.includes("//")) return false;
+  if (value.split("/").some((part) => part === "" || part === "." || part === "..")) {
+    return false;
+  }
+  if (value.includes("\n") || value.includes("\r") || value.includes("\t")) return false;
+  return true;
+}
+
+/** 64 hex chars: a continuity-check prefix hash, nothing else. */
+export function validSha256(value: unknown): value is string {
+  return typeof value === "string" && SHA256_RE.test(value);
+}
+
+/** Correlated-request token: 16 hex chars, optional corr= prefix. */
+export function validCorr(value: unknown): value is string {
+  return typeof value === "string" && CORR_RE.test(value);
+}
+
+/** Nonnegative integer cursor (remote delta offset); null when not one. */
+export function validNonnegInt(value: unknown): number | null {
+  if (typeof value === "boolean") return null;
+  let offset: number;
+  if (typeof value === "number") {
+    if (!Number.isInteger(value)) return null;
+    offset = value;
+  } else if (typeof value === "string" && value.trim() !== "" && Number.isInteger(Number(value))) {
+    offset = Number(value);
+  } else {
+    return null;
+  }
+  if (!Number.isFinite(offset) || offset < 0) return null;
+  return offset;
+}
+
+function coerceBoundedInt(
+  value: unknown,
+  min: number,
+  max: number,
+): number | null {
+  if (typeof value === "boolean") return null;
+  let n: number;
+  if (typeof value === "number") {
+    if (!Number.isInteger(value)) return null;
+    n = value;
+  } else if (typeof value === "string" && value.trim() !== "" && Number.isInteger(Number(value))) {
+    n = Number(value);
+  } else {
+    return null;
+  }
+  if (!Number.isFinite(n)) return null;
+  return Math.max(min, Math.min(max, n));
+}
+
+/** Coerce a delta-read wait into the 0..10s window; null when not an integer. */
+export function validDeltaWait(value: unknown): number | null {
+  return coerceBoundedInt(value, DELTA_WAIT_MIN, DELTA_WAIT_MAX);
+}
+
+/** Coerce a remote-file byte bound into the 1..256KB window; null when bad. */
+export function validRemoteMaxBytes(value: unknown): number | null {
+  return coerceBoundedInt(value, REMOTE_FILE_BYTES_MIN, REMOTE_FILE_BYTES_MAX);
+}
+
+/** Coerce an outbox line count into the 1..20 window; null when not an integer. */
+export function validHandoffLines(value: unknown): number | null {
+  return coerceBoundedInt(value, HANDOFF_LINES_MIN, HANDOFF_LINES_MAX);
+}
+
+/** Non-empty list of id slugs capped at maxItems; null when not one. */
+export function validIdList(value: unknown, maxItems: number): string[] | null {
+  if (!Array.isArray(value) || value.length < 1 || value.length > maxItems) return null;
+  if (!value.every((item) => validId(item))) return null;
+  return [...value] as string[];
+}
+
+/**
  * Resolve state/<taskId>.status confined under stateDir.
  * Returns the resolved path, or null when the id is invalid or the resolved
  * path escapes the state directory.
@@ -105,6 +195,20 @@ export function confineStatePath(stateDir: string, taskId: unknown): string | nu
   const root = path.resolve(stateDir);
   const candidate = path.resolve(root, `${taskId}.status`);
   if (path.dirname(candidate) !== root) return null;
+  return candidate;
+}
+
+/**
+ * Resolve data/handoff/<taskId>.outbox.md confined under dataDir.
+ * Returns the resolved path, or null when the id is invalid or the
+ * resolved path escapes the handoff directory.
+ */
+export function confineHandoffPath(dataDir: string, taskId: unknown): string | null {
+  if (!validId(taskId)) return null;
+  const root = path.resolve(dataDir);
+  const handoff = path.join(root, "handoff");
+  const candidate = path.resolve(handoff, `${taskId}.outbox.md`);
+  if (path.dirname(candidate) !== path.resolve(handoff)) return null;
   return candidate;
 }
 

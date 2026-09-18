@@ -4,13 +4,15 @@
  * Contract (shared with auth/tiers.py and auth/audit.py):
  * - Tier 1 (open reads): fleet_snapshot, backlog, crew_state, status_tail,
  *   fleet_poll, peek, fleet_view, review_diff, bearings_snapshot,
- *   wake_drain, guard_check, receipt_submit, receipt_status — no approval.
+ *   wake_drain, guard_check, remote_doctor, remote_file, remote_delta,
+ *   handoff_status, receipt_submit, receipt_status — no approval.
  *   (receipt_submit detaches one call past the 30s budget; authority
  *   targets still need their own nested approval string.)
  * - Tier 2 (reversible steer): send_message — no approval, validated text.
  * - Tier 3 (launch-authorized writes): lifecycle_*, spawn_crew,
- *   scaffold_brief, decision_hold, decision_resolve, review_decision —
- *   explicit per-call approval required.
+ *   scaffold_brief, decision_hold, decision_resolve, review_decision,
+ *   secondmate_nudge, secondmate_restart, secondmate_report,
+ *   remote_control, handoff_move — explicit per-call approval required.
  * - Tier 4 (external sends): relay_reply, relay_dismiss, relay_followup —
  *   approval plus relay consent inside the owning scripts.
  * - Forbidden: promote_scout, teardown_crew, arm_pr_check, merge_pr,
@@ -51,6 +53,10 @@ export const TOOL_TIERS: Record<string, Tier> = {
   bearings_snapshot: TIER_OPEN,
   wake_drain: TIER_OPEN,
   guard_check: TIER_OPEN,
+  remote_doctor: TIER_OPEN,
+  remote_file: TIER_OPEN,
+  remote_delta: TIER_OPEN,
+  handoff_status: TIER_OPEN,
   receipt_submit: TIER_OPEN,
   receipt_status: TIER_OPEN,
   send_message: TIER_STEER,
@@ -64,6 +70,11 @@ export const TOOL_TIERS: Record<string, Tier> = {
   decision_hold: TIER_AUTHORITY,
   decision_resolve: TIER_AUTHORITY,
   review_decision: TIER_AUTHORITY,
+  secondmate_nudge: TIER_AUTHORITY,
+  secondmate_restart: TIER_AUTHORITY,
+  secondmate_report: TIER_AUTHORITY,
+  remote_control: TIER_AUTHORITY,
+  handoff_move: TIER_AUTHORITY,
   relay_reply: TIER_EXTERNAL,
   relay_dismiss: TIER_EXTERNAL,
   relay_followup: TIER_EXTERNAL,
