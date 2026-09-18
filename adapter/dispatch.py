@@ -591,6 +591,114 @@ def _build_relay_dismiss(args):
     return _argv("fm-x-dismiss.sh", request_id), None
 
 
+def _build_mail_read(_args):
+    # Read-only digest over BODY.PEEK: mail is never marked seen before
+    # firstmate answers it. Credentials live outside MCP (home .env).
+    return _argv("fm-mail.sh", "read"), None
+
+
+def _build_mail_status(_args):
+    # Config + cursor only: no network, no wake.
+    return _argv("fm-mail.sh", "status"), None
+
+
+def _build_mail_send(args):
+    to = args.get("to")
+    subject = args.get("subject")
+    body = args.get("body")
+    if not v.valid_mail_to(to):
+        return None, env.err(
+            "invalid-to", "invalid to",
+            expect="single-line recipient address with @, 3..200 chars, no whitespace",
+        )
+    if not v.valid_mail_subject(subject):
+        return None, env.err(
+            "invalid-subject", "invalid subject",
+            expect="single line, 1..200 chars",
+        )
+    if not v.valid_mail_body(body):
+        return None, env.err(
+            "invalid-body", "invalid body",
+            expect="1..5000 chars",
+        )
+    if not v.valid_approval(args.get("approval")):
+        return None, APPROVAL_ERROR
+    # Body travels via stdin ("-"), exactly like the owning script's
+    # `send <to> <subject> -` form, so no body text lands in argv.
+    return _argv("fm-mail.sh", "send", to, subject, "-"), None
+
+
+def _build_voice_status(args):
+    scope = args.get("scope", "counts")
+    if not v.valid_voice_scope(scope):
+        return None, env.err(
+            "invalid-scope", "invalid scope",
+            expect="one of counts, full",
+        )
+    # Counts is safe by construction (no record free text); full widens
+    # only via the captain's own config/voice-read-scope, enforced inside
+    # the helper alongside the deny list.
+    return _argv("fm_voice_records.py", "status", "--scope", scope), None
+
+
+def _build_voice_queue(args):
+    text = args.get("text")
+    if not v.valid_voice_queue_text(text):
+        return None, env.err(
+            "invalid-text", "invalid text",
+            expect="single line, 1..500 chars",
+        )
+    if not v.valid_approval(args.get("approval")):
+        return None, APPROVAL_ERROR
+    return _argv("fm_voice_records.py", "queue", text), None
+
+
+def _build_lint_versions(_args):
+    # Version probes only: the required ShellCheck/actionlint pins.
+    # Composite read (two probes); no owning-script argv beyond the pins.
+    return [], None
+
+
+def _build_tool_update_check(_args):
+    # Report-only check: the sweep repairs nothing, installs nothing.
+    return _argv("fm-tool-update-check.sh", "check"), None
+
+
+def _build_vendor_auth_probe(args):
+    probe = args.get("probe")
+    if not v.valid_probe(probe):
+        return None, env.err(
+            "invalid-probe", "invalid probe",
+            expect="one of grok",
+        )
+    return _argv("fm-vendor-auth-probe.sh", probe), None
+
+
+def _build_startup_memory(args):
+    mode = args.get("mode", "read")
+    if not v.valid_startup_mode(mode):
+        return None, env.err(
+            "invalid-mode", "invalid mode",
+            expect="one of read, report",
+        )
+    return _argv("fm-startup-memory-budget.sh", mode), None
+
+
+def _build_pr_state(args):
+    url = args.get("url")
+    if not v.valid_pr_url(url):
+        return None, env.err(
+            "invalid-url", "invalid url",
+            expect="https://github.com/<owner>/<repo>/pull/<number>",
+        )
+    return _argv("fm-pr-state.sh", url), None
+
+
+def _build_relay_poll(_args):
+    # Short bounded poll; hard no-op without relay consent (FMX token).
+    return _argv("fm-x-poll.sh"), None
+
+
 # Registry: tool name -> (owning script basename, argv builder, needs approval).
 # Reads and the single safe steer need no approval; everything authority-
 # bearing or externally visible does. status_tail and fleet_poll are
@@ -643,10 +751,24 @@ TOOLS = {
     "relay_reply": ("fm-x-reply.sh", _build_relay_reply, True),
     "relay_dismiss": ("fm-x-dismiss.sh", _build_relay_dismiss, True),
     "relay_followup": ("fm-x-followup.sh", None, True),
+    "mail_status": ("fm-mail.sh", _build_mail_status, False),
+    "mail_read": ("fm-mail.sh", _build_mail_read, False),
+    "mail_send": ("fm-mail.sh", _build_mail_send, True),
+    "voice_status": ("fm_voice_records.py", _build_voice_status, False),
+    "voice_queue": ("fm_voice_records.py", _build_voice_queue, True),
+    "lint_versions": ("fm-lint.sh", _build_lint_versions, False),
+    "tool_update_check": ("fm-tool-update-check.sh", _build_tool_update_check, False),
+    "vendor_auth_probe": ("fm-vendor-auth-probe.sh", _build_vendor_auth_probe, False),
+    "startup_memory": ("fm-startup-memory-budget.sh", _build_startup_memory, False),
+    "pr_state": ("fm-pr-state.sh", _build_pr_state, False),
+    "relay_poll": ("fm-x-poll.sh", _build_relay_poll, False),
 }
 
 TOOL_NAMES = frozenset(TOOLS)
-ALLOWED_SCRIPTS = frozenset(s for s, _, _ in TOOLS.values() if s)
+ALLOWED_SCRIPTS = frozenset(s for s, _, _ in TOOLS.values() if s) | frozenset({
+    # Composite reads: lint_versions probes both lint owners in one call.
+    "fm-lint-workflows.sh",
+})
 
 
 def truncate(text, cap=TAIL_CAP_BYTES):
@@ -1501,3 +1623,161 @@ class Adapter:
         result = dict(result)
         result.update({"task_id": task_id})
         return result
+
+    def tool_mail_status(self, args):
+        argv, error = _build_mail_status(args)
+        if error:
+            return error
+        return self.owned_call(argv, "mail status failed")
+
+    def tool_mail_read(self, args):
+        argv, error = _build_mail_read(args)
+        if error:
+            return error
+        result = self.owned_call(argv, "mail read failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        result.update({
+            "warning": "BODY.PEEK digest; mail stays unseen until firstmate answers",
+        })
+        return result
+
+    def tool_mail_send(self, args):
+        argv, error = _build_mail_send(args)
+        if error:
+            return error
+        # Body via stdin ("-" form); never in argv, never logged.
+        body = args.get("body")
+        script = self.bin / "fm-mail.sh"
+        full = [str(script)] + [str(a) for a in argv[1:]]
+        try:
+            proc = self._runner(
+                full,
+                cwd=str(self.checkout_root),
+                capture_output=True,
+                text=True,
+                timeout=SUBPROCESS_TIMEOUT_S,
+                input=body,
+            )
+        except subprocess.TimeoutExpired:
+            return env.err("timed-out", "script timed out",
+                           timeout_s=SUBPROCESS_TIMEOUT_S)
+        except FileNotFoundError as exc:
+            return env.err("executable-not-found", str(exc))
+        out, out_trunc = truncate(proc.stdout or "")
+        err_out, err_trunc = truncate(proc.stderr or "")
+        if proc.returncode != 0:
+            return env.err(
+                "script-failed", "mail send refused or failed",
+                exit=proc.returncode, stdout=out, stderr=err_out,
+            )
+        return env.ok(
+            stdout=out, stdout_truncated=out_trunc,
+            stderr=err_out, stderr_truncated=err_trunc,
+            to=args.get("to"), subject=args.get("subject"),
+        )
+
+    def tool_voice_status(self, args):
+        argv, error = _build_voice_status(args)
+        if error:
+            return error
+        proc, run_error = self.run_script(argv)
+        if run_error:
+            return run_error
+        if proc.returncode != 0:
+            out, _ = truncate(proc.stderr or proc.stdout or "")
+            return env.err("voice-status-failed",
+                           "voice status failed",
+                           exit=proc.returncode, output=out)
+        try:
+            status = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            out, _ = truncate(proc.stdout)
+            return env.err("voice-status-not-json",
+                           "voice status was not JSON", output=out)
+        if not isinstance(status, dict):
+            out, _ = truncate(proc.stdout)
+            return env.err("voice-status-not-json",
+                           "voice status was not JSON", output=out)
+        return env.ok(**status)
+
+    def tool_voice_queue(self, args):
+        argv, error = _build_voice_queue(args)
+        if error:
+            return error
+        result = self.owned_call(argv, "voice queue refused or failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        result.update({"queued": True})
+        return result
+
+    def tool_lint_versions(self, _args):
+        shellcheck, error = self.run_script(
+            ["fm-lint.sh", "--required-version"])
+        if error:
+            return error
+        if shellcheck.returncode != 0:
+            out, _ = truncate(shellcheck.stderr or shellcheck.stdout or "")
+            return env.err("lint-versions-failed",
+                           "lint versions failed",
+                           exit=shellcheck.returncode, output=out)
+        actionlint, error = self.run_script(
+            ["fm-lint-workflows.sh", "--required-version"])
+        if error:
+            return error
+        if actionlint.returncode != 0:
+            out, _ = truncate(actionlint.stderr or actionlint.stdout or "")
+            return env.err("lint-versions-failed",
+                           "lint versions failed",
+                           exit=actionlint.returncode, output=out)
+        return env.ok(
+            shellcheck=(shellcheck.stdout or "").strip(),
+            actionlint=(actionlint.stdout or "").strip(),
+        )
+
+    def tool_tool_update_check(self, args):
+        argv, error = _build_tool_update_check(args)
+        if error:
+            return error
+        return self.owned_call(argv, "tool update check failed")
+
+    def tool_vendor_auth_probe(self, args):
+        argv, error = _build_vendor_auth_probe(args)
+        if error:
+            return error
+        result = self.owned_call(argv, "vendor auth probe failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        result.update({"probe": args.get("probe")})
+        return result
+
+    def tool_startup_memory(self, args):
+        argv, error = _build_startup_memory(args)
+        if error:
+            return error
+        result = self.owned_call(argv, "startup memory read failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        result.update({"mode": args.get("mode", "read")})
+        return result
+
+    def tool_pr_state(self, args):
+        argv, error = _build_pr_state(args)
+        if error:
+            return error
+        result = self.owned_call(argv, "pr state failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        result.update({"url": args.get("url")})
+        return result
+
+    def tool_relay_poll(self, args):
+        argv, error = _build_relay_poll(args)
+        if error:
+            return error
+        return self.owned_call(argv, "relay poll failed")

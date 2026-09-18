@@ -36,15 +36,24 @@ script's observable output (modulo the envelope wrap).
 - `inbox_list` — via `fm-inbox.sh` (pinned in schema/contracts.yaml)
 - `inbox_status` — via `fm-inbox.sh` (pinned in schema/contracts.yaml)
 - `lease_check` — via `fm-lease.sh` (pinned in schema/contracts.yaml)
+- `lint_versions` — via `fm-lint.sh` (pinned in schema/contracts.yaml)
 - `lock_status` — via `fm-lock.sh` (pinned in schema/contracts.yaml)
+- `mail_read` — via `fm-mail.sh` (pinned in schema/contracts.yaml)
+- `mail_status` — via `fm-mail.sh` (pinned in schema/contracts.yaml)
 - `peek` — via `fm-peek.sh` (pinned in schema/contracts.yaml)
+- `pr_state` — via `fm-pr-state.sh` (pinned in schema/contracts.yaml)
 - `project_mode` — via `fm-project-mode.sh` (pinned in schema/contracts.yaml)
+- `relay_poll` — via `fm-x-poll.sh` (pinned in schema/contracts.yaml)
 - `remote_delta` — via `fm-remote-delta-read.sh` (pinned in schema/contracts.yaml)
 - `remote_doctor` — via `fm-remote-doctor.sh` (pinned in schema/contracts.yaml)
 - `remote_file` — via `fm-remote-file.sh` (pinned in schema/contracts.yaml)
 - `review_diff` — via `fm-review-diff.sh` (pinned in schema/contracts.yaml)
 - `send_message` — via `fm-send.sh` (pinned in schema/contracts.yaml)
+- `startup_memory` — via `fm-startup-memory-budget.sh` (pinned in schema/contracts.yaml)
 - `status_tail` — via `native (no owning script)` (pinned in schema/contracts.yaml)
+- `tool_update_check` — via `fm-tool-update-check.sh` (pinned in schema/contracts.yaml)
+- `vendor_auth_probe` — via `fm-vendor-auth-probe.sh` (pinned in schema/contracts.yaml)
+- `voice_status` — via `fm_voice_records.py` (pinned in schema/contracts.yaml)
 - `wake_drain` — via `fm-wake-drain.sh` (pinned in schema/contracts.yaml)
 
 ### CHANGED firstmate features (stricter adapter behavior, approval gates)
@@ -60,6 +69,7 @@ revalidated ids/paths/text, explicit per-call approval.
 - `lifecycle_relaunch` — via `fm-control.sh` (Tier 3 approval, approval required)
 - `lifecycle_resume` — via `fm-control.sh` (Tier 3 approval, approval required)
 - `lifecycle_suspend` — via `fm-control.sh` (Tier 3 approval, approval required)
+- `mail_send` — via `fm-mail.sh` (Tier 4 approval+relay, approval required)
 - `relay_dismiss` — via `fm-x-dismiss.sh` (Tier 4 approval+relay, approval required)
 - `relay_followup` — via `fm-x-followup.sh` (Tier 4 approval+relay, approval required)
 - `relay_reply` — via `fm-x-reply.sh` (Tier 4 approval+relay, approval required)
@@ -70,6 +80,7 @@ revalidated ids/paths/text, explicit per-call approval.
 - `secondmate_report` — via `fm-secondmate-report.sh` (Tier 3 approval, approval required)
 - `secondmate_restart` — via `fm-secondmate-restart.sh` (Tier 3 approval, approval required)
 - `spawn_crew` — via `fm-spawn.sh` (Tier 3 approval, approval required)
+- `voice_queue` — via `fm_voice_records.py` (Tier 3 approval, approval required)
 
 Refused by the adapter deny-list (no tool, answered unknown):
 
@@ -118,7 +129,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` independently implements the same 46-tool
+- TypeScript sibling — `ts/` independently implements the same 57-tool
   contract over stdio (no dependencies); `tests/conformance/ts-parity.sh`
   diffs py/ts payloads field-for-field plus the TS equivalence fixtures.
 - Proof suites in this tree (all run in gates below):
@@ -150,11 +161,11 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | Sessions | 4 | 0 | 21 |
 | Backlog / decisions | 4 | 0 | 9 |
 | Secondmates / remotes | 7 | 0 | 13 |
-| PR pipeline | 1 | 5 | 5 |
-| Relay | 3 | 0 | 5 |
-| Voice / mail | 0 | 0 | 2 |
+| PR pipeline | 2 | 5 | 4 |
+| Relay | 4 | 0 | 4 |
+| Voice / mail | 3 | 0 | 1 |
 | Digests | 5 | 0 | 1 |
-| Installs | 0 | 0 | 23 |
+| Installs | 4 | 0 | 19 |
 
 Mirrored names the MCP tool; `stale` flags an owning script upstream removed
 after the pin (the tool still dispatches the old name). Denied names the

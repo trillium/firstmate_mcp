@@ -57,6 +57,15 @@ const READ_TOOLS: ReadonlySet<string> = new Set([
   "home_summary",
   "contributions_snapshot",
   "contributions_pending",
+  "mail_status",
+  "mail_read",
+  "voice_status",
+  "lint_versions",
+  "tool_update_check",
+  "vendor_auth_probe",
+  "startup_memory",
+  "pr_state",
+  "relay_poll",
 ]);
 
 // Scripts the suite may execute. Anything else fails closed at the runner.
@@ -79,6 +88,15 @@ const READ_SCRIPTS: ReadonlySet<string> = new Set([
   "fm-bearings-board.sh",
   "fm-inbox.sh",
   "fm-contributions.sh",
+  "fm-mail.sh",
+  "fm_voice_records.py",
+  "fm-lint.sh",
+  "fm-lint-workflows.sh",
+  "fm-tool-update-check.sh",
+  "fm-vendor-auth-probe.sh",
+  "fm-startup-memory-budget.sh",
+  "fm-pr-state.sh",
+  "fm-x-poll.sh",
 ]);
 
 const SNAPSHOT_STUB = `node -e '
@@ -130,6 +148,22 @@ const LEASE_STUB =
 const BEARINGS_BOARD_STUB = 'echo "$FM_HOME/.lavish/bearings-board.html"\n';
 const INBOX_STUB = 'echo "inbox-stub:$1"\n';
 const CONTRIBUTIONS_STUB = 'if [ "$1" = "pending" ]; then echo "[]"; else cat "$2"; fi\n';
+const MAIL_STUB =
+  'if [ "$1" = "status" ]; then echo "mail-stub:status"; ' +
+  'elif [ "$1" = "read" ]; then echo "mail-stub:read"; ' +
+  'elif [ "$1" = "send" ]; then cat >/dev/null; echo "mail-stub:sent to $2 subj=$3"; ' +
+  'else echo "stub: refused" >&2; exit 1; fi\n';
+const VOICE_RECORDS_STUB =
+  'if [ "$1" = "status" ]; then echo "{\\"scope\\":\\"$3\\",\\"workers_on_deck\\":0,\\"in_flight\\":0,\\"queued\\":0}"; ' +
+  'elif [ "$1" = "queue" ]; then echo "voice-stub:queued $2"; ' +
+  'else echo "stub: refused" >&2; exit 1; fi\n';
+const LINT_STUB = 'if [ "$1" = "--required-version" ]; then echo "0.11.0"; else exit 1; fi\n';
+const LINT_WORKFLOWS_STUB = 'if [ "$1" = "--required-version" ]; then echo "1.7.12"; else exit 1; fi\n';
+const TOOL_UPDATE_STUB = 'echo "tool-update-stub:check"\n';
+const VENDOR_PROBE_STUB = 'echo "probe=$1 status=unauthenticated version=none versionVerified=none"\n';
+const STARTUP_MEMORY_STUB = 'echo "memory-stub:$1"\n';
+const PR_STATE_STUB = 'echo "pr-stub:$1"\n';
+const X_POLL_STUB = 'echo "x-poll stub: empty"\n';
 const HOME_SUMMARY_FIXTURE = {
   schema: "fm-secondmate-home-summary.v1",
   generated: "stub",
@@ -180,6 +214,15 @@ function setup(): Fixture {
   writeStub(path.join(scratch, "bin"), "fm-bearings-board.sh", BEARINGS_BOARD_STUB);
   writeStub(path.join(scratch, "bin"), "fm-inbox.sh", INBOX_STUB);
   writeStub(path.join(scratch, "bin"), "fm-contributions.sh", CONTRIBUTIONS_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-mail.sh", MAIL_STUB);
+  writeStub(path.join(scratch, "bin"), "fm_voice_records.py", VOICE_RECORDS_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-lint.sh", LINT_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-lint-workflows.sh", LINT_WORKFLOWS_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-tool-update-check.sh", TOOL_UPDATE_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-vendor-auth-probe.sh", VENDOR_PROBE_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-startup-memory-budget.sh", STARTUP_MEMORY_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-pr-state.sh", PR_STATE_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-x-poll.sh", X_POLL_STUB);
 
   const savedFmHome = process.env.FM_HOME;
   const savedStateOverride = process.env.FM_STATE_OVERRIDE;
@@ -647,6 +690,142 @@ describe("digest-read equivalence", () => {
   });
 });
 
+describe("mail equivalence", () => {
+  let fx: Fixture;
+  beforeEach(() => {
+    fx = setup();
+  });
+  afterEach(() => teardown(fx));
+
+  it("mail_status matches direct stub", async () => {
+    const direct = directRun(fx, "fm-mail.sh", ["status"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "mail_status", {}));
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("mail_read matches direct stub with a never-marks-seen warning", async () => {
+    const direct = directRun(fx, "fm-mail.sh", ["read"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "mail_read", {}));
+    assert.equal(result["stdout"], direct.stdout);
+    assert.ok(String(result["warning"] ?? "").includes("BODY.PEEK"));
+  });
+});
+
+describe("voice equivalence", () => {
+  let fx: Fixture;
+  beforeEach(() => {
+    fx = setup();
+  });
+  afterEach(() => teardown(fx));
+
+  it("voice_status defaults to counts", async () => {
+    const result = okPayload(await readOnlyCall(fx, "voice_status", {}));
+    assert.equal(result["scope"], "counts");
+  });
+
+  it("voice_status passes the full scope through", async () => {
+    const result = okPayload(await readOnlyCall(fx, "voice_status", { scope: "full" }));
+    assert.equal(result["scope"], "full");
+  });
+
+  it("voice_status refuses unknown scopes without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "voice_status", { scope: "bogus" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid scope");
+    assert.equal(fx.calls.length, before);
+  });
+});
+
+describe("installs equivalence", () => {
+  let fx: Fixture;
+  beforeEach(() => {
+    fx = setup();
+  });
+  afterEach(() => teardown(fx));
+
+  it("lint_versions returns both required pins", async () => {
+    const result = okPayload(await readOnlyCall(fx, "lint_versions", {}));
+    assert.equal(result["shellcheck"], "0.11.0");
+    assert.equal(result["actionlint"], "1.7.12");
+  });
+
+  it("tool_update_check matches direct stub", async () => {
+    const direct = directRun(fx, "fm-tool-update-check.sh", ["check"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "tool_update_check", {}));
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("vendor_auth_probe matches direct stub with probe echoed", async () => {
+    const direct = directRun(fx, "fm-vendor-auth-probe.sh", ["grok"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "vendor_auth_probe", { probe: "grok" }));
+    assert.equal(result["probe"], "grok");
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("vendor_auth_probe refuses probes outside the allowlist without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "vendor_auth_probe", { probe: "bogus" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid probe");
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("startup_memory defaults to read with mode echoed", async () => {
+    const direct = directRun(fx, "fm-startup-memory-budget.sh", ["read"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "startup_memory", {}));
+    assert.equal(result["mode"], "read");
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("startup_memory refuses unknown modes without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "startup_memory", { mode: "bogus" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid mode");
+    assert.equal(fx.calls.length, before);
+  });
+});
+
+describe("small-gaps equivalence", () => {
+  let fx: Fixture;
+  beforeEach(() => {
+    fx = setup();
+  });
+  afterEach(() => teardown(fx));
+
+  it("pr_state matches direct stub with url echoed", async () => {
+    const url = "https://github.com/octo/repo/pull/42";
+    const direct = directRun(fx, "fm-pr-state.sh", [url]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "pr_state", { url }));
+    assert.equal(result["url"], url);
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("pr_state refuses non-GitHub urls without spawn", async () => {
+    const before = fx.calls.length;
+    for (const url of ["not a url", "https://example.com/o/r/pull/1"]) {
+      const result = await readOnlyCall(fx, "pr_state", { url });
+      assert.equal(result.isError, true);
+      assert.equal(result.payload["error"], "invalid url");
+    }
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("relay_poll matches direct stub", async () => {
+    const direct = directRun(fx, "fm-x-poll.sh", []);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "relay_poll", {}));
+    assert.equal(result["stdout"], direct.stdout);
+  });
+});
+
 describe("side-effect-free", () => {
   let fx: Fixture;
   beforeEach(() => {
@@ -698,6 +877,15 @@ describe("side-effect-free", () => {
     await readOnlyCall(fx, "home_summary", {});
     await readOnlyCall(fx, "contributions_snapshot", {});
     await readOnlyCall(fx, "contributions_pending", {});
+    await readOnlyCall(fx, "mail_status", {});
+    await readOnlyCall(fx, "mail_read", {});
+    await readOnlyCall(fx, "voice_status", { scope: "counts" });
+    await readOnlyCall(fx, "lint_versions", {});
+    await readOnlyCall(fx, "tool_update_check", {});
+    await readOnlyCall(fx, "vendor_auth_probe", { probe: "grok" });
+    await readOnlyCall(fx, "startup_memory", { mode: "read" });
+    await readOnlyCall(fx, "pr_state", { url: "https://github.com/octocat/Hello-World/pull/42" });
+    await readOnlyCall(fx, "relay_poll", {});
     for (const call of fx.calls) {
       assert.ok(READ_SCRIPTS.has(call.script), `non-read script ran: ${call.script}`);
     }
@@ -726,6 +914,8 @@ describe("side-effect-free", () => {
       "secondmate_report",
       "remote_control",
       "handoff_move",
+      "voice_queue",
+      "mail_send",
     ]) {
       await assert.rejects(() => readOnlyCall(fx, name, {}), /reads only/);
     }

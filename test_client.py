@@ -80,6 +80,26 @@ STUBS = {
     "fm-bearings-board.sh": "echo \"$FM_HOME/.lavish/bearings-board.html\"\n",
     "fm-inbox.sh": "echo \"inbox-stub:$1\"\n",
     "fm-contributions.sh": "if [ \"$1\" = \"pending\" ]; then echo '[]'; else cat \"$2\"; fi\n",
+    "fm-mail.sh": (
+        "if [ \"$1\" = \"status\" ]; then echo 'mail-stub:status'; "
+        "elif [ \"$1\" = \"read\" ]; then echo 'mail-stub:read'; "
+        "elif [ \"$1\" = \"send\" ]; then cat >/dev/null; "
+        "echo \"mail-stub:sent to $2 subj=$3\"; "
+        "else echo 'stub: refused' >&2; exit 1; fi\n"
+    ),
+    "fm_voice_records.py": (
+        "if [ \"$1\" = \"status\" ]; then echo \"{\\\"scope\\\":\\\"$3\\\","
+        "\\\"workers_on_deck\\\":0,\\\"in_flight\\\":0,\\\"queued\\\":0}\"; "
+        "elif [ \"$1\" = \"queue\" ]; then echo \"voice-stub:queued $2\"; "
+        "else echo 'stub: refused' >&2; exit 1; fi\n"
+    ),
+    "fm-lint.sh": "if [ \"$1\" = \"--required-version\" ]; then echo '0.11.0'; else exit 1; fi\n",
+    "fm-lint-workflows.sh": "if [ \"$1\" = \"--required-version\" ]; then echo '1.7.12'; else exit 1; fi\n",
+    "fm-tool-update-check.sh": "echo 'tool-update-stub:check'\n",
+    "fm-vendor-auth-probe.sh": "echo \"probe=$1 status=unauthenticated version=none versionVerified=none\"\n",
+    "fm-startup-memory-budget.sh": "echo \"memory-stub:$1\"\n",
+    "fm-pr-state.sh": "echo \"pr-stub:$1\"\n",
+    "fm-x-poll.sh": "echo 'x-poll stub: empty'\n",
 }
 
 
@@ -269,7 +289,7 @@ def main():
         boxed.notify("notifications/initialized")
         resp = boxed.request("tools/list")
         names = {t["name"] for t in resp["result"]["tools"]}
-        check("smarts server lists 46 tools", len(names) == 46, sorted(names))
+        check("smarts server lists 57 tools", len(names) == 57, sorted(names))
         for required in ("lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch",
                          "lifecycle_suspend", "lifecycle_resume", "spawn_crew", "scaffold_brief",
                          "decision_hold", "decision_resolve", "review_decision", "relay_reply",
@@ -283,6 +303,10 @@ def main():
                          "harness_detect", "project_mode", "lock_status", "lease_check",
                          "bearings_board_path", "inbox_status", "inbox_list",
                          "home_summary", "contributions_snapshot", "contributions_pending",
+                         "mail_status", "mail_read", "voice_status",
+                         "lint_versions", "tool_update_check", "vendor_auth_probe",
+                         "startup_memory", "pr_state", "relay_poll",
+                         "voice_queue", "mail_send",
                          "receipt_submit", "receipt_status"):
             check(f"tool present: {required}", required in names)
         for forbidden in ("promote_scout", "teardown_crew", "arm_pr_check",
@@ -302,6 +326,9 @@ def main():
                                 "harness_detect", "project_mode", "lock_status", "lease_check",
                                 "bearings_board_path", "inbox_status", "inbox_list",
                                 "home_summary", "contributions_snapshot", "contributions_pending",
+                                "mail_status", "mail_read", "voice_status",
+                                "lint_versions", "tool_update_check", "vendor_auth_probe",
+                                "startup_memory", "pr_state", "relay_poll",
                                 "receipt_submit", "receipt_status")
         ))
 
@@ -567,6 +594,87 @@ def main():
         resp = boxed.call("contributions_pending", {})
         check("contributions_pending returns the token list",
               not is_error(resp) and payload(resp).get("pending") == [])
+
+        resp = boxed.call("mail_status", {})
+        check("mail_status reads config without network",
+              not is_error(resp) and "mail-stub:status" in payload(resp).get("stdout", ""))
+        resp = boxed.call("mail_read", {})
+        read = payload(resp)
+        check("mail_read returns a never-marks-seen digest",
+              not is_error(resp) and "mail-stub:read" in read.get("stdout", "")
+              and "BODY.PEEK" in read.get("warning", ""))
+        resp = boxed.call("mail_send", {"to": "a@example.com", "subject": "hi", "body": "hello"})
+        check("mail send refuses without approval", is_error(resp) and "approval" in payload(resp).get("error", ""))
+        resp = boxed.call("mail_send", {"to": "not-an-address", "subject": "hi",
+                                          "body": "hello", "approval": APPROVAL})
+        check("mail send rejects bad recipient", is_error(resp))
+        resp = boxed.call("mail_send", {"to": "a@example.com", "subject": "hi\nthere",
+                                          "body": "hello", "approval": APPROVAL})
+        check("mail send rejects multiline subject", is_error(resp))
+        resp = boxed.call("mail_send", {"to": "a@example.com", "subject": "hi",
+                                          "body": "", "approval": APPROVAL})
+        check("mail send rejects empty body", is_error(resp))
+        resp = boxed.call("mail_send", {"to": "a@example.com", "subject": "hi",
+                                          "body": "hello via stdin", "approval": APPROVAL})
+        sent = payload(resp)
+        check("mail send pipes the body via stdin with to echoed",
+              not is_error(resp) and sent.get("to") == "a@example.com"
+              and sent.get("subject") == "hi" and "mail-stub:sent" in sent.get("stdout", ""))
+
+        resp = boxed.call("voice_status", {})
+        voice = payload(resp)
+        check("voice_status defaults to counts without mic or model",
+              not is_error(resp) and voice.get("scope") == "counts")
+        resp = boxed.call("voice_status", {"scope": "full"})
+        check("voice_status passes the full scope through",
+              not is_error(resp) and payload(resp).get("scope") == "full")
+        resp = boxed.call("voice_status", {"scope": "bogus"})
+        check("voice_status rejects unknown scopes", is_error(resp))
+        resp = boxed.call("voice_queue", {"text": "check the fleet"})
+        check("voice queue refuses without approval", is_error(resp) and "approval" in payload(resp).get("error", ""))
+        resp = boxed.call("voice_queue", {"text": "one\ntwo", "approval": APPROVAL})
+        check("voice queue rejects multiline text", is_error(resp))
+        resp = boxed.call("voice_queue", {"text": "check the fleet", "approval": APPROVAL})
+        check("voice queue hands the request over without audio",
+              not is_error(resp) and payload(resp).get("queued") is True)
+
+        resp = boxed.call("lint_versions", {})
+        versions = payload(resp)
+        check("lint_versions returns both required pins",
+              not is_error(resp) and versions.get("shellcheck") == "0.11.0"
+              and versions.get("actionlint") == "1.7.12")
+        resp = boxed.call("tool_update_check", {})
+        check("tool_update_check reports without repairing",
+              not is_error(resp) and "tool-update-stub" in payload(resp).get("stdout", ""))
+        resp = boxed.call("vendor_auth_probe", {"probe": "grok"})
+        probed = payload(resp)
+        check("vendor_auth_probe returns one sanitized line with probe echoed",
+              not is_error(resp) and probed.get("probe") == "grok"
+              and "status=" in probed.get("stdout", ""))
+        resp = boxed.call("vendor_auth_probe", {"probe": "bogus"})
+        check("vendor_auth_probe rejects probes outside the allowlist", is_error(resp))
+        resp = boxed.call("startup_memory", {})
+        mem = payload(resp)
+        check("startup_memory defaults to read with mode echoed",
+              not is_error(resp) and mem.get("mode") == "read"
+              and "memory-stub:read" in mem.get("stdout", ""))
+        resp = boxed.call("startup_memory", {"mode": "report"})
+        check("startup_memory passes the report mode through",
+              not is_error(resp) and "memory-stub:report" in payload(resp).get("stdout", ""))
+        resp = boxed.call("startup_memory", {"mode": "bogus"})
+        check("startup_memory rejects unknown modes", is_error(resp))
+        resp = boxed.call("pr_state", {"url": "https://github.com/octo/repo/pull/42"})
+        stated = payload(resp)
+        check("pr_state reads blockers with url echoed",
+              not is_error(resp) and stated.get("url") == "https://github.com/octo/repo/pull/42"
+              and "pr-stub" in stated.get("stdout", ""))
+        resp = boxed.call("pr_state", {"url": "https://example.com/o/r/pull/1"})
+        check("pr_state rejects non-GitHub urls", is_error(resp))
+        resp = boxed.call("pr_state", {"url": "not a url"})
+        check("pr_state rejects malformed urls", is_error(resp))
+        resp = boxed.call("relay_poll", {})
+        check("relay_poll short-polls without error",
+              not is_error(resp) and "x-poll stub" in payload(resp).get("stdout", ""))
     finally:
         boxed.close()
 

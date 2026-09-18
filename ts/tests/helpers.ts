@@ -59,6 +59,22 @@ export const STUBS: Record<string, string> = {
   "fm-bearings-board.sh": 'echo "$FM_HOME/.lavish/bearings-board.html"\n',
   "fm-inbox.sh": 'echo "inbox-stub:$1"\n',
   "fm-contributions.sh": 'if [ "$1" = "pending" ]; then echo "[]"; else cat "$2"; fi\n',
+  "fm-mail.sh":
+    'if [ "$1" = "status" ]; then echo "mail-stub:status"; ' +
+    'elif [ "$1" = "read" ]; then echo "mail-stub:read"; ' +
+    'elif [ "$1" = "send" ]; then cat >/dev/null; echo "mail-stub:sent to $2 subj=$3"; ' +
+    'else echo "stub: refused" >&2; exit 1; fi\n',
+  "fm_voice_records.py":
+    'if [ "$1" = "status" ]; then echo "{\\"scope\\":\\"$3\\",\\"workers_on_deck\\":0,\\"in_flight\\":0,\\"queued\\":0}"; ' +
+    'elif [ "$1" = "queue" ]; then echo "voice-stub:queued $2"; ' +
+    'else echo "stub: refused" >&2; exit 1; fi\n',
+  "fm-lint.sh": 'if [ "$1" = "--required-version" ]; then echo "0.11.0"; else exit 1; fi\n',
+  "fm-lint-workflows.sh": 'if [ "$1" = "--required-version" ]; then echo "1.7.12"; else exit 1; fi\n',
+  "fm-tool-update-check.sh": 'echo "tool-update-stub:check"\n',
+  "fm-vendor-auth-probe.sh": 'echo "probe=$1 status=unauthenticated version=none versionVerified=none"\n',
+  "fm-startup-memory-budget.sh": 'echo "memory-stub:$1"\n',
+  "fm-pr-state.sh": 'echo "pr-stub:$1"\n',
+  "fm-x-poll.sh": 'echo "x-poll stub: empty"\n',
   "fm-send.sh": "echo 'stub: no such crew' >&2\nexit 1\n",
   "fm-control.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-spawn.sh": "echo 'stub: refused' >&2\nexit 1\n",

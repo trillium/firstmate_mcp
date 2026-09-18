@@ -58,6 +58,9 @@ When updating this file, preserve this bar for all agents and keep entries conci
   `scripts/mcp-shift-schedule.sh`, daily job
   `.github/workflows/mcp-shift-schedule.yml`, fake-feed proof
   `tests/mcp-shift-atom.test.sh` (plus `tests/mcp-shift-schedule.test.sh`).
+- Coverage provenance outside `bin/fm-*.sh` (e.g. `bin/fm_voice_records.py`)
+  needs a `bin/` key in `scripts/gen_coverage.py` COMMAND_AREAS; it renders
+  via the special-rows path, never the upstream `.sh` enumeration.
 - Cutover: `scripts/fm-mcp-launch.sh --home $FM_HOME` serves the fleet
   local-only over stdio (Python default, `--server ts` for parity); pins
   `FM_HOME`, refuses network flags, never add a repo-root `bin/` (it would

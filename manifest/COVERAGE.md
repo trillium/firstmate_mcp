@@ -19,12 +19,12 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Sessions](#sessions) | 4 | 0 | 21 |
 | [Backlog / decisions](#backlog-decisions) | 4 | 0 | 9 |
 | [Secondmates / remotes](#secondmates-remotes) | 7 | 0 | 13 |
-| [PR pipeline](#pr-pipeline) | 1 | 5 | 5 |
-| [Relay](#relay) | 3 | 0 | 5 |
-| [Voice / mail](#voice-mail) | 0 | 0 | 2 |
+| [PR pipeline](#pr-pipeline) | 2 | 5 | 4 |
+| [Relay](#relay) | 4 | 0 | 4 |
+| [Voice / mail](#voice-mail) | 3 | 0 | 1 |
 | [Digests](#digests) | 5 | 0 | 1 |
-| [Installs](#installs) | 0 | 0 | 23 |
-| **Total** | **35** | **9** | **112** |
+| [Installs](#installs) | 4 | 0 | 19 |
+| **Total** | **44** | **9** | **105** |
 
 ## Fleet runs
 
@@ -180,7 +180,7 @@ Check arming, polls, reviews, and landing: the code-adjacent surface that stays 
 | `fm-pr-merge.sh` | denied-by-design — `merge_pr` | landing merge; merge authority owns this, never MCP. landing merges belong to the configured merge authority |
 | `fm-pr-poll.sh` | gap | merge-poll check source; unmirrored read |
 | `fm-pr-reviewers.sh` | gap | reviewer assignment; unmirrored |
-| `fm-pr-state.sh` | gap | PR state read; unmirrored |
+| `fm-pr-state.sh` | mirrored — `pr_state` (py✔ ts✔) | PR state read; unmirrored |
 | `fm-promote.sh` | denied-by-design — `promote_scout` | promote scout to ship; code-writing path stays out. code-writing path: scouts report, ships launch separately |
 | `fm-review-diff.sh` | mirrored — `review_diff` (py✔ ts✔) | branch-vs-base review diff; unmirrored read |
 | `policy: repo-mutation` | denied-by-design — `repo_edit`, `repo_commit`, `repo_push`, `repo_merge` | project changes belong to workers behind merge authority |
@@ -197,7 +197,7 @@ Public X surface: replies, dismissals, followups, polls, and links.
 | `fm-x-dismiss.sh` | mirrored — `relay_dismiss` (py✔ ts✔) | dismiss one public item; same consent gate |
 | `fm-x-followup.sh` | mirrored — `relay_followup` (py✔ ts✔) | one public followup; same consent gate |
 | `fm-x-link.sh` | gap | link a task to the mention that triggered it |
-| `fm-x-poll.sh` | gap | short-poll the relay connector; inert unless configured |
+| `fm-x-poll.sh` | mirrored — `relay_poll` (py✔ ts✔) | short-poll the relay connector; inert unless configured |
 | `fm-x-reply.sh` | mirrored — `relay_reply` (py✔ ts✔) | one public reply; inert without relay consent |
 
 ## Voice / mail
@@ -206,8 +206,10 @@ Out-of-band planes: mail reads/sends; voice helpers are non-command modules.
 
 | Command | Mirror status | Notes |
 | --- | --- | --- |
+| `bin/fm_voice_records.py` | mirrored — `voice_status` (py✔ ts✔) | Voice-agent status answer from durable records; no mic, no Bedrock, no audio. |
+| `bin/fm_voice_records.py` | mirrored — `voice_queue` (py✔ ts✔) | Hand one request to firstmate through the voice handover queue. |
 | `fm-mail-check.sh` | gap | inbound mail check |
-| `fm-mail.sh` | gap | IMAP read / SMTP send plane |
+| `fm-mail.sh` | mirrored — `mail_status` (py✔ ts✔), `mail_read` (py✔ ts✔), `mail_send` (py✔ ts✔) | IMAP read / SMTP send plane |
 
 ## Digests
 
@@ -240,17 +242,17 @@ Setup and hygiene: installers, seeds, linters, tests, probes, registry checks.
 | `fm-install-herdr.sh` | gap | Herdr installer |
 | `fm-install-shellcheck.sh` | gap | shellcheck installer |
 | `fm-install-treehouse.sh` | gap | treehouse installer |
-| `fm-lint-workflows.sh` | gap | workflow lint |
-| `fm-lint.sh` | gap | repo lint |
-| `fm-startup-memory-budget.sh` | gap | startup memory budget |
+| `fm-lint-workflows.sh` | gap | workflow lint run (probe served via lint_versions; run stays out) |
+| `fm-lint.sh` | mirrored — `lint_versions` (py✔ ts✔) | repo lint (required-version probe mirrored; runs stay out) |
+| `fm-startup-memory-budget.sh` | mirrored — `startup_memory` (py✔ ts✔) | startup memory budget |
 | `fm-startup-network.sh` | gap | startup network probe |
 | `fm-stow-cascade.sh` | gap | stow cascade |
 | `fm-test-affected.sh` (removed upstream) | gap | test-impact selector; removed upstream since pin |
 | `fm-test-isolation-proof.sh` | gap | isolation proof |
 | `fm-test-run.sh` | gap | test runner |
-| `fm-tool-update-check.sh` | gap | tool update check |
+| `fm-tool-update-check.sh` | mirrored — `tool_update_check` (py✔ ts✔) | tool update check |
 | `fm-update.sh` | gap | firstmate update |
-| `fm-vendor-auth-probe.sh` | gap | vendor auth probe |
+| `fm-vendor-auth-probe.sh` | mirrored — `vendor_auth_probe` (py✔ ts✔) | vendor auth probe |
 
 ## Definitions
 

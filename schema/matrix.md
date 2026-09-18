@@ -35,6 +35,17 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | home_summary | file: state/home-summary.json | stable | <none> | published home-summary ledger reads |
 | contributions_snapshot | bin/fm-contributions.sh | stable | snapshot, <contribution-input>, --all | owned-contribution coverage reads (no forge) |
 | contributions_pending | bin/fm-contributions.sh | stable | pending | pending contribution token reads |
+| mail_status | bin/fm-mail.sh | stable | status | mail config + cursor reads (no network) |
+| mail_read | bin/fm-mail.sh | stable | read | unseen-INBOX digest reads (BODY.PEEK) |
+| mail_send | bin/fm-mail.sh | evolving | send, <to>, <subject>, - | SMTP send subset (body via stdin) |
+| voice_status | bin/fm_voice_records.py | stable | status, --scope | voice status reads (no mic, no Bedrock) |
+| voice_queue | bin/fm_voice_records.py | evolving | queue, <text> | handover queue writes |
+| lint_versions | bin/fm-lint.sh | stable | --required-version | ShellCheck/actionlint pin reads |
+| tool_update_check | bin/fm-tool-update-check.sh | stable | check | watched-tool update reports |
+| vendor_auth_probe | bin/fm-vendor-auth-probe.sh | stable | <probe> | bounded vendor auth probes |
+| startup_memory | bin/fm-startup-memory-budget.sh | stable | read, report | startup-memory budget reads |
+| pr_state | bin/fm-pr-state.sh | stable | <pr-url> | PR blockers reads (no posts) |
+| relay_poll | bin/fm-x-poll.sh | stable | <none> | relay short-poll reads (inert without consent) |
 | spawn_crew | bin/fm-spawn.sh | evolving | task, project, mode, yolo | dispatch writes |
 | scaffold_brief | bin/fm-brief.sh | evolving | task, repo, mode/scout | dispatch writes |
 | receipt_submit | native: receipt store (state/mcp-receipts/) | experimental | <tool> <arguments> | detach long calls past the 30s budget |
