@@ -57,7 +57,7 @@ tool plus py/ts status, denied-by-design with reason, or unmirrored gap.
 | `spawn_crew` | `bin/fm-spawn.sh` | `schema/contracts.yaml#spawn_crew` | ✅ | ✅ | intentional: approval gate + safe flag subset |
 | `scaffold_brief` | `bin/fm-brief.sh` | `schema/contracts.yaml#scaffold_brief` | ✅ | ✅ | intentional: approval gate + safe flag subset |
 | `decision_hold/resolve` | `bin/fm-decision-hold.sh` | adapter safe-subcommand subset | ✅ | ✅ | intentional: approval gate + safe subcommand subset |
-| `review_decision` | `bin/fm-review-decision.sh` | adapter safe-verdict subset | ✅ | ✅ | intentional: approval gate + closed verdict set |
+| `review_decision` | `bin/fm-captain-hold.sh answer` | adapter safe-verdict subset | ✅ | ✅ | intentional: approval gate + closed verdict set via answer decision file |
 | `relay_reply/dismiss/followup` | `bin/fm-x-*.sh` | adapter + external relay consent | ✅ | ✅ | intentional: approval gate on top of external consent |
 
 Equivalence proof: `tests/conformance/` replays read tools against the
