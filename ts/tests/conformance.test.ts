@@ -16,7 +16,8 @@
  * carries FM_HOME=<scratch>, and the guarded runner refuses any script
  * outside the read-script set (snapshot, crew-state, peek, fleet-view,
  * review-diff, bearings-snapshot, wake-drain, guard, remote-doctor,
- * remote-file, remote-delta).
+ * remote-file, remote-delta, harness, project-mode, lock, lease,
+ * bearings-board, inbox, contributions).
  */
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -46,6 +47,16 @@ const READ_TOOLS: ReadonlySet<string> = new Set([
   "remote_file",
   "remote_delta",
   "handoff_status",
+  "harness_detect",
+  "project_mode",
+  "lock_status",
+  "lease_check",
+  "bearings_board_path",
+  "inbox_status",
+  "inbox_list",
+  "home_summary",
+  "contributions_snapshot",
+  "contributions_pending",
 ]);
 
 // Scripts the suite may execute. Anything else fails closed at the runner.
@@ -61,6 +72,13 @@ const READ_SCRIPTS: ReadonlySet<string> = new Set([
   "fm-remote-doctor.sh",
   "fm-remote-file.sh",
   "fm-remote-delta-read.sh",
+  "fm-harness.sh",
+  "fm-project-mode.sh",
+  "fm-lock.sh",
+  "fm-lease.sh",
+  "fm-bearings-board.sh",
+  "fm-inbox.sh",
+  "fm-contributions.sh",
 ]);
 
 const SNAPSHOT_STUB = `node -e '
@@ -102,6 +120,23 @@ const GUARD_STUB = "exit 0\n";
 const REMOTE_DOCTOR_STUB = "echo 'doctor-stub: mode=check'\n";
 const REMOTE_FILE_STUB = 'echo "file-stub:$2 max=$3"\n';
 const REMOTE_DELTA_STUB = 'echo "delta-stub:$1 off=$2 wait=$4"\n';
+const HARNESS_STUB = 'echo "harness-stub:$1"\n';
+const PROJECT_MODE_STUB = 'echo "local-only off"\n';
+const LOCK_STUB = "echo 'lock: free'\n";
+const LEASE_STUB =
+  'if [ "$1" = "check" ]; then ' +
+  'if [ "$2" = "leased-task" ]; then echo "main 4242 1700000000 live"; exit 0; else exit 1; fi; fi\n' +
+  "exit 2\n";
+const BEARINGS_BOARD_STUB = 'echo "$FM_HOME/.lavish/bearings-board.html"\n';
+const INBOX_STUB = 'echo "inbox-stub:$1"\n';
+const CONTRIBUTIONS_STUB = 'if [ "$1" = "pending" ]; then echo "[]"; else cat "$2"; fi\n';
+const HOME_SUMMARY_FIXTURE = {
+  schema: "fm-secondmate-home-summary.v1",
+  generated: "stub",
+  generated_epoch: 1700000000,
+  state: "idle",
+  counts: {},
+};
 
 interface Call {
   argv: string[];
@@ -138,6 +173,13 @@ function setup(): Fixture {
   writeStub(path.join(scratch, "bin"), "fm-remote-doctor.sh", REMOTE_DOCTOR_STUB);
   writeStub(path.join(scratch, "bin"), "fm-remote-file.sh", REMOTE_FILE_STUB);
   writeStub(path.join(scratch, "bin"), "fm-remote-delta-read.sh", REMOTE_DELTA_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-harness.sh", HARNESS_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-project-mode.sh", PROJECT_MODE_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-lock.sh", LOCK_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-lease.sh", LEASE_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-bearings-board.sh", BEARINGS_BOARD_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-inbox.sh", INBOX_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-contributions.sh", CONTRIBUTIONS_STUB);
 
   const savedFmHome = process.env.FM_HOME;
   const savedStateOverride = process.env.FM_STATE_OVERRIDE;
@@ -463,6 +505,148 @@ describe("secondmate-remote-read equivalence", () => {
   });
 });
 
+describe("session-read equivalence", () => {
+  let fx: Fixture;
+  beforeEach(() => {
+    fx = setup();
+  });
+  afterEach(() => teardown(fx));
+
+  it("harness_detect echoes the mode and the script line", async () => {
+    const direct = directRun(fx, "fm-harness.sh", []);
+    const result = okPayload(await readOnlyCall(fx, "harness_detect", {}));
+    assert.equal(result["mode"], "own");
+    assert.equal(result["stdout"], direct.stdout);
+    assert.equal(result["harness"], direct.stdout.trim().split("\n")[0]);
+    const crewed = okPayload(await readOnlyCall(fx, "harness_detect", { mode: "crew" }));
+    assert.equal(crewed["mode"], "crew");
+    assert.ok((crewed["stdout"] as string).includes("harness-stub:crew"));
+  });
+
+  it("harness_detect refuses unknown modes without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "harness_detect", { mode: "ancestry" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid mode");
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("project_mode matches direct stub", async () => {
+    const direct = directRun(fx, "fm-project-mode.sh", ["myproj"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "project_mode", { project: "myproj" }));
+    assert.equal(result["project"], "myproj");
+    assert.equal(result["stdout"], direct.stdout);
+    assert.equal(result["mode"], "local-only");
+    assert.equal(result["yolo"], "off");
+  });
+
+  it("project_mode refuses traversal without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "project_mode", { project: "../escape" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid project");
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("lock_status matches direct stub", async () => {
+    const direct = directRun(fx, "fm-lock.sh", ["status"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "lock_status", {}));
+    assert.equal(result["status"], "free");
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("lease_check projects held and unleased", async () => {
+    const held = okPayload(await readOnlyCall(fx, "lease_check", { id: "leased-task" }));
+    assert.equal(held["leased"], true);
+    assert.equal(held["actor"], "main");
+    assert.equal(held["pid"], 4242);
+    assert.equal(held["live"], true);
+    const free = okPayload(await readOnlyCall(fx, "lease_check", { id: "ghost-task" }));
+    assert.equal(free["leased"], false);
+  });
+
+  it("lease_check refuses traversal without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "lease_check", { id: "../escape" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid id");
+    assert.equal(fx.calls.length, before);
+  });
+});
+
+describe("digest-read equivalence", () => {
+  let fx: Fixture;
+  beforeEach(() => {
+    fx = setup();
+  });
+  afterEach(() => teardown(fx));
+
+  it("bearings_board_path matches direct stub", async () => {
+    const direct = directRun(fx, "fm-bearings-board.sh", ["path"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "bearings_board_path", {}));
+    assert.equal(result["path"], direct.stdout.trim());
+    assert.ok((result["path"] as string).endsWith("bearings-board.html"));
+  });
+
+  it("inbox_status and inbox_list match direct stubs", async () => {
+    const statusDirect = directRun(fx, "fm-inbox.sh", ["status"]);
+    const status = okPayload(await readOnlyCall(fx, "inbox_status", {}));
+    assert.equal(status["stdout"], statusDirect.stdout);
+    const listDirect = directRun(fx, "fm-inbox.sh", ["list"]);
+    const listed = okPayload(await readOnlyCall(fx, "inbox_list", {}));
+    assert.equal(listed["stdout"], listDirect.stdout);
+  });
+
+  it("home_summary matches the ledger without spawning", async () => {
+    fs.writeFileSync(
+      path.join(fx.scratch, "state", "home-summary.json"),
+      JSON.stringify(HOME_SUMMARY_FIXTURE),
+      "utf8",
+    );
+    const before = fx.calls.length;
+    const result = okPayload(await readOnlyCall(fx, "home_summary", {}));
+    assert.deepEqual({ ...result }, { ...HOME_SUMMARY_FIXTURE });
+    assert.equal(fx.calls.length, before, "home_summary must never spawn a process");
+  });
+
+  it("home_summary without a ledger is a structured error", async () => {
+    const result = await readOnlyCall(fx, "home_summary", {});
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "no home summary");
+  });
+
+  it("contributions_snapshot stages contribution-input", async () => {
+    const result = okPayload(await readOnlyCall(fx, "contributions_snapshot", {}));
+    assert.equal(result["all"], false);
+    const staged = fx.calls.find((call) => call.argv.includes("--contribution-input"));
+    assert.ok(staged, "snapshot input must come from --contribution-input");
+    assert.ok(staged.script === "fm-fleet-snapshot.sh");
+  });
+
+  it("contributions_snapshot echoes the all flag", async () => {
+    const result = okPayload(await readOnlyCall(fx, "contributions_snapshot", { all: true }));
+    assert.equal(result["all"], true);
+  });
+
+  it("contributions_snapshot refuses non-bool all without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "contributions_snapshot", { all: "yes" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid all");
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("contributions_pending matches direct stub", async () => {
+    const direct = directRun(fx, "fm-contributions.sh", ["pending"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "contributions_pending", {}));
+    assert.deepEqual(result["pending"], JSON.parse(direct.stdout));
+  });
+});
+
 describe("side-effect-free", () => {
   let fx: Fixture;
   beforeEach(() => {
@@ -499,6 +683,21 @@ describe("side-effect-free", () => {
       sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     });
     await readOnlyCall(fx, "handoff_status", {});
+    await readOnlyCall(fx, "harness_detect", {});
+    await readOnlyCall(fx, "project_mode", { project: "probe" });
+    await readOnlyCall(fx, "lock_status", {});
+    await readOnlyCall(fx, "lease_check", { id: "ghost-task" });
+    await readOnlyCall(fx, "bearings_board_path", {});
+    await readOnlyCall(fx, "inbox_status", {});
+    await readOnlyCall(fx, "inbox_list", {});
+    fs.writeFileSync(
+      path.join(fx.scratch, "state", "home-summary.json"),
+      JSON.stringify({ schema: "fm-secondmate-home-summary.v1", generated: "stub" }),
+      "utf8",
+    );
+    await readOnlyCall(fx, "home_summary", {});
+    await readOnlyCall(fx, "contributions_snapshot", {});
+    await readOnlyCall(fx, "contributions_pending", {});
     for (const call of fx.calls) {
       assert.ok(READ_SCRIPTS.has(call.script), `non-read script ran: ${call.script}`);
     }

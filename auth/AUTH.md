@@ -9,8 +9,9 @@ No ambient authority exists: environment flags, prior grants, roles, and session
 
 ## Tier 1 - open reads (no approval)
 
-These tools change nothing and take no `approval` argument: `fleet_snapshot`, `backlog`, `crew_state`, `status_tail`, `fleet_poll`, `peek`, `fleet_view`, `review_diff`, `bearings_snapshot`, `wake_drain`, `guard_check`, `remote_doctor`, `remote_file`, `remote_delta`, `handoff_status`, `receipt_submit`, `receipt_status`.
+These tools change nothing and take no `approval` argument: `fleet_snapshot`, `backlog`, `crew_state`, `status_tail`, `fleet_poll`, `peek`, `fleet_view`, `review_diff`, `bearings_snapshot`, `wake_drain`, `guard_check`, `remote_doctor`, `remote_file`, `remote_delta`, `handoff_status`, `harness_detect`, `project_mode`, `lock_status`, `lease_check`, `bearings_board_path`, `inbox_status`, `inbox_list`, `home_summary`, `contributions_snapshot`, `contributions_pending`, `receipt_submit`, `receipt_status`.
 `remote_doctor` runs check mode only (no `--fix`); `remote_file` is get-only with a bounded byte cap; `remote_delta` clamps its wait to 10s; `handoff_status` reads staged outbox files only.
+`harness_detect` runs a closed detection-mode subset (no ancestry walks); `project_mode` reports the mapped mode+yolo pair (no `--raw`); `lock_status` and `lease_check` are status reads only (no acquire, claim, release, or sweep); `bearings_board_path` prints the stable board path (no build/arm); `inbox_status`/`inbox_list` read durable records only (no queue, wake, or model call); `home_summary` reads the published ledger (no refresh); `contributions_snapshot`/`contributions_pending` never contact a forge and mutate nothing.
 `fleet_poll` is a read-only convenience poller over `fleet_snapshot`, and the snapshot stays canonical.
 `receipt_submit` detaches one tool call past the 30s fail-closed budget and returns a pending receipt; when the named tool is Tier 3/4 the nested arguments must still carry that tool's own `approval` string. `receipt_status` reports running/done/failed for one receipt with the result attached on completion.
 

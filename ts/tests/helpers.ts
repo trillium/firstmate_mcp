@@ -28,8 +28,12 @@ export const BEARINGS = {
   omitted: [],
 };
 
+export const CONTRIBUTION_INPUT = { backlog: {}, tasks: [] as unknown[] };
+
 export const STUBS: Record<string, string> = {
-  "fm-fleet-snapshot.sh": `echo '${JSON.stringify(SNAPSHOT)}'\n`,
+  "fm-fleet-snapshot.sh":
+    `if [ "$1" = "--contribution-input" ]; then echo '${JSON.stringify(CONTRIBUTION_INPUT)}'; ` +
+    `else echo '${JSON.stringify(SNAPSHOT)}'; fi\n`,
   "fm-crew-state.sh": "echo 'state: unknown · source: none · stub: no such crew'\n",
   "fm-peek.sh": 'echo "peek-stub:$1 lines=$2"\n',
   "fm-fleet-view.sh": "echo '# Fleet View stub'\n",
@@ -45,6 +49,16 @@ export const STUBS: Record<string, string> = {
   "fm-secondmate-report.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-remote-secondmate-control.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-backlog-handoff.sh": "echo 'stub: refused' >&2\nexit 1\n",
+  "fm-harness.sh": 'echo "harness-stub:$1"\n',
+  "fm-project-mode.sh": 'echo "local-only off"\n',
+  "fm-lock.sh": "echo 'lock: free'\n",
+  "fm-lease.sh":
+    'if [ "$1" = "check" ]; then ' +
+    'if [ "$2" = "leased-task" ]; then echo "main 4242 1700000000 live"; exit 0; else exit 1; fi; fi\n' +
+    "exit 2\n",
+  "fm-bearings-board.sh": 'echo "$FM_HOME/.lavish/bearings-board.html"\n',
+  "fm-inbox.sh": 'echo "inbox-stub:$1"\n',
+  "fm-contributions.sh": 'if [ "$1" = "pending" ]; then echo "[]"; else cat "$2"; fi\n',
   "fm-send.sh": "echo 'stub: no such crew' >&2\nexit 1\n",
   "fm-control.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-spawn.sh": "echo 'stub: refused' >&2\nexit 1\n",

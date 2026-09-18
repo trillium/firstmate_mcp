@@ -21,6 +21,10 @@ When updating this file, preserve this bar for all agents and keep entries conci
   `tests/fm-manifest.test.sh`, `tests/fm-coverage.test.sh` (support-coverage view:
   `scripts/gen_coverage.py` renders every upstream command area with its mirror
   status into `manifest/COVERAGE.md`; the gate fails on any unclassified command).
+  Coverage/manifest gates need `sources/firstmate` checked out
+  (`git submodule update --init`); without it `gen_coverage.py` falls back
+  to the fork snapshot in `drift/baseline.json` and mis-reports upstream
+  commands newer than that pin.
 - The repo tree has no `bin/`; the server resolves scripts through `FM_HOME/bin`
   (`fm_mcp_server.py:24-25`), defaulting to the live firstmate checkout.
 - Envelope (fm_mcp_server.py): `SUBPROCESS_TIMEOUT_S=30`, `MAX_OUTPUT_BYTES=1MB`.

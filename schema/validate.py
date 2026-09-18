@@ -52,6 +52,16 @@ CURRENT_PINS = {
     "secondmate_report": "fm-secondmate-report.v1",
     "remote_control": "fm-remote-control.safe-subset.v1",
     "handoff_move": "fm-handoff.safe-subset.v1",
+    "harness_detect": "fm-harness.v1",
+    "project_mode": "fm-project-mode.v1",
+    "lock_status": "fm-lock.status.v1",
+    "lease_check": "fm-lease.check.v1",
+    "bearings_board_path": "fm-bearings-board.path.v1",
+    "inbox_status": "fm-inbox.status.v1",
+    "inbox_list": "fm-inbox.list.v1",
+    "home_summary": "fm-secondmate-home-summary.v1",
+    "contributions_snapshot": "fm-contributions.snapshot.v1",
+    "contributions_pending": "fm-contributions.pending.v1",
 }
 
 

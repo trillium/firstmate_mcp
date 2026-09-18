@@ -21,14 +21,24 @@ No-approval tools: the adapter's typed projection equals the owning
 script's observable output (modulo the envelope wrap).
 
 - `backlog` — via `fm-fleet-snapshot.sh` (pinned in schema/contracts.yaml)
+- `bearings_board_path` — via `fm-bearings-board.sh` (pinned in schema/contracts.yaml)
 - `bearings_snapshot` — via `fm-bearings-snapshot.sh` (pinned in schema/contracts.yaml)
+- `contributions_pending` — via `fm-contributions.sh` (pinned in schema/contracts.yaml)
+- `contributions_snapshot` — via `fm-contributions.sh` (pinned in schema/contracts.yaml)
 - `crew_state` — via `fm-crew-state.sh` (pinned in schema/contracts.yaml)
 - `fleet_poll` — via `fm-fleet-snapshot.sh` (adapter-native projection)
 - `fleet_snapshot` — via `fm-fleet-snapshot.sh` (pinned in schema/contracts.yaml)
 - `fleet_view` — via `fm-fleet-view.sh` (pinned in schema/contracts.yaml)
 - `guard_check` — via `fm-guard.sh` (pinned in schema/contracts.yaml)
 - `handoff_status` — via `native (no owning script)` (pinned in schema/contracts.yaml)
+- `harness_detect` — via `fm-harness.sh` (pinned in schema/contracts.yaml)
+- `home_summary` — via `native (no owning script)` (pinned in schema/contracts.yaml)
+- `inbox_list` — via `fm-inbox.sh` (pinned in schema/contracts.yaml)
+- `inbox_status` — via `fm-inbox.sh` (pinned in schema/contracts.yaml)
+- `lease_check` — via `fm-lease.sh` (pinned in schema/contracts.yaml)
+- `lock_status` — via `fm-lock.sh` (pinned in schema/contracts.yaml)
 - `peek` — via `fm-peek.sh` (pinned in schema/contracts.yaml)
+- `project_mode` — via `fm-project-mode.sh` (pinned in schema/contracts.yaml)
 - `remote_delta` — via `fm-remote-delta-read.sh` (pinned in schema/contracts.yaml)
 - `remote_doctor` — via `fm-remote-doctor.sh` (pinned in schema/contracts.yaml)
 - `remote_file` — via `fm-remote-file.sh` (pinned in schema/contracts.yaml)
@@ -108,7 +118,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` independently implements the same 36-tool
+- TypeScript sibling — `ts/` independently implements the same 46-tool
   contract over stdio (no dependencies); `tests/conformance/ts-parity.sh`
   diffs py/ts payloads field-for-field plus the TS equivalence fixtures.
 - Proof suites in this tree (all run in gates below):
@@ -136,14 +146,14 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | Area | Mirrored | Denied | Gap |
 | --- | --- | --- | --- |
 | Fleet runs | 3 | 0 | 5 |
-| Supervision | 6 | 4 | 30 |
-| Sessions | 2 | 0 | 23 |
+| Supervision | 8 | 4 | 28 |
+| Sessions | 4 | 0 | 21 |
 | Backlog / decisions | 4 | 0 | 9 |
 | Secondmates / remotes | 7 | 0 | 13 |
 | PR pipeline | 1 | 5 | 5 |
 | Relay | 3 | 0 | 5 |
 | Voice / mail | 0 | 0 | 2 |
-| Digests | 1 | 0 | 4 |
+| Digests | 5 | 0 | 1 |
 | Installs | 0 | 0 | 23 |
 
 Mirrored names the MCP tool; `stale` flags an owning script upstream removed
