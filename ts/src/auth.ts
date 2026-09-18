@@ -8,6 +8,9 @@
  *   handoff_status, harness_detect, project_mode, lock_status,
  *   lease_check, bearings_board_path, inbox_status, inbox_list,
  *   home_summary, contributions_snapshot, contributions_pending,
+ *   mail_status, mail_read, voice_status, lint_versions,
+ *   tool_update_check, vendor_auth_probe, startup_memory, pr_state,
+ *   relay_poll,
  *   receipt_submit, receipt_status — no approval.
  *   (receipt_submit detaches one call past the 30s budget; authority
  *   targets still need their own nested approval string.)
@@ -15,8 +18,9 @@
  * - Tier 3 (launch-authorized writes): lifecycle_*, spawn_crew,
  *   scaffold_brief, decision_hold, decision_resolve, review_decision,
  *   secondmate_nudge, secondmate_restart, secondmate_report,
- *   remote_control, handoff_move — explicit per-call approval required.
- * - Tier 4 (external sends): relay_reply, relay_dismiss, relay_followup —
+ *   remote_control, handoff_move, voice_queue — explicit per-call approval required.
+ * - Tier 4 (external sends): relay_reply, relay_dismiss, relay_followup,
+ *   mail_send —
  *   approval plus relay consent inside the owning scripts.
  * - Forbidden: promote_scout, teardown_crew, arm_pr_check, merge_pr,
  *   merge_local — no tool, refused as unknown.
@@ -70,6 +74,15 @@ export const TOOL_TIERS: Record<string, Tier> = {
   home_summary: TIER_OPEN,
   contributions_snapshot: TIER_OPEN,
   contributions_pending: TIER_OPEN,
+  mail_status: TIER_OPEN,
+  mail_read: TIER_OPEN,
+  voice_status: TIER_OPEN,
+  lint_versions: TIER_OPEN,
+  tool_update_check: TIER_OPEN,
+  vendor_auth_probe: TIER_OPEN,
+  startup_memory: TIER_OPEN,
+  pr_state: TIER_OPEN,
+  relay_poll: TIER_OPEN,
   receipt_submit: TIER_OPEN,
   receipt_status: TIER_OPEN,
   send_message: TIER_STEER,
@@ -88,6 +101,8 @@ export const TOOL_TIERS: Record<string, Tier> = {
   secondmate_report: TIER_AUTHORITY,
   remote_control: TIER_AUTHORITY,
   handoff_move: TIER_AUTHORITY,
+  voice_queue: TIER_AUTHORITY,
+  mail_send: TIER_EXTERNAL,
   relay_reply: TIER_EXTERNAL,
   relay_dismiss: TIER_EXTERNAL,
   relay_followup: TIER_EXTERNAL,

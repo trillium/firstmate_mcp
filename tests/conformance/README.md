@@ -72,8 +72,10 @@ Conformance never mutates fleet state; the suite asserts it:
 3. Read-only process boundary. The guarded runner refuses any script outside
    the read-script set (`READ_SCRIPTS` in the suite: snapshot, crew-state,
    peek, fleet-view, review-diff, bearings-snapshot, wake-drain, guard,
-   harness, project-mode, lock, lease, bearings-board, inbox,
-   contributions).
+   remote-doctor, remote-file, remote-delta, harness, project-mode, lock,
+   lease, bearings-board, inbox, contributions, mail, voice-records, lint,
+   tool-update-check, vendor-auth-probe, startup-memory-budget, pr-state,
+   x-poll).
 4. Per-process proof. Every spawned process is captured carrying
    `FM_HOME=<scratch>`, never the live checkout. (A live `state/` dir
    fingerprint would flake: the fleet is busy and other agents append

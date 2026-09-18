@@ -9,9 +9,10 @@ No ambient authority exists: environment flags, prior grants, roles, and session
 
 ## Tier 1 - open reads (no approval)
 
-These tools change nothing and take no `approval` argument: `fleet_snapshot`, `backlog`, `crew_state`, `status_tail`, `fleet_poll`, `peek`, `fleet_view`, `review_diff`, `bearings_snapshot`, `wake_drain`, `guard_check`, `remote_doctor`, `remote_file`, `remote_delta`, `handoff_status`, `harness_detect`, `project_mode`, `lock_status`, `lease_check`, `bearings_board_path`, `inbox_status`, `inbox_list`, `home_summary`, `contributions_snapshot`, `contributions_pending`, `receipt_submit`, `receipt_status`.
+These tools change nothing and take no `approval` argument: `fleet_snapshot`, `backlog`, `crew_state`, `status_tail`, `fleet_poll`, `peek`, `fleet_view`, `review_diff`, `bearings_snapshot`, `wake_drain`, `guard_check`, `remote_doctor`, `remote_file`, `remote_delta`, `handoff_status`, `harness_detect`, `project_mode`, `lock_status`, `lease_check`, `bearings_board_path`, `inbox_status`, `inbox_list`, `home_summary`, `contributions_snapshot`, `contributions_pending`, `mail_status`, `mail_read`, `voice_status`, `lint_versions`, `tool_update_check`, `vendor_auth_probe`, `startup_memory`, `pr_state`, `relay_poll`, `receipt_submit`, `receipt_status`.
 `remote_doctor` runs check mode only (no `--fix`); `remote_file` is get-only with a bounded byte cap; `remote_delta` clamps its wait to 10s; `handoff_status` reads staged outbox files only.
 `harness_detect` runs a closed detection-mode subset (no ancestry walks); `project_mode` reports the mapped mode+yolo pair (no `--raw`); `lock_status` and `lease_check` are status reads only (no acquire, claim, release, or sweep); `bearings_board_path` prints the stable board path (no build/arm); `inbox_status`/`inbox_list` read durable records only (no queue, wake, or model call); `home_summary` reads the published ledger (no refresh); `contributions_snapshot`/`contributions_pending` never contact a forge and mutate nothing.
+`mail_status` prints config plus cursor (no network, no wake); `mail_read` is a BODY.PEEK digest that never marks mail seen — both stay inert without mail credentials, which live outside MCP in the home `.env` and never cross tool args or logs; `voice_status` reads durable records only (counts by default, no record free text; full only via the captain's own read-scope, deny list enforced inside the helper; no mic, no Bedrock, no audio); `lint_versions` prints the required ShellCheck/actionlint pins only; `tool_update_check` reports only (repairs/installs nothing); `vendor_auth_probe` runs one bounded probe from the closed allowlist and prints one sanitized line (raw vendor output never leaves the script); `startup_memory` reads the validated budget or local estimate (never creates config); `pr_state` is a one-shot blockers read over a validated GitHub PR URL (never posts); `relay_poll` is a short bounded poll that is a hard no-op without relay consent.
 `fleet_poll` is a read-only convenience poller over `fleet_snapshot`, and the snapshot stays canonical.
 `receipt_submit` detaches one tool call past the 30s fail-closed budget and returns a pending receipt; when the named tool is Tier 3/4 the nested arguments must still carry that tool's own `approval` string. `receipt_status` reports running/done/failed for one receipt with the result attached on completion.
 
@@ -22,16 +23,18 @@ Delivery of a steer is verified submit, never a reply, and lifecycle verbs are n
 
 ## Tier 3 - authority writes (approval required)
 
-These tools drive agent lifecycle and durable decisions through the owning `bin/` scripts: `lifecycle_interrupt`, `lifecycle_exit`, `lifecycle_relaunch`, `lifecycle_suspend`, `lifecycle_resume`, `spawn_crew`, `scaffold_brief`, `decision_hold`, `decision_resolve`, `review_decision`, `secondmate_nudge`, `secondmate_restart`, `secondmate_report`, `remote_control`, `handoff_move`.
+These tools drive agent lifecycle and durable decisions through the owning `bin/` scripts: `lifecycle_interrupt`, `lifecycle_exit`, `lifecycle_relaunch`, `lifecycle_suspend`, `lifecycle_resume`, `spawn_crew`, `scaffold_brief`, `decision_hold`, `decision_resolve`, `review_decision`, `secondmate_nudge`, `secondmate_restart`, `secondmate_report`, `remote_control`, `handoff_move`, `voice_queue`.
 Lifecycle verbs are launch control only: they drive agent lifecycle and never touch repos directly.
 Secondmate/remote verbs carry the same safe-subset discipline: `secondmate_nudge` is notify-only, `secondmate_restart` takes ids only, `secondmate_report` is the note-only form with the destination resolved by the owning helper, `remote_control` is the closed state/route/observe/send subset (no launch, no raw pane access, no remote teardown), and `handoff_move` moves only queued items or resumes pending wakes. Provisioning new secondmate homes stays out (firstmate-owned) unless read-only status.
 `spawn_crew` and `scaffold_brief` carry only the safe subset of flags with no repo-mutation options.
+`voice_queue` hands one single-line request to firstmate through the handover queue (no microphone, no audio, no Bedrock session; the mic client and the Bedrock relay have no tool — mic hardware and AWS credentials stay out of MCP).
 Downstream code work stays under the owning scripts with merge authority, yolo posture, and decision-hold lifecycle.
 
 ## Tier 4 - external sends (approval required, relay-gated)
 
-These tools send public replies through the owning Relay scripts: `relay_reply`, `relay_dismiss`, `relay_followup`.
-They shell to the owning `fm-x-*.sh` scripts and stay inert without relay consent.
+These tools send public replies through the owning Relay scripts: `relay_reply`, `relay_dismiss`, `relay_followup`, plus `mail_send` through the owning mail plane.
+They shell to the owning `fm-x-*.sh` / `fm-mail.sh` scripts and stay inert without relay/mail consent.
+`mail_send` carries a validated to/subject plus a body piped via stdin (never in argv, never logged); SMTP credentials live outside MCP in the home `.env`.
 Relay budgets and consent live in those scripts, not in this layer.
 
 ## Code-forbidden (no tool, refused as unknown)

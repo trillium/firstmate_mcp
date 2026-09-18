@@ -62,6 +62,17 @@ CURRENT_PINS = {
     "home_summary": "fm-secondmate-home-summary.v1",
     "contributions_snapshot": "fm-contributions.snapshot.v1",
     "contributions_pending": "fm-contributions.pending.v1",
+    "mail_status": "fm-mail.status.v1",
+    "mail_read": "fm-mail.read.v1",
+    "mail_send": "fm-mail.safe-subset.v1",
+    "voice_status": "fm-voice-records.status.v1",
+    "voice_queue": "fm-voice-records.queue.v1",
+    "lint_versions": "fm-lint.versions.v1",
+    "tool_update_check": "fm-tool-update.check.v1",
+    "vendor_auth_probe": "fm-vendor-auth-probe.v1",
+    "startup_memory": "fm-startup-memory-budget.v1",
+    "pr_state": "fm-pr-state.v1",
+    "relay_poll": "fm-x-poll.v1",
 }
 
 

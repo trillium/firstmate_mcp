@@ -128,7 +128,7 @@ describe("handshake and reads", () => {
   });
 });
 
-describe("smarts surface: 46 tools, forbidden absent", () => {
+describe("smarts surface: 57 tools, forbidden absent", () => {
   let boxed: Client;
   let sandbox: string;
   before(() => {
@@ -154,14 +154,18 @@ describe("smarts surface: 46 tools, forbidden absent", () => {
     "harness_detect", "project_mode", "lock_status", "lease_check",
     "bearings_board_path", "inbox_status", "inbox_list",
     "home_summary", "contributions_snapshot", "contributions_pending",
+    "mail_status", "mail_read", "voice_status",
+    "lint_versions", "tool_update_check", "vendor_auth_probe",
+    "startup_memory", "pr_state", "relay_poll",
+    "voice_queue", "mail_send",
     "receipt_submit", "receipt_status",
   ];
   const FORBIDDEN = ["promote_scout", "teardown_crew", "arm_pr_check", "merge_pr", "merge_local"];
 
-  it("smarts server lists 46 tools", async () => {
+  it("smarts server lists 57 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 46);
+    assert.equal(tools.length, 57);
   });
 
   for (const required of REQUIRED) {
@@ -201,6 +205,9 @@ describe("smarts surface: 46 tools, forbidden absent", () => {
       "harness_detect", "project_mode", "lock_status", "lease_check",
       "bearings_board_path", "inbox_status", "inbox_list",
       "home_summary", "contributions_snapshot", "contributions_pending",
+      "mail_status", "mail_read", "voice_status",
+      "lint_versions", "tool_update_check", "vendor_auth_probe",
+      "startup_memory", "pr_state", "relay_poll",
       "receipt_submit", "receipt_status",
     ]);
     for (const tool of tools) {
@@ -696,6 +703,129 @@ describe("smarts surface: 46 tools, forbidden absent", () => {
     const resp = await boxed.call("contributions_pending", {});
     assert.equal(isError(resp), false);
     assert.deepEqual(payload(resp)["pending"], []);
+  });
+  it("mail_status reads config without network", async () => {
+    const resp = await boxed.call("mail_status", {});
+    assert.equal(isError(resp), false);
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("mail-stub:status"));
+  });
+  it("mail_read returns a never-marks-seen digest", async () => {
+    const resp = await boxed.call("mail_read", {});
+    assert.equal(isError(resp), false);
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("mail-stub:read"));
+    assert.ok(String(payload(resp)["warning"] ?? "").includes("BODY.PEEK"));
+  });
+  it("mail_send refuses without approval", async () => {
+    const resp = await boxed.call("mail_send", { to: "a@example.com", subject: "hi", body: "hello" });
+    assert.ok(isError(resp) && String(payload(resp)["error"] ?? "").includes("approval"));
+  });
+  it("mail_send rejects bad recipient", async () => {
+    assert.equal(
+      isError(await boxed.call("mail_send", { to: "not-an-address", subject: "hi", body: "hello", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("mail_send rejects multiline subject", async () => {
+    assert.equal(
+      isError(await boxed.call("mail_send", { to: "a@example.com", subject: "hi\nthere", body: "hello", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("mail_send rejects empty body", async () => {
+    assert.equal(
+      isError(await boxed.call("mail_send", { to: "a@example.com", subject: "hi", body: "", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("mail_send pipes the body via stdin with to echoed", async () => {
+    const resp = await boxed.call("mail_send", {
+      to: "a@example.com", subject: "hi", body: "hello via stdin", approval: APPROVAL,
+    });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["to"], "a@example.com");
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("mail-stub:sent"));
+  });
+  it("voice_status defaults to counts without mic or model", async () => {
+    const resp = await boxed.call("voice_status", {});
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["scope"], "counts");
+  });
+  it("voice_status passes the full scope through", async () => {
+    const resp = await boxed.call("voice_status", { scope: "full" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["scope"], "full");
+  });
+  it("voice_status rejects unknown scopes", async () => {
+    assert.equal(isError(await boxed.call("voice_status", { scope: "bogus" })), true);
+  });
+  it("voice_queue refuses without approval", async () => {
+    const resp = await boxed.call("voice_queue", { text: "check the fleet" });
+    assert.ok(isError(resp) && String(payload(resp)["error"] ?? "").includes("approval"));
+  });
+  it("voice_queue rejects multiline text", async () => {
+    assert.equal(
+      isError(await boxed.call("voice_queue", { text: "one\ntwo", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("voice_queue hands the request over without audio", async () => {
+    const resp = await boxed.call("voice_queue", { text: "check the fleet", approval: APPROVAL });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["queued"], true);
+  });
+  it("lint_versions returns both required pins", async () => {
+    const resp = await boxed.call("lint_versions", {});
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["shellcheck"], "0.11.0");
+    assert.equal(payload(resp)["actionlint"], "1.7.12");
+  });
+  it("tool_update_check reports without repairing", async () => {
+    const resp = await boxed.call("tool_update_check", {});
+    assert.equal(isError(resp), false);
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("tool-update-stub"));
+  });
+  it("vendor_auth_probe returns one sanitized line with probe echoed", async () => {
+    const resp = await boxed.call("vendor_auth_probe", { probe: "grok" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["probe"], "grok");
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("status="));
+  });
+  it("vendor_auth_probe rejects probes outside the allowlist", async () => {
+    assert.equal(isError(await boxed.call("vendor_auth_probe", { probe: "bogus" })), true);
+  });
+  it("startup_memory defaults to read with mode echoed", async () => {
+    const resp = await boxed.call("startup_memory", {});
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["mode"], "read");
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("memory-stub:read"));
+  });
+  it("startup_memory passes the report mode through", async () => {
+    const resp = await boxed.call("startup_memory", { mode: "report" });
+    assert.equal(isError(resp), false);
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("memory-stub:report"));
+  });
+  it("startup_memory rejects unknown modes", async () => {
+    assert.equal(isError(await boxed.call("startup_memory", { mode: "bogus" })), true);
+  });
+  it("pr_state reads blockers with url echoed", async () => {
+    const resp = await boxed.call("pr_state", { url: "https://github.com/octo/repo/pull/42" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["url"], "https://github.com/octo/repo/pull/42");
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("pr-stub"));
+  });
+  it("pr_state rejects non-GitHub urls", async () => {
+    assert.equal(
+      isError(await boxed.call("pr_state", { url: "https://example.com/o/r/pull/1" })),
+      true,
+    );
+  });
+  it("pr_state rejects malformed urls", async () => {
+    assert.equal(isError(await boxed.call("pr_state", { url: "not a url" })), true);
+  });
+  it("relay_poll short-polls without error", async () => {
+    const resp = await boxed.call("relay_poll", {});
+    assert.equal(isError(resp), false);
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("x-poll stub"));
   });
 });
 

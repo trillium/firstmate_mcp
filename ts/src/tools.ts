@@ -1,5 +1,5 @@
 /**
- * The 46 smarts-only tools, in feature-manifest order.
+ * The 57 smarts-only tools, in feature-manifest order.
  *
  * SUPPORTED (no approval): fleet_snapshot, backlog, crew_state,
  * status_tail, send_message (+ fleet_poll, the read-only poller, peek,
@@ -7,12 +7,15 @@
  * remote_doctor, remote_file, remote_delta, handoff_status,
  * harness_detect, project_mode, lock_status, lease_check,
  * bearings_board_path, inbox_status, inbox_list, home_summary,
- * contributions_snapshot, contributions_pending,
+ * contributions_snapshot, contributions_pending, mail_status, mail_read,
+ * voice_status, lint_versions, tool_update_check, vendor_auth_probe,
+ * startup_memory, pr_state, relay_poll,
  * plus receipt_submit/receipt_status, the fail-closed async receipts).
  * CHANGED (approval-gated): decision_hold, decision_resolve,
  * lifecycle_interrupt/exit/relaunch/suspend/resume, relay_reply/dismiss/
  * followup, review_decision, scaffold_brief, spawn_crew,
- * secondmate_nudge/restart/report, remote_control, handoff_move.
+ * secondmate_nudge/restart/report, remote_control, handoff_move,
+ * voice_queue, mail_send.
  *
  * Refused by the deny-list (no tool, answered unknown): promote_scout,
  * teardown_crew, arm_pr_check, merge_pr, merge_local, daemon_start/stop/
@@ -61,14 +64,22 @@ import {
   validHandoffLines,
   validId,
   validIdList,
+  validMailBody,
+  validMailSubject,
+  validMailTo,
   validNonnegInt,
   validNote,
   validPeekLines,
+  validProbe,
   validProject,
+  validPrUrl,
   validRelpath,
   validRemoteMaxBytes,
   validSha256,
+  validStartupMode,
   validStatusLines,
+  validVoiceQueueText,
+  validVoiceScope,
 } from "./validators.js";
 import { DeniedFlagError } from "./errors.js";
 import { ConfigService } from "./config.js";
@@ -116,7 +127,7 @@ const NEEDS_APPROVAL: ReadonlySet<string> = new Set([
   "scaffold_brief", "decision_hold", "decision_resolve",
   "review_decision", "relay_reply", "relay_dismiss", "relay_followup",
   "secondmate_nudge", "secondmate_restart", "secondmate_report",
-  "remote_control", "handoff_move",
+  "remote_control", "handoff_move", "voice_queue", "mail_send",
 ]);
 
 function receiptDir(ctx: ToolContext): string {
@@ -1677,6 +1688,242 @@ async function toolFleetPoll(args: ToolArgs, ctx: ToolContext): Promise<ToolResu
   return { payload, isError: false };
 }
 
+// --- Wave 4: installs, voice/mail, and small PR/relay gaps ---
+
+async function toolMailStatus(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // Config + cursor only: no network, no wake.
+  return ownedCall(argv(path.join(ctx.binDir, "fm-mail.sh"), "status"), "mail status failed", ctx.run);
+}
+
+async function toolMailRead(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // BODY.PEEK digest: mail stays unseen until firstmate answers.
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-mail.sh"), "read"),
+    "mail read failed",
+    ctx.run,
+  );
+  if (!isError) {
+    return {
+      payload: {
+        ...payload,
+        warning: "BODY.PEEK digest; mail stays unseen until firstmate answers",
+      },
+      isError: false,
+    };
+  }
+  return { payload, isError: true };
+}
+
+async function toolMailSend(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const to = args["to"];
+  const subject = args["subject"];
+  const body = args["body"];
+  if (!validMailTo(to)) {
+    return {
+      payload: {
+        error: "invalid to",
+        expect: "single-line recipient address with @, 3..200 chars, no whitespace",
+      },
+      isError: true,
+    };
+  }
+  if (!validMailSubject(subject)) {
+    return {
+      payload: { error: "invalid subject", expect: "single line, 1..200 chars" },
+      isError: true,
+    };
+  }
+  if (!validMailBody(body)) {
+    return { payload: { error: "invalid body", expect: "1..5000 chars" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  // Body via stdin ("-" form), exactly like the owning script: never argv.
+  const res = await ctx.run(
+    argv(path.join(ctx.binDir, "fm-mail.sh"), "send", to as string, subject as string, "-"),
+    { input: body as string },
+  );
+  if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
+  const [out, outTrunc] = truncate(res.stdout ?? "");
+  const [errOut, errTrunc] = truncate(res.stderr ?? "");
+  if (res.exitCode !== 0) {
+    return {
+      payload: { error: "mail send refused or failed", exit: res.exitCode, stdout: out, stderr: errOut },
+      isError: true,
+    };
+  }
+  return {
+    payload: {
+      ok: true,
+      to,
+      subject,
+      stdout: out,
+      stdout_truncated: outTrunc,
+      stderr: errOut,
+      stderr_truncated: errTrunc,
+    },
+    isError: false,
+  };
+}
+
+async function toolVoiceStatus(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const scope = args["scope"] ?? "counts";
+  if (!validVoiceScope(scope)) {
+    return {
+      payload: { error: "invalid scope", expect: "one of counts, full" },
+      isError: true,
+    };
+  }
+  // Counts is safe by construction; full only via the captain's own
+  // read-scope with the helper's deny list enforced inside.
+  const res = await ctx.run(
+    argv(path.join(ctx.binDir, "fm_voice_records.py"), "status", "--scope", scope as string),
+  );
+  if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
+  if (res.exitCode !== 0) {
+    const [out] = truncate(res.stderr || res.stdout || "");
+    return {
+      payload: { error: "voice status failed", exit: res.exitCode, output: out },
+      isError: true,
+    };
+  }
+  let status: Record<string, unknown>;
+  try {
+    status = JSON.parse(res.stdout) as Record<string, unknown>;
+  } catch {
+    const [out] = truncate(res.stdout);
+    return { payload: { error: "voice status was not JSON", output: out }, isError: true };
+  }
+  if (typeof status !== "object" || status === null || Array.isArray(status)) {
+    const [out] = truncate(res.stdout);
+    return { payload: { error: "voice status was not JSON", output: out }, isError: true };
+  }
+  return { payload: status, isError: false };
+}
+
+async function toolVoiceQueue(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const text = args["text"];
+  if (!validVoiceQueueText(text)) {
+    return {
+      payload: { error: "invalid text", expect: "single line, 1..500 chars" },
+      isError: true,
+    };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  // Handover queue only: no microphone, no audio, no Bedrock session.
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm_voice_records.py"), "queue", text as string),
+    "voice queue refused or failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, queued: true }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolLintVersions(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // Version probes only: the required ShellCheck/actionlint pins.
+  const shellcheckRes = await ctx.run([path.join(ctx.binDir, "fm-lint.sh"), "--required-version"]);
+  if (!isRunResult(shellcheckRes)) {
+    return { payload: shellcheckRes as Record<string, unknown>, isError: true };
+  }
+  if (shellcheckRes.exitCode !== 0) {
+    const [out] = truncate(shellcheckRes.stderr || shellcheckRes.stdout || "");
+    return {
+      payload: { error: "lint versions failed", exit: shellcheckRes.exitCode, output: out },
+      isError: true,
+    };
+  }
+  const actionlintRes = await ctx.run([
+    path.join(ctx.binDir, "fm-lint-workflows.sh"),
+    "--required-version",
+  ]);
+  if (!isRunResult(actionlintRes)) {
+    return { payload: actionlintRes as Record<string, unknown>, isError: true };
+  }
+  if (actionlintRes.exitCode !== 0) {
+    const [out] = truncate(actionlintRes.stderr || actionlintRes.stdout || "");
+    return {
+      payload: { error: "lint versions failed", exit: actionlintRes.exitCode, output: out },
+      isError: true,
+    };
+  }
+  return {
+    payload: {
+      shellcheck: (shellcheckRes.stdout ?? "").trim(),
+      actionlint: (actionlintRes.stdout ?? "").trim(),
+    },
+    isError: false,
+  };
+}
+
+async function toolToolUpdateCheck(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // Report-only sweep: repairs nothing, installs nothing.
+  return ownedCall(
+    argv(path.join(ctx.binDir, "fm-tool-update-check.sh"), "check"),
+    "tool update check failed",
+    ctx.run,
+  );
+}
+
+async function toolVendorAuthProbe(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const probe = args["probe"];
+  if (!validProbe(probe)) {
+    return {
+      payload: { error: "invalid probe", expect: "one of grok" },
+      isError: true,
+    };
+  }
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-vendor-auth-probe.sh"), probe as string),
+    "vendor auth probe failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, probe }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolStartupMemory(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const mode = args["mode"] ?? "read";
+  if (!validStartupMode(mode)) {
+    return {
+      payload: { error: "invalid mode", expect: "one of read, report" },
+      isError: true,
+    };
+  }
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-startup-memory-budget.sh"), mode as string),
+    "startup memory read failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, mode }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolPrState(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const url = args["url"];
+  if (!validPrUrl(url)) {
+    return {
+      payload: {
+        error: "invalid url",
+        expect: "https://github.com/<owner>/<repo>/pull/<number>",
+      },
+      isError: true,
+    };
+  }
+  // One-shot read-only blockers read; never posts, requests, or merges.
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-pr-state.sh"), url as string),
+    "pr state failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, url }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolRelayPoll(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // Short bounded poll; hard no-op without relay consent (FMX token).
+  return ownedCall(argv(path.join(ctx.binDir, "fm-x-poll.sh")), "relay poll failed", ctx.run);
+}
+
 // --- Registry (schemas match the Python server's tools/list exactly) ---
 
 export interface ToolDef {
@@ -2088,6 +2335,93 @@ export const TOOLS: Record<string, ToolDef> = {
       },
     }),
     handler: toolHandoffMove,
+  },
+  mail_status: {
+    description: "Read-only mail configuration and last poll cursor; no network, no wake.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolMailStatus,
+  },
+  mail_read: {
+    description:
+      "Read-only unseen-INBOX digest over BODY.PEEK; mail stays unseen until firstmate answers.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolMailRead,
+  },
+  mail_send: {
+    description: "External send: one SMTP message via fm-mail.sh send; credentials live outside MCP.",
+    inputSchema: approvalSchema({
+      to: { type: "string", description: "Recipient address with @" },
+      subject: { type: "string", description: "Subject, single line 1..200 chars" },
+      body: { type: "string", description: "Body, 1..5000 chars, piped via stdin" },
+    }),
+    handler: toolMailSend,
+  },
+  voice_status: {
+    description:
+      "Read-only voice-agent status answer from durable records; no mic, no Bedrock, no audio.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        scope: { type: "string", enum: ["counts", "full"], default: "counts" },
+      },
+      additionalProperties: false,
+    },
+    handler: toolVoiceStatus,
+  },
+  voice_queue: {
+    description: "Authority write: hand one request to firstmate through the voice handover queue.",
+    inputSchema: approvalSchema({
+      text: { type: "string", description: "Request text, single line 1..500 chars" },
+    }),
+    handler: toolVoiceQueue,
+  },
+  lint_versions: {
+    description: "Read-only required ShellCheck/actionlint pins from the lint owners.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolLintVersions,
+  },
+  tool_update_check: {
+    description: "Read-only watched-tool update report; repairs nothing, installs nothing.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolToolUpdateCheck,
+  },
+  vendor_auth_probe: {
+    description: "Read-only bounded vendor auth probe; raw output is classified, never printed.",
+    inputSchema: {
+      type: "object",
+      properties: { probe: { type: "string", enum: ["grok"] } },
+      required: ["probe"],
+      additionalProperties: false,
+    },
+    handler: toolVendorAuthProbe,
+  },
+  startup_memory: {
+    description: "Read-only startup-memory budget read or local estimate; never creates config.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["read", "report"], default: "read" },
+      },
+      additionalProperties: false,
+    },
+    handler: toolStartupMemory,
+  },
+  pr_state: {
+    description: "Read-only blockers on one GitHub pull request; never posts, requests, or merges.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "https://github.com/<owner>/<repo>/pull/<number>" },
+      },
+      required: ["url"],
+      additionalProperties: false,
+    },
+    handler: toolPrState,
+  },
+  relay_poll: {
+    description: "Read-only short-poll of the relay connector; hard no-op without relay consent.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolRelayPoll,
   },
   receipt_submit: {
     description:

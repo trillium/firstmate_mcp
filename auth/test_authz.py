@@ -35,6 +35,9 @@ TIER1_TOOLS = ["fleet_snapshot", "backlog", "crew_state", "status_tail", "fleet_
                "harness_detect", "project_mode", "lock_status", "lease_check",
                "bearings_board_path", "inbox_status", "inbox_list",
                "home_summary", "contributions_snapshot", "contributions_pending",
+               "mail_status", "mail_read", "voice_status",
+               "lint_versions", "tool_update_check", "vendor_auth_probe",
+               "startup_memory", "pr_state", "relay_poll",
                "receipt_submit", "receipt_status"]
 TIER3_TOOLS = [t for t, tier in TOOL_TIERS.items() if tier == TIER_AUTHORITY]
 TIER4_TOOLS = [t for t, tier in TOOL_TIERS.items() if tier == TIER_EXTERNAL]
@@ -42,7 +45,7 @@ TIER4_TOOLS = [t for t, tier in TOOL_TIERS.items() if tier == TIER_EXTERNAL]
 
 class TierAssignmentTest(unittest.TestCase):
     def test_every_tool_has_a_tier(self):
-        self.assertEqual(len(TOOL_TIERS), 46)
+        self.assertEqual(len(TOOL_TIERS), 57)
 
     def test_tier1_is_open_reads(self):
         for tool in TIER1_TOOLS:
@@ -52,13 +55,13 @@ class TierAssignmentTest(unittest.TestCase):
         self.assertEqual(tier_of("send_message"), TIER_STEER)
 
     def test_tier3_is_authority_writes(self):
-        self.assertEqual(len(TIER3_TOOLS), 15)
+        self.assertEqual(len(TIER3_TOOLS), 16)
         for tool in TIER3_TOOLS:
             self.assertEqual(tier_of(tool), TIER_AUTHORITY)
 
     def test_tier4_is_external_sends(self):
         self.assertEqual(
-            sorted(TIER4_TOOLS), ["relay_dismiss", "relay_followup", "relay_reply"]
+            sorted(TIER4_TOOLS), ["mail_send", "relay_dismiss", "relay_followup", "relay_reply"]
         )
         for tool in TIER4_TOOLS:
             self.assertEqual(tier_of(tool), TIER_EXTERNAL)

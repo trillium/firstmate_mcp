@@ -16,16 +16,24 @@ import {
   validHandoffLines,
   validId,
   validIdList,
+  validMailBody,
+  validMailSubject,
+  validMailTo,
   validNonnegInt,
   validNote,
   validPeekLines,
+  validProbe,
   validProject,
+  validPrUrl,
   validRelpath,
   validRemoteMaxBytes,
   validSha256,
   validSingleLine,
+  validStartupMode,
   validStatusLines,
   validSteerText,
+  validVoiceQueueText,
+  validVoiceScope,
 } from "../src/validators.js";
 
 const APPROVAL = "I authorize adapter test use";
@@ -211,6 +219,44 @@ describe("validIdList", () => {
     assert.equal(validIdList(["../x"], 8), null);
     assert.equal(validIdList("a", 8), null);
     assert.equal(validIdList(null, 8), null);
+  });
+});
+
+describe("wave-4 validators", () => {
+  it("accepts only allowlisted probes", () => {
+    assert.equal(validProbe("grok"), true);
+    assert.equal(validProbe("bogus"), false);
+    assert.equal(validProbe(null), false);
+  });
+  it("accepts counts/full scopes", () => {
+    assert.equal(validVoiceScope("counts"), true);
+    assert.equal(validVoiceScope("full"), true);
+    assert.equal(validVoiceScope("everything"), false);
+  });
+  it("accepts read/report memory modes", () => {
+    assert.equal(validStartupMode("read"), true);
+    assert.equal(validStartupMode("report"), true);
+    assert.equal(validStartupMode("boot"), false);
+  });
+  it("validates mail recipients, subjects, bodies", () => {
+    assert.equal(validMailTo("a@example.com"), true);
+    assert.equal(validMailTo("not-an-address"), false);
+    assert.equal(validMailTo("a@b c.co"), false);
+    assert.equal(validMailTo("a\n@b.co"), false);
+    assert.equal(validMailSubject("hello"), true);
+    assert.equal(validMailSubject("one\ntwo"), false);
+    assert.equal(validMailSubject(""), false);
+    assert.equal(validMailBody("hello\nworld"), true);
+    assert.equal(validMailBody(""), false);
+    assert.equal(validMailBody("x".repeat(5001)), false);
+  });
+  it("validates handover text and PR urls", () => {
+    assert.equal(validVoiceQueueText("check the fleet"), true);
+    assert.equal(validVoiceQueueText("one\ntwo"), false);
+    assert.equal(validPrUrl("https://github.com/octo/repo/pull/42"), true);
+    assert.equal(validPrUrl("https://example.com/o/r/pull/1"), false);
+    assert.equal(validPrUrl("not a url"), false);
+    assert.equal(validPrUrl("https://github.com/bad--owner/repo/pull/1"), false);
   });
 });
 

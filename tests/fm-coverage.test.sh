@@ -51,9 +51,12 @@ test_manifest_and_deny_appear() {
     remote_doctor remote_file remote_delta handoff_status \
     harness_detect project_mode lock_status lease_check bearings_board_path \
     inbox_status inbox_list home_summary contributions_snapshot contributions_pending \
+    mail_status mail_read voice_status lint_versions tool_update_check vendor_auth_probe \
+    startup_memory pr_state relay_poll \
     lifecycle_interrupt lifecycle_exit lifecycle_relaunch lifecycle_suspend lifecycle_resume \
     spawn_crew scaffold_brief decision_hold decision_resolve review_decision \
     secondmate_nudge secondmate_restart secondmate_report remote_control handoff_move \
+    voice_queue mail_send \
     relay_reply relay_dismiss relay_followup; do
     case "$(cat "$COVERAGE")" in
       *"$id"*) : ;;

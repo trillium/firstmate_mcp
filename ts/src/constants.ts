@@ -106,6 +106,23 @@ export const CORR_RE = /^(?:corr=)?[0-9a-fA-F]{16}$/;
 export const REMOTE_CONTROL_VERBS = ["state", "route", "observe", "send"] as const;
 export type RemoteControlVerb = (typeof REMOTE_CONTROL_VERBS)[number];
 
+export const VENDOR_AUTH_PROBES = ["grok"] as const;
+export type VendorAuthProbe = (typeof VENDOR_AUTH_PROBES)[number];
+
+export const VOICE_SCOPES = ["counts", "full"] as const;
+export type VoiceScope = (typeof VOICE_SCOPES)[number];
+
+export const STARTUP_MEMORY_MODES = ["read", "report"] as const;
+export type StartupMemoryMode = (typeof STARTUP_MEMORY_MODES)[number];
+
+export const MAIL_TO_MAX_CHARS = 200;
+export const MAIL_SUBJECT_MAX_CHARS = 200;
+export const MAIL_BODY_MAX_CHARS = 5000;
+export const VOICE_QUEUE_MAX_CHARS = 500;
+
+export const PR_URL_RE =
+  /^https:\/\/github\.com\/([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9-]{0,37}[A-Za-z0-9])\/([A-Za-z0-9._-]{1,100})\/pull\/([1-9][0-9]*)$/;
+
 export const REMOTE_FILE_BYTES_MIN = 1;
 export const REMOTE_FILE_BYTES_MAX = 262144;
 export const REMOTE_FILE_DEFAULT_MAX_BYTES = 8192;

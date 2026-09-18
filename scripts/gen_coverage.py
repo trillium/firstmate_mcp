@@ -221,6 +221,7 @@ COMMAND_AREAS = {
     # ---- voice / mail ----
     "fm-mail.sh": ("voice-mail", "IMAP read / SMTP send plane"),
     "fm-mail-check.sh": ("voice-mail", "inbound mail check"),
+    "bin/fm_voice_records.py": ("voice-mail", "voice status/queue helper (non-command module; mic client and Bedrock relay stay out)"),
     # ---- digests ----
     "file: state/home-summary.json": ("digests", "published home-summary ledger read; refresh stays firstmate-owned"),
     "fm-bearings-snapshot.sh": ("digests", "compact bearings projection over the snapshot"),
@@ -241,8 +242,8 @@ COMMAND_AREAS = {
     "fm-ensure-agents-md.sh": ("installs", "agent-memory file bootstrap"),
     "fm-startup-network.sh": ("installs", "startup network probe"),
     "fm-startup-memory-budget.sh": ("installs", "startup memory budget"),
-    "fm-lint.sh": ("installs", "repo lint"),
-    "fm-lint-workflows.sh": ("installs", "workflow lint"),
+    "fm-lint.sh": ("installs", "repo lint (required-version probe mirrored; runs stay out)"),
+    "fm-lint-workflows.sh": ("installs", "workflow lint run (probe served via lint_versions; run stays out)"),
     "fm-test-run.sh": ("installs", "test runner"),
     "fm-test-isolation-proof.sh": ("installs", "isolation proof"),
     "fm-test-affected.sh": ("installs", "test-impact selector; removed upstream since pin"),
@@ -362,7 +363,10 @@ def classify(upstream_root=UPSTREAM_BIN):
         if cmd.startswith("backends/") and cmd not in COMMAND_AREAS:
             errors.append("unclassified upstream backend: %s" % cmd)
     for cmd in COMMAND_AREAS:
-        if cmd.startswith(("file:", "derived:", "policy:")) or cmd.startswith("backends/"):
+        # file:/derived:/policy: rows are manifest-only by design; bin/
+        # voice helpers are non-command modules, noted but not enumerated
+        # in the upstream .sh set, and rendered via the special-rows path.
+        if cmd.startswith(("file:", "derived:", "policy:", "bin/")) or cmd.startswith("backends/"):
             continue
         if cmd not in cmdset and "removed upstream since pin" not in COMMAND_AREAS[cmd][1]:
             errors.append(
@@ -390,7 +394,7 @@ def classify(upstream_root=UPSTREAM_BIN):
                      "removed": False})
     # Curated-but-removed commands: explicit history rows, never silent.
     for cmd in sorted(set(COMMAND_AREAS) - cmdset):
-        if cmd.startswith(("file:", "derived:", "policy:")) or cmd.startswith("backends/"):
+        if cmd.startswith(("file:", "derived:", "policy:", "bin/")) or cmd.startswith("backends/"):
             continue
         area, note = COMMAND_AREAS[cmd]
         tools = mirror_tools.pop(cmd, [])
