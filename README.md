@@ -64,7 +64,7 @@ revalidated ids/paths/text, explicit per-call approval.
 - `relay_followup` — via `fm-x-followup.sh` (Tier 4 approval+relay, approval required)
 - `relay_reply` — via `fm-x-reply.sh` (Tier 4 approval+relay, approval required)
 - `remote_control` — via `fm-remote-secondmate-control.sh` (Tier 3 approval, approval required)
-- `review_decision` — via `fm-review-decision.sh` (Tier 3 approval, approval required)
+- `review_decision` — via `fm-captain-hold.sh` (Tier 3 approval, approval required)
 - `scaffold_brief` — via `fm-brief.sh` (Tier 3 approval, approval required)
 - `secondmate_nudge` — via `fm-secondmate-reconcile.sh` (Tier 3 approval, approval required)
 - `secondmate_report` — via `fm-secondmate-report.sh` (Tier 3 approval, approval required)

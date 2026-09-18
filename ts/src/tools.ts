@@ -1374,6 +1374,12 @@ async function toolReviewDecision(args: ToolArgs, ctx: ToolContext): Promise<Too
       isError: true,
     };
   }
+  if (verdict === "comment" && !(typeof comment === "string" && comment.trim() !== "")) {
+    return {
+      payload: { error: "comment verdict requires comment text", expect: "single line, 1..500 chars" },
+      isError: true,
+    };
+  }
   if (comment !== "" && !validNote(comment)) {
     return {
       payload: { error: "invalid comment", expect: "single line, 1..500 chars" },
@@ -1381,13 +1387,24 @@ async function toolReviewDecision(args: ToolArgs, ctx: ToolContext): Promise<Too
     };
   }
   if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const cmd = argv(path.join(ctx.binDir, "fm-review-decision.sh"), taskId as string, verdict as string);
-  if (comment !== "") cmd.push(comment as string);
-  const { payload, isError } = await ownedCall(cmd, "review decision refused or failed", ctx.run);
-  if (!isError) {
-    return { payload: { ...payload, id: taskId, verdict }, isError: false };
+  const decisionText =
+    typeof comment === "string" && comment.trim() !== ""
+      ? `${verdict as string} - ${comment as string}`
+      : (verdict as string);
+  const tmp = writeTempFile(decisionText);
+  try {
+    const { payload, isError } = await ownedCall(
+      argv(path.join(ctx.binDir, "fm-captain-hold.sh"), "answer", taskId as string, "--decision-file", tmp),
+      "review decision refused or failed",
+      ctx.run,
+    );
+    if (!isError) {
+      return { payload: { ...payload, id: taskId, verdict }, isError: false };
+    }
+    return { payload, isError: true };
+  } finally {
+    removeTempFile(tmp);
   }
-  return { payload, isError: true };
 }
 
 async function toolRelayReply(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
@@ -1992,7 +2009,7 @@ export const TOOLS: Record<string, ToolDef> = {
   },
   review_decision: {
     description:
-      "Authority write: record one captain approve, decline, or comment via fm-review-decision.sh.",
+      "Authority write: record one captain approve, decline, or comment via fm-captain-hold.sh answer with a decision file.",
     inputSchema: approvalSchema({
       id: { type: "string" },
       verdict: { type: "string", enum: [...VERDICTS] },

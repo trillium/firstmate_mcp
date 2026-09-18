@@ -169,7 +169,7 @@ COMMAND_AREAS = {
     "fm-backlog-import-beads.sh": ("backlog-decisions", "one-time backlog.md importer; removed upstream since pin"),
     "fm-decision-hold.sh": ("backlog-decisions", "durable captain holds behind approval"),
     "fm-captain-hold.sh": ("backlog-decisions", "unified held-for-captain mechanics; supersedes review-decision upstream"),
-    "fm-review-decision.sh": ("backlog-decisions", "removed upstream since pin; adapter still dispatches it"),
+    "fm-review-decision.sh": ("backlog-decisions", "removed upstream since pin; review_decision now ports onto fm-captain-hold.sh answer"),
     "fm-groom.sh": ("backlog-decisions", "idea->brief->dispatch generator; removed upstream since pin"),
     "fm-groom-json-field.sh": ("backlog-decisions", "groom field helper; removed upstream since pin"),
     "fm-ledger.sh": ("backlog-decisions", "landed-but-open bead surface; removed upstream since pin"),

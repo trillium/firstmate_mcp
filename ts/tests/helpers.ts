@@ -64,7 +64,7 @@ export const STUBS: Record<string, string> = {
   "fm-spawn.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-brief.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-decision-hold.sh": "echo 'stub: refused' >&2\nexit 1\n",
-  "fm-review-decision.sh": "echo 'stub: refused' >&2\nexit 1\n",
+  "fm-captain-hold.sh": "echo \"stub: captain-hold $1 $2\" >&2\nexit 1\n",
   "fm-x-reply.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-x-dismiss.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-x-followup.sh": "echo 'stub: refused' >&2\nexit 1\n",

@@ -333,6 +333,17 @@ describe("smarts surface: 46 tools, forbidden absent", () => {
       true,
     );
   });
+  it("review comment verdict requires text", async () => {
+    assert.equal(
+      isError(await boxed.call("review_decision", { id: "no-such-id", verdict: "comment", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("review valid call reaches captain-hold answer and stays structured", async () => {
+    const resp = await boxed.call("review_decision", { id: "no-such-id", verdict: "approve", approval: APPROVAL });
+    assert.equal(isError(resp), true);
+    assert.ok(String((payload(resp)["stderr"] as string | undefined) ?? "").includes("answer"));
+  });
   it("relay reply refuses without approval", async () => {
     const resp = await boxed.call("relay_reply", { request_id: "no-such-id", text: "hello" });
     assert.ok(isError(resp) && String(payload(resp)["error"] ?? "").includes("approval"));

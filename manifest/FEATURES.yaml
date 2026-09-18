@@ -541,9 +541,9 @@ features:
         Same owning script, narrower surface.
   - id: review_decision
     kind: upstream-mirror
-    summary: Record a captain approve, decline, or comment and wake firstmate.
-    upstream_command: bin/fm-review-decision.sh
-    upstream_flags: ["approve|decline|comment"]
+    summary: Record a captain approve, decline, or comment on a captain-held task.
+    upstream_command: bin/fm-captain-hold.sh
+    upstream_flags: ["answer", "<id>", "--decision-file"]
     contract: adapter/dispatch.py#TOOLS[review_decision] (safe verdict subset + approval gate)
     upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
     py: {status: implemented, evidence: ["fm_mcp_server.py:tool_review_decision", "adapter/dispatch.py:\"review_decision\""]}
@@ -552,8 +552,10 @@ features:
       status: intentional
       reason: >-
         Per-call "I authorize" approval gate plus the closed
-        approve/decline/comment verdict set; upstream fm-review-decision.sh
-        knows no MCP approval string. Same owning script, narrower surface.
+        approve/decline/comment verdict set recorded as the captain's words
+        through the answer subcommand only (never --release); upstream
+        fm-captain-hold.sh knows no MCP approval string and no verdict set.
+        Ported off bin/fm-review-decision.sh, removed upstream since the pin.
   - id: relay_reply
     kind: upstream-mirror
     summary: Send one public reply; inert without relay consent, which lives outside MCP.

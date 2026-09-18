@@ -314,6 +314,42 @@ class ValidationRejectionTest(unittest.TestCase):
         self.assertTrue(env.is_err(result))
         self.assertEqual(seen, [])
 
+    def test_review_comment_verdict_requires_text(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("review_decision", {
+            "id": "t1", "verdict": "comment", "approval": APPROVAL})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-comment")
+        self.assertEqual(seen, [])
+
+    def test_review_ports_onto_captain_hold_answer(self):
+        captured = {}
+        home = tempfile.mkdtemp(prefix="fm-adapter-test-")
+
+        def runner(argv, **_kw):
+            captured["argv"] = argv
+            try:
+                flag = list(argv).index("--decision-file")
+                with open(argv[flag + 1], encoding="utf-8") as handle:
+                    captured["decision"] = handle.read()
+            except (ValueError, OSError):
+                pass
+            return FakeProc(stdout="answered: t1\n")
+
+        adapter = d.Adapter(home=home, checkout_root=ROOT, runner=runner)
+        result = adapter.dispatch("review_decision", {
+            "id": "t1", "verdict": "approve", "comment": "ship it",
+            "approval": APPROVAL})
+        self.assertFalse(env.is_err(result))
+        self.assertEqual(result["id"], "t1")
+        self.assertEqual(result["verdict"], "approve")
+        argv = captured["argv"]
+        self.assertEqual(Path(argv[0]).name, "fm-captain-hold.sh")
+        self.assertEqual(list(argv[1:3]), ["answer", "t1"])
+        self.assertIn("--decision-file", list(argv))
+        self.assertEqual(captured["decision"], "approve - ship it")
+        self.assertNotIn("fm-review-decision.sh", " ".join(str(a) for a in argv))
+
     def test_relay_followup_validates_final_flag(self):
         adapter, seen, _ = make_adapter()
         result = adapter.dispatch("relay_followup", {
