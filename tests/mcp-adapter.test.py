@@ -439,6 +439,36 @@ class ValidationRejectionTest(unittest.TestCase):
                                    "keys": ["k1"], "approval": APPROVAL})
         self.assertTrue(env.is_err(result))
         self.assertEqual(result["error"]["code"], "invalid-keys")
+    def test_harness_detect_validates_mode(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("harness_detect", {"mode": "ancestry"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-mode")
+        result = adapter.dispatch("harness_detect", {"mode": "bogus"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(seen, [])
+
+    def test_project_mode_validates_project(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("project_mode", {"project": "../escape"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-project")
+        result = adapter.dispatch("project_mode", {"project": "/abs"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(seen, [])
+
+    def test_lease_check_validates_id(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("lease_check", {"id": "../escape"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-id")
+        self.assertEqual(seen, [])
+
+    def test_contributions_snapshot_validates_all(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("contributions_snapshot", {"all": "yes"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-all")
         self.assertEqual(seen, [])
 
 
@@ -568,6 +598,129 @@ class ArgvBuilderTest(unittest.TestCase):
                                    "sha256": "e" * 64, "wait": 300})
         self.assertTrue(env.is_ok(result))
         self.assertEqual(seen[-1][-1], "10")
+    def test_harness_argv_modes(self):
+        adapter, seen, _ = make_adapter(proc=FakeProc(stdout="pi\n"))
+        result = adapter.dispatch("harness_detect", {})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(seen[0][1:], [])
+        self.assertEqual(result["mode"], "own")
+        self.assertEqual(result["harness"], "pi")
+        adapter, seen, _ = make_adapter(proc=FakeProc(stdout="pi\n"))
+        result = adapter.dispatch("harness_detect", {"mode": "crew"})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(seen[0][1:], ["crew"])
+
+    def test_project_mode_argv_and_projection(self):
+        adapter, seen, _ = make_adapter(proc=FakeProc(stdout="direct-PR on\n"))
+        result = adapter.dispatch("project_mode", {"project": "myproj"})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(seen[0][1:], ["myproj"])
+        self.assertEqual(result["project"], "myproj")
+        self.assertEqual(result["mode"], "direct-PR")
+        self.assertEqual(result["yolo"], "on")
+
+    def test_lock_status_argv_and_projection(self):
+        adapter, seen, _ = make_adapter(proc=FakeProc(stdout="lock: free\n"))
+        result = adapter.dispatch("lock_status", {})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(seen[0][1:], ["status"])
+        self.assertEqual(result["status"], "free")
+
+    def test_lease_check_held_and_unleased(self):
+        adapter, seen, _ = make_adapter(
+            proc=FakeProc(stdout="main 4242 1700000000 live\n"))
+        result = adapter.dispatch("lease_check", {"id": "t1"})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(seen[0][1:], ["check", "t1"])
+        self.assertTrue(result["leased"])
+        self.assertEqual(result["actor"], "main")
+        self.assertEqual(result["pid"], 4242)
+        self.assertTrue(result["live"])
+        adapter, seen, _ = make_adapter(proc=FakeProc(stdout="", returncode=1))
+        result = adapter.dispatch("lease_check", {"id": "t1"})
+        self.assertTrue(env.is_ok(result))
+        self.assertFalse(result["leased"])
+        self.assertEqual(seen[0][1:], ["check", "t1"])
+
+    def test_bearings_board_path_argv(self):
+        adapter, seen, _ = make_adapter(
+            proc=FakeProc(stdout="/h/.lavish/bearings-board.html\n"))
+        result = adapter.dispatch("bearings_board_path", {})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(seen[0][1:], ["path"])
+        self.assertEqual(result["path"], "/h/.lavish/bearings-board.html")
+
+    def test_inbox_argv(self):
+        adapter, seen, _ = make_adapter(proc=FakeProc(stdout="s\n"))
+        result = adapter.dispatch("inbox_status", {})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(seen[0][1:], ["status"])
+        adapter, seen, _ = make_adapter(proc=FakeProc(stdout="l\n"))
+        result = adapter.dispatch("inbox_list", {})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(seen[0][1:], ["list"])
+
+    def test_home_summary_reads_confined_ledger(self):
+        adapter, seen, home = make_adapter()
+        state = home / "state"
+        state.mkdir(exist_ok=True)
+        (state / "home-summary.json").write_text(json.dumps({
+            "schema": "fm-secondmate-home-summary.v1",
+            "generated": "stub",
+        }))
+        result = adapter.dispatch("home_summary", {})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(result["schema"], "fm-secondmate-home-summary.v1")
+        self.assertEqual(seen, [])
+
+    def test_home_summary_missing_is_typed_error(self):
+        adapter, seen, home = make_adapter()
+        (home / "state").mkdir(exist_ok=True)
+        result = adapter.dispatch("home_summary", {})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "no-home-summary")
+        self.assertEqual(seen, [])
+
+    def test_home_summary_rejects_wrong_schema(self):
+        adapter, seen, home = make_adapter()
+        state = home / "state"
+        state.mkdir(exist_ok=True)
+        (state / "home-summary.json").write_text(json.dumps({"schema": "other.v9"}))
+        result = adapter.dispatch("home_summary", {})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "unexpected-home-summary-schema")
+        self.assertEqual(seen, [])
+
+    def test_contributions_snapshot_stages_input(self):
+        staged = json.dumps({"backlog": {}, "tasks": []})
+        projection = json.dumps({"known": 0, "checked": 0, "counts": {}})
+        calls = []
+
+        def runner(argv, **_kw):
+            calls.append([str(a) for a in argv])
+            if "--contribution-input" in [str(a) for a in argv]:
+                return FakeProc(stdout=staged)
+            return FakeProc(stdout=projection)
+
+        import tempfile as _tf
+        home = _tf.mkdtemp(prefix="fm-adapter-test-")
+        adapter = d.Adapter(home=home, checkout_root=ROOT, runner=runner)
+        result = adapter.dispatch("contributions_snapshot", {})
+        self.assertTrue(env.is_ok(result), result)
+        self.assertEqual(result["known"], 0)
+        self.assertFalse(result["all"])
+        scripts = [c[0] for c in calls]
+        self.assertTrue(any("fm-fleet-snapshot.sh" in s for s in scripts))
+        self.assertTrue(any("fm-contributions.sh" in s for s in scripts))
+        snapshot_call = next(c for c in calls if "fm-contributions.sh" in c[0])
+        self.assertEqual(snapshot_call[1], "snapshot")
+
+    def test_contributions_pending_wraps_list(self):
+        adapter, seen, _ = make_adapter(proc=FakeProc(stdout='[{"token": "t"}]\n'))
+        result = adapter.dispatch("contributions_pending", {})
+        self.assertTrue(env.is_ok(result))
+        self.assertEqual(result["pending"], [{"token": "t"}])
+        self.assertEqual(seen[0][1:], ["pending"])
 
     def test_decision_resolve_uses_temp_file(self):
         adapter, seen, _ = make_adapter(proc=FakeProc())

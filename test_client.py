@@ -36,8 +36,14 @@ BEARINGS = {
     "omitted": [],
 }
 
+CONTRIBUTION_INPUT = {"backlog": {}, "tasks": []}
+
 STUBS = {
-    "fm-fleet-snapshot.sh": "echo '%s'\n" % json.dumps(SNAPSHOT),
+    "fm-fleet-snapshot.sh": (
+        "if [ \"$1\" = \"--contribution-input\" ]; "
+        "then echo '%s'; else echo '%s'; fi\n"
+        % (json.dumps(CONTRIBUTION_INPUT), json.dumps(SNAPSHOT))
+    ),
     "fm-crew-state.sh": "echo 'state: unknown \\u00b7 source: none \\u00b7 stub: no such crew'\n",
     "fm-send.sh": "echo 'stub: no such crew' >&2\nexit 1\n",
     "fm-control.sh": "echo 'stub: refused' >&2\nexit 1\n",
@@ -62,6 +68,18 @@ STUBS = {
     "fm-secondmate-report.sh": "echo 'stub: refused' >&2\nexit 1\n",
     "fm-remote-secondmate-control.sh": "echo 'stub: refused' >&2\nexit 1\n",
     "fm-backlog-handoff.sh": "echo 'stub: refused' >&2\nexit 1\n",
+    "fm-harness.sh": "echo \"harness-stub:$1\"\n",
+    "fm-project-mode.sh": "echo \"local-only off\"\n",
+    "fm-lock.sh": "echo 'lock: free'\n",
+    "fm-lease.sh": (
+        "if [ \"$1\" = \"check\" ]; then "
+        "if [ \"$2\" = \"leased-task\" ]; "
+        "then echo 'main 4242 1700000000 live'; exit 0; else exit 1; fi; fi\n"
+        "exit 2\n"
+    ),
+    "fm-bearings-board.sh": "echo \"$FM_HOME/.lavish/bearings-board.html\"\n",
+    "fm-inbox.sh": "echo \"inbox-stub:$1\"\n",
+    "fm-contributions.sh": "if [ \"$1\" = \"pending\" ]; then echo '[]'; else cat \"$2\"; fi\n",
 }
 
 
@@ -251,7 +269,7 @@ def main():
         boxed.notify("notifications/initialized")
         resp = boxed.request("tools/list")
         names = {t["name"] for t in resp["result"]["tools"]}
-        check("smarts server lists 36 tools", len(names) == 36, sorted(names))
+        check("smarts server lists 46 tools", len(names) == 46, sorted(names))
         for required in ("lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch",
                          "lifecycle_suspend", "lifecycle_resume", "spawn_crew", "scaffold_brief",
                          "decision_hold", "decision_resolve", "review_decision", "relay_reply",
@@ -262,6 +280,9 @@ def main():
                          "handoff_status", "secondmate_nudge",
                          "secondmate_restart", "secondmate_report",
                          "remote_control", "handoff_move",
+                         "harness_detect", "project_mode", "lock_status", "lease_check",
+                         "bearings_board_path", "inbox_status", "inbox_list",
+                         "home_summary", "contributions_snapshot", "contributions_pending",
                          "receipt_submit", "receipt_status"):
             check(f"tool present: {required}", required in names)
         for forbidden in ("promote_scout", "teardown_crew", "arm_pr_check",
@@ -278,6 +299,9 @@ def main():
             if t["name"] not in ("fleet_snapshot", "backlog", "crew_state", "status_tail", "send_message", "fleet_poll",
                                 "peek", "fleet_view", "review_diff", "bearings_snapshot", "wake_drain", "guard_check",
                                 "remote_doctor", "remote_file", "remote_delta", "handoff_status",
+                                "harness_detect", "project_mode", "lock_status", "lease_check",
+                                "bearings_board_path", "inbox_status", "inbox_list",
+                                "home_summary", "contributions_snapshot", "contributions_pending",
                                 "receipt_submit", "receipt_status")
         ))
 
@@ -469,6 +493,75 @@ def main():
         check("handoff unknown mate stays structured", is_error(resp))
         resp = boxed.call("handoff_move", {"id": "m1", "resume": True, "approval": APPROVAL})
         check("handoff resume stays structured", is_error(resp))
+        resp = boxed.call("harness_detect", {})
+        harn = payload(resp)
+        check("harness_detect defaults to own and echoes the harness",
+              not is_error(resp) and harn.get("mode") == "own" and harn.get("harness") == "harness-stub:")
+        resp = boxed.call("harness_detect", {"mode": "crew"})
+        check("harness_detect passes the crew mode through",
+              not is_error(resp) and payload(resp).get("harness") == "harness-stub:crew")
+        resp = boxed.call("harness_detect", {"mode": "bogus"})
+        check("harness_detect rejects unknown modes", is_error(resp))
+
+        resp = boxed.call("project_mode", {"project": "myproj"})
+        pmode = payload(resp)
+        check("project_mode returns the mapped mode+yolo pair",
+              not is_error(resp) and pmode.get("project") == "myproj"
+              and pmode.get("mode") == "local-only" and pmode.get("yolo") == "off")
+        resp = boxed.call("project_mode", {"project": "../escape"})
+        check("project_mode rejects traversal", is_error(resp))
+
+        resp = boxed.call("lock_status", {})
+        check("lock_status reports the free projection",
+              not is_error(resp) and payload(resp).get("status") == "free")
+
+        resp = boxed.call("lease_check", {"id": "leased-task"})
+        lease = payload(resp)
+        check("lease_check projects a held lease",
+              not is_error(resp) and lease.get("leased") is True
+              and lease.get("actor") == "main" and lease.get("live") is True
+              and lease.get("pid") == 4242)
+        resp = boxed.call("lease_check", {"id": "ghost-task"})
+        check("lease_check reports unleased without error",
+              not is_error(resp) and payload(resp).get("leased") is False)
+        resp = boxed.call("lease_check", {"id": "../escape"})
+        check("lease_check rejects traversal", is_error(resp))
+
+        resp = boxed.call("bearings_board_path", {})
+        check("bearings_board_path returns the stable path",
+              not is_error(resp) and payload(resp).get("path", "").endswith("bearings-board.html"))
+
+        resp = boxed.call("inbox_status", {})
+        check("inbox_status reads without sending a wake",
+              not is_error(resp) and "inbox-stub:status" in payload(resp).get("stdout", ""))
+        resp = boxed.call("inbox_list", {})
+        check("inbox_list reads the queued notes",
+              not is_error(resp) and "inbox-stub:list" in payload(resp).get("stdout", ""))
+
+        resp = boxed.call("home_summary", {})
+        check("home_summary without a ledger is a structured error",
+              is_error(resp) and payload(resp).get("error") == "no home summary")
+        Path(sandbox, "state", "home-summary.json").write_text(json.dumps({
+            "schema": "fm-secondmate-home-summary.v1",
+            "generated": "stub",
+            "state": "idle",
+        }))
+        resp = boxed.call("home_summary", {})
+        check("home_summary returns the published ledger",
+              not is_error(resp) and payload(resp).get("schema") == "fm-secondmate-home-summary.v1")
+
+        resp = boxed.call("contributions_snapshot", {})
+        contrib = payload(resp)
+        check("contributions_snapshot projects coverage without a forge",
+              not is_error(resp) and "backlog" in contrib and contrib.get("all") is False)
+        resp = boxed.call("contributions_snapshot", {"all": True})
+        check("contributions_snapshot echoes the all flag",
+              not is_error(resp) and payload(resp).get("all") is True)
+        resp = boxed.call("contributions_snapshot", {"all": "yes"})
+        check("contributions_snapshot rejects non-bool all", is_error(resp))
+        resp = boxed.call("contributions_pending", {})
+        check("contributions_pending returns the token list",
+              not is_error(resp) and payload(resp).get("pending") == [])
     finally:
         boxed.close()
 

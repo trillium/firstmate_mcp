@@ -128,7 +128,7 @@ describe("handshake and reads", () => {
   });
 });
 
-describe("smarts surface: 36 tools, forbidden absent", () => {
+describe("smarts surface: 46 tools, forbidden absent", () => {
   let boxed: Client;
   let sandbox: string;
   before(() => {
@@ -151,14 +151,17 @@ describe("smarts surface: 36 tools, forbidden absent", () => {
     "remote_doctor", "remote_file", "remote_delta", "handoff_status",
     "secondmate_nudge", "secondmate_restart", "secondmate_report",
     "remote_control", "handoff_move",
+    "harness_detect", "project_mode", "lock_status", "lease_check",
+    "bearings_board_path", "inbox_status", "inbox_list",
+    "home_summary", "contributions_snapshot", "contributions_pending",
     "receipt_submit", "receipt_status",
   ];
   const FORBIDDEN = ["promote_scout", "teardown_crew", "arm_pr_check", "merge_pr", "merge_local"];
 
-  it("smarts server lists 36 tools", async () => {
+  it("smarts server lists 46 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 36);
+    assert.equal(tools.length, 46);
   });
 
   for (const required of REQUIRED) {
@@ -195,6 +198,9 @@ describe("smarts surface: 36 tools, forbidden absent", () => {
       "fleet_snapshot", "backlog", "crew_state", "status_tail", "send_message", "fleet_poll",
       "peek", "fleet_view", "review_diff", "bearings_snapshot", "wake_drain", "guard_check",
       "remote_doctor", "remote_file", "remote_delta", "handoff_status",
+      "harness_detect", "project_mode", "lock_status", "lease_check",
+      "bearings_board_path", "inbox_status", "inbox_list",
+      "home_summary", "contributions_snapshot", "contributions_pending",
       "receipt_submit", "receipt_status",
     ]);
     for (const tool of tools) {
@@ -583,6 +589,102 @@ describe("smarts surface: 36 tools, forbidden absent", () => {
       isError(await boxed.call("handoff_move", { id: "m1", resume: true, approval: APPROVAL })),
       true,
     );
+  });
+  it("harness_detect defaults to own and echoes the harness", async () => {
+    const resp = await boxed.call("harness_detect", {});
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["mode"], "own");
+    assert.equal(payload(resp)["harness"], "harness-stub:");
+  });
+  it("harness_detect passes the crew mode through", async () => {
+    const resp = await boxed.call("harness_detect", { mode: "crew" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["harness"], "harness-stub:crew");
+  });
+  it("harness_detect rejects unknown modes", async () => {
+    assert.equal(isError(await boxed.call("harness_detect", { mode: "bogus" })), true);
+  });
+  it("project_mode returns the mapped mode+yolo pair", async () => {
+    const resp = await boxed.call("project_mode", { project: "myproj" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["project"], "myproj");
+    assert.equal(payload(resp)["mode"], "local-only");
+    assert.equal(payload(resp)["yolo"], "off");
+  });
+  it("project_mode rejects traversal", async () => {
+    assert.equal(isError(await boxed.call("project_mode", { project: "../escape" })), true);
+  });
+  it("lock_status reports the free projection", async () => {
+    const resp = await boxed.call("lock_status", {});
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["status"], "free");
+  });
+  it("lease_check projects a held lease", async () => {
+    const resp = await boxed.call("lease_check", { id: "leased-task" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["leased"], true);
+    assert.equal(payload(resp)["actor"], "main");
+    assert.equal(payload(resp)["live"], true);
+    assert.equal(payload(resp)["pid"], 4242);
+  });
+  it("lease_check reports unleased without error", async () => {
+    const resp = await boxed.call("lease_check", { id: "ghost-task" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["leased"], false);
+  });
+  it("lease_check rejects traversal", async () => {
+    assert.equal(isError(await boxed.call("lease_check", { id: "../escape" })), true);
+  });
+  it("bearings_board_path returns the stable path", async () => {
+    const resp = await boxed.call("bearings_board_path", {});
+    assert.equal(isError(resp), false);
+    assert.ok(
+      ((payload(resp)["path"] as string) ?? "").endsWith("bearings-board.html"),
+    );
+  });
+  it("inbox_status reads without sending a wake", async () => {
+    const resp = await boxed.call("inbox_status", {});
+    assert.equal(isError(resp), false);
+    assert.ok(((payload(resp)["stdout"] as string) ?? "").includes("inbox-stub:status"));
+  });
+  it("inbox_list reads the queued notes", async () => {
+    const resp = await boxed.call("inbox_list", {});
+    assert.equal(isError(resp), false);
+    assert.ok(((payload(resp)["stdout"] as string) ?? "").includes("inbox-stub:list"));
+  });
+  it("home_summary without a ledger is a structured error", async () => {
+    const resp = await boxed.call("home_summary", {});
+    assert.equal(isError(resp), true);
+    assert.equal(payload(resp)["error"], "no home summary");
+  });
+  it("home_summary returns the published ledger", async () => {
+    fs.writeFileSync(
+      path.join(sandbox, "state", "home-summary.json"),
+      JSON.stringify({ schema: "fm-secondmate-home-summary.v1", generated: "stub" }),
+      "utf8",
+    );
+    const resp = await boxed.call("home_summary", {});
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["schema"], "fm-secondmate-home-summary.v1");
+  });
+  it("contributions_snapshot projects coverage without a forge", async () => {
+    const resp = await boxed.call("contributions_snapshot", {});
+    assert.equal(isError(resp), false);
+    assert.ok("backlog" in payload(resp));
+    assert.equal(payload(resp)["all"], false);
+  });
+  it("contributions_snapshot echoes the all flag", async () => {
+    const resp = await boxed.call("contributions_snapshot", { all: true });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["all"], true);
+  });
+  it("contributions_snapshot rejects non-bool all", async () => {
+    assert.equal(isError(await boxed.call("contributions_snapshot", { all: "yes" })), true);
+  });
+  it("contributions_pending returns the token list", async () => {
+    const resp = await boxed.call("contributions_pending", {});
+    assert.equal(isError(resp), false);
+    assert.deepEqual(payload(resp)["pending"], []);
   });
 });
 

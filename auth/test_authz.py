@@ -32,6 +32,9 @@ TIER1_TOOLS = ["fleet_snapshot", "backlog", "crew_state", "status_tail", "fleet_
                "peek", "fleet_view", "review_diff", "bearings_snapshot",
                "wake_drain", "guard_check", "remote_doctor", "remote_file",
                "remote_delta", "handoff_status",
+               "harness_detect", "project_mode", "lock_status", "lease_check",
+               "bearings_board_path", "inbox_status", "inbox_list",
+               "home_summary", "contributions_snapshot", "contributions_pending",
                "receipt_submit", "receipt_status"]
 TIER3_TOOLS = [t for t, tier in TOOL_TIERS.items() if tier == TIER_AUTHORITY]
 TIER4_TOOLS = [t for t, tier in TOOL_TIERS.items() if tier == TIER_EXTERNAL]
@@ -39,7 +42,7 @@ TIER4_TOOLS = [t for t, tier in TOOL_TIERS.items() if tier == TIER_EXTERNAL]
 
 class TierAssignmentTest(unittest.TestCase):
     def test_every_tool_has_a_tier(self):
-        self.assertEqual(len(TOOL_TIERS), 36)
+        self.assertEqual(len(TOOL_TIERS), 46)
 
     def test_tier1_is_open_reads(self):
         for tool in TIER1_TOOLS:

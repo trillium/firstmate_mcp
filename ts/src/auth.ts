@@ -5,7 +5,10 @@
  * - Tier 1 (open reads): fleet_snapshot, backlog, crew_state, status_tail,
  *   fleet_poll, peek, fleet_view, review_diff, bearings_snapshot,
  *   wake_drain, guard_check, remote_doctor, remote_file, remote_delta,
- *   handoff_status, receipt_submit, receipt_status — no approval.
+ *   handoff_status, harness_detect, project_mode, lock_status,
+ *   lease_check, bearings_board_path, inbox_status, inbox_list,
+ *   home_summary, contributions_snapshot, contributions_pending,
+ *   receipt_submit, receipt_status — no approval.
  *   (receipt_submit detaches one call past the 30s budget; authority
  *   targets still need their own nested approval string.)
  * - Tier 2 (reversible steer): send_message — no approval, validated text.
@@ -57,6 +60,16 @@ export const TOOL_TIERS: Record<string, Tier> = {
   remote_file: TIER_OPEN,
   remote_delta: TIER_OPEN,
   handoff_status: TIER_OPEN,
+  harness_detect: TIER_OPEN,
+  project_mode: TIER_OPEN,
+  lock_status: TIER_OPEN,
+  lease_check: TIER_OPEN,
+  bearings_board_path: TIER_OPEN,
+  inbox_status: TIER_OPEN,
+  inbox_list: TIER_OPEN,
+  home_summary: TIER_OPEN,
+  contributions_snapshot: TIER_OPEN,
+  contributions_pending: TIER_OPEN,
   receipt_submit: TIER_OPEN,
   receipt_status: TIER_OPEN,
   send_message: TIER_STEER,

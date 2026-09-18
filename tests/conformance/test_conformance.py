@@ -17,8 +17,10 @@ Side-effect-free by construction, asserted in TestSideEffectFree:
   * only read tools ever dispatch (fleet_snapshot, backlog, crew_state,
     status_tail, fleet_poll, peek, fleet_view, review_diff,
     bearings_snapshot, wake_drain, guard_check, remote_doctor,
-    remote_file, remote_delta, handoff_status); any other tool name
-    raises in the wrapper.
+    remote_file, remote_delta, handoff_status, harness_detect,
+    project_mode, lock_status, lease_check, bearings_board_path,
+    inbox_status, inbox_list, home_summary, contributions_snapshot,
+    contributions_pending); any other tool name raises in the wrapper.
   * every subprocess runs with FM_HOME/FM_STATE_OVERRIDE pinned to a temp
     scratch dir; the suite asserts the snapshot's own fm_home/roots.state
     resolve inside that scratch dir.
@@ -32,7 +34,8 @@ Side-effect-free by construction, asserted in TestSideEffectFree:
 Locating firstmate: FIRSTMATE_HOME (else FM_REAL_HOME, FM_CHECKOUT, then the
 well-known checkout path). Without a checkout carrying the read-script set
 (fleet-snapshot, crew-state, peek, fleet-view, review-diff,
-bearings-snapshot, wake-drain, guard) the suite skips cleanly so
+bearings-snapshot, wake-drain, guard, harness, project-mode, lock, lease,
+bearings-board, inbox, contributions) the suite skips cleanly so
 this repo stays standalone in CI.
 """
 
@@ -58,7 +61,10 @@ READ_TOOLS = frozenset({
     "fleet_snapshot", "backlog", "crew_state", "status_tail", "fleet_poll",
     "peek", "fleet_view", "review_diff", "bearings_snapshot",
     "wake_drain", "guard_check", "remote_doctor", "remote_file",
-    "remote_delta", "handoff_status",
+    "remote_delta", "handoff_status", "harness_detect", "project_mode",
+    "lock_status", "lease_check", "bearings_board_path", "inbox_status",
+    "inbox_list", "home_summary", "contributions_snapshot",
+    "contributions_pending",
 })
 
 # Scripts the suite may execute. Anything else fails closed at the runner.
@@ -66,7 +72,9 @@ READ_SCRIPTS = frozenset({
     "fm-fleet-snapshot.sh", "fm-crew-state.sh", "fm-peek.sh",
     "fm-fleet-view.sh", "fm-review-diff.sh", "fm-bearings-snapshot.sh",
     "fm-wake-drain.sh", "fm-guard.sh", "fm-remote-doctor.sh",
-    "fm-remote-file.sh", "fm-remote-delta-read.sh",
+    "fm-remote-file.sh", "fm-remote-delta-read.sh", "fm-harness.sh",
+    "fm-project-mode.sh", "fm-lock.sh", "fm-lease.sh",
+    "fm-bearings-board.sh", "fm-inbox.sh", "fm-contributions.sh",
 })
 
 
@@ -86,7 +94,10 @@ REQUIRED_SCRIPTS = ("fm-fleet-snapshot.sh", "fm-crew-state.sh",
                     "fm-peek.sh", "fm-fleet-view.sh", "fm-review-diff.sh",
                     "fm-bearings-snapshot.sh", "fm-wake-drain.sh", "fm-guard.sh",
                     "fm-remote-doctor.sh", "fm-remote-file.sh",
-                    "fm-remote-delta-read.sh")
+                    "fm-remote-delta-read.sh", "fm-harness.sh",
+                    "fm-project-mode.sh", "fm-lock.sh", "fm-lease.sh",
+                    "fm-bearings-board.sh", "fm-inbox.sh",
+                    "fm-contributions.sh")
 
 
 def scratch_env(scratch):
@@ -471,6 +482,224 @@ class TestHandoffStatusEquivalence(ConformanceBase):
         self.assertEqual(result["error"]["code"], "invalid-id")
         self.assertEqual(self.runner.calls, [],
                          "handoff_status must never spawn a process")
+class TestHarnessEquivalence(ConformanceBase):
+    MODES = ("own", "crew", "secondmate", "secondmate-model",
+             "secondmate-effort")
+
+    def test_harness_modes_match_direct(self):
+        for mode in self.MODES:
+            with self.subTest(mode=mode):
+                argv = [] if mode == "own" else [mode]
+                proc = run_direct("fm-harness.sh", argv, self.env)
+                self.assertEqual(proc.returncode, 0)
+                args = {} if mode == "own" else {"mode": mode}
+                result = self.adapter.dispatch("harness_detect", args)
+                self.assertTrue(env.is_ok(result), result)
+                self.assertEqual(result["mode"], mode)
+                self.assertEqual(result["stdout"], proc.stdout)
+                first = proc.stdout.strip().splitlines()
+                self.assertEqual(result["harness"], first[0] if first else "")
+
+    def test_harness_rejects_unknown_mode_without_spawn(self):
+        before = len(self.runner.calls)
+        result = self.adapter.dispatch("harness_detect", {"mode": "ancestry"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-mode")
+        self.assertEqual(len(self.runner.calls), before)
+
+
+class TestProjectModeEquivalence(ConformanceBase):
+    def test_project_mode_matches_direct(self):
+        proc = run_direct("fm-project-mode.sh", ["conformance-probe"], self.env)
+        self.assertEqual(proc.returncode, 0)
+        result = self.adapter.dispatch("project_mode", {"project": "conformance-probe"})
+        self.assertTrue(env.is_ok(result), result)
+        self.assertEqual(result["stdout"], proc.stdout)
+        tokens = proc.stdout.strip().split()
+        self.assertEqual(len(tokens), 2)
+        self.assertEqual(result["project"], "conformance-probe")
+        self.assertEqual(result["mode"], tokens[0])
+        self.assertEqual(result["yolo"], tokens[1])
+
+    def test_project_mode_rejects_traversal_without_spawn(self):
+        before = len(self.runner.calls)
+        result = self.adapter.dispatch("project_mode", {"project": "../escape"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-project")
+        self.assertEqual(len(self.runner.calls), before)
+
+
+class TestLockStatusEquivalence(ConformanceBase):
+    def test_lock_status_matches_direct(self):
+        proc = run_direct("fm-lock.sh", ["status"], self.env)
+        self.assertEqual(proc.returncode, 0)
+        result = self.adapter.dispatch("lock_status", {})
+        self.assertTrue(env.is_ok(result), result)
+        self.assertEqual(result["stdout"], proc.stdout)
+        line = proc.stdout.strip().splitlines()[0]
+        self.assertEqual(result["raw"], line)
+        self.assertEqual(result["status"], "free")
+
+
+class TestLeaseCheckEquivalence(ConformanceBase):
+    def test_lease_check_unleased_matches_direct(self):
+        proc = run_direct("fm-lease.sh", ["check", "ghost-task"], self.env)
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual((proc.stdout or "").strip(), "")
+        result = self.adapter.dispatch("lease_check", {"id": "ghost-task"})
+        self.assertTrue(env.is_ok(result), result)
+        self.assertFalse(result["leased"])
+        self.assertEqual(result["task_id"], "ghost-task")
+
+    def test_lease_check_held_matches_direct(self):
+        # Claim/release run directly: the mutations are out of the read
+        # boundary by design, so only check dispatches through the adapter.
+        claim = run_direct("fm-lease.sh", ["check", "probe-task"], self.env)
+        self.assertEqual(claim.returncode, 1)
+        claimed = run_direct(
+            "fm-lease.sh", ["claim", "probe-task", "--actor", "main"], self.env)
+        self.assertEqual(claimed.returncode, 0, claimed.stderr[:500])
+        try:
+            proc = run_direct("fm-lease.sh", ["check", "probe-task"], self.env)
+            self.assertEqual(proc.returncode, 0)
+            result = self.adapter.dispatch("lease_check", {"id": "probe-task"})
+            self.assertTrue(env.is_ok(result), result)
+            self.assertTrue(result["leased"])
+            line = proc.stdout.strip().splitlines()[0]
+            self.assertEqual(result["holder"], line)
+            actor, pid, epoch, live = line.split()
+            self.assertEqual(result["actor"], actor)
+            self.assertEqual(result["pid"], int(pid))
+            self.assertEqual(result["epoch"], int(epoch))
+            self.assertEqual(result["live"], live == "live")
+        finally:
+            run_direct("fm-lease.sh", ["release", "probe-task",
+                                         "--actor", "main"], self.env)
+
+    def test_lease_check_rejects_traversal_without_spawn(self):
+        before = len(self.runner.calls)
+        result = self.adapter.dispatch("lease_check", {"id": "../escape"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-id")
+        self.assertEqual(len(self.runner.calls), before)
+
+
+class TestBearingsBoardEquivalence(ConformanceBase):
+    def test_board_path_matches_direct(self):
+        proc = run_direct("fm-bearings-board.sh", ["path"], self.env)
+        self.assertEqual(proc.returncode, 0)
+        result = self.adapter.dispatch("bearings_board_path", {})
+        self.assertTrue(env.is_ok(result), result)
+        self.assertEqual(result["stdout"], proc.stdout)
+        self.assertEqual(result["path"], proc.stdout.strip())
+        self.assertTrue(result["path"].startswith(str(self.scratch)))
+
+
+def _assert_inbox_status_matches(testcase, result, proc):
+    """Inbox status carries a wall-clock `time` line, so exact stdout
+    equality would flake across a second boundary; normalize it away."""
+    import re as _re
+    testcase.assertEqual(proc.returncode, 0)
+    testcase.assertTrue(env.is_ok(result), result)
+    normalize = lambda text: _re.sub(r"(?m)^time\s+\S+", "time STAMP", text or "")
+    testcase.assertEqual(normalize(result["stdout"]), normalize(proc.stdout))
+
+
+class TestInboxEquivalence(ConformanceBase):
+    def test_inbox_status_matches_direct(self):
+        proc = run_direct("fm-inbox.sh", ["status"], self.env)
+        result = self.adapter.dispatch("inbox_status", {})
+        _assert_inbox_status_matches(self, result, proc)
+
+    def test_inbox_list_matches_direct(self):
+        proc = run_direct("fm-inbox.sh", ["list"], self.env)
+        self.assertEqual(proc.returncode, 0)
+        result = self.adapter.dispatch("inbox_list", {})
+        _assert_text_matches(self, result, proc)
+
+
+class TestHomeSummaryEquivalence(ConformanceBase):
+    LEDGER = {
+        "schema": "fm-secondmate-home-summary.v1",
+        "generated": "2026-09-18T00:00:00Z",
+        "generated_epoch": 1700000000,
+        "state": "idle",
+        "counts": {},
+    }
+
+    def test_home_summary_matches_ledger(self):
+        (self.scratch / "state" / "home-summary.json").write_text(
+            json.dumps(self.LEDGER), encoding="utf-8"
+        )
+        result = self.adapter.dispatch("home_summary", {})
+        self.assertTrue(env.is_ok(result), result)
+        for key, value in self.LEDGER.items():
+            self.assertEqual(result.get(key), value, key)
+        self.assertEqual(self.runner.calls, [],
+                         "home_summary must never spawn a process")
+
+    def test_home_summary_missing_is_typed_error(self):
+        result = self.adapter.dispatch("home_summary", {})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "no-home-summary")
+        self.assertEqual(self.runner.calls, [],
+                         "home_summary must never spawn a process")
+
+    def test_home_summary_rejects_wrong_schema(self):
+        (self.scratch / "state" / "home-summary.json").write_text(
+            json.dumps({"schema": "other.v9"}), encoding="utf-8"
+        )
+        result = self.adapter.dispatch("home_summary", {})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"],
+                         "unexpected-home-summary-schema")
+
+
+class TestContributionsEquivalence(ConformanceBase):
+    def _stage_input(self):
+        proc = run_direct("fm-fleet-snapshot.sh", ["--contribution-input"],
+                          self.env)
+        self.assertEqual(proc.returncode, 0, proc.stderr[:500])
+        staged = self.scratch / "contribution-input.json"
+        staged.write_text(proc.stdout, encoding="utf-8")
+        return staged
+
+    def test_contributions_snapshot_matches_direct(self):
+        staged = self._stage_input()
+        for want_all, extra in ((False, []), (True, ["--all"])):
+            with self.subTest(all=want_all):
+                proc = run_direct("fm-contributions.sh",
+                                  ["snapshot", str(staged)] + extra, self.env)
+                self.assertEqual(proc.returncode, 0, proc.stderr[:500])
+                direct = json.loads(proc.stdout)
+                result = self.adapter.dispatch(
+                    "contributions_snapshot", {"all": want_all})
+                self.assertTrue(env.is_ok(result), result)
+                self.assertEqual(result["all"], want_all)
+                claimed = dict(result)
+                claimed.pop("all")
+                # valid_until derives from the wall clock, which may tick
+                # between the direct run and the adapter run; everything
+                # else must agree exactly.
+                for key in direct:
+                    if key == "valid_until":
+                        self.assertIsInstance(claimed.get(key), int)
+                        continue
+                    self.assertEqual(claimed.get(key), direct[key], key)
+
+    def test_contributions_pending_matches_direct(self):
+        proc = run_direct("fm-contributions.sh", ["pending"], self.env)
+        self.assertEqual(proc.returncode, 0, proc.stderr[:500])
+        result = self.adapter.dispatch("contributions_pending", {})
+        self.assertTrue(env.is_ok(result), result)
+        self.assertEqual(result["pending"], json.loads(proc.stdout))
+
+    def test_contributions_rejects_bad_all_without_spawn(self):
+        before = len(self.runner.calls)
+        result = self.adapter.dispatch("contributions_snapshot", {"all": "yes"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-all")
+        self.assertEqual(len(self.runner.calls), before)
 
 
 class TestSideEffectFree(ConformanceBase):
@@ -508,6 +737,19 @@ class TestSideEffectFree(ConformanceBase):
             "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"})
         (self.scratch / "data" / "handoff").mkdir(parents=True, exist_ok=True)
         self.adapter.dispatch("handoff_status", {})
+        self.adapter.dispatch("harness_detect", {})
+        self.adapter.dispatch("project_mode", {"project": "probe"})
+        self.adapter.dispatch("lock_status", {})
+        self.adapter.dispatch("lease_check", {"id": "ghost-task"})
+        self.adapter.dispatch("bearings_board_path", {})
+        self.adapter.dispatch("inbox_status", {})
+        self.adapter.dispatch("inbox_list", {})
+        (self.scratch / "state" / "home-summary.json").write_text(
+            json.dumps({"schema": "fm-secondmate-home-summary.v1",
+                        "generated": "stub"}), encoding="utf-8")
+        self.adapter.dispatch("home_summary", {})
+        self.adapter.dispatch("contributions_snapshot", {})
+        self.adapter.dispatch("contributions_pending", {})
         for script in self.runner.scripts_run():
             self.assertIn(script, READ_SCRIPTS, f"non-read script ran: {script}")
 

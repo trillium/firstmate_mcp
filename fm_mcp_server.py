@@ -19,6 +19,7 @@ SERVER_VERSION = "0.3.0"
 SUPPORTED_PROTOCOL_VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18")
 SNAPSHOT_SCHEMA = "fm-fleet-snapshot.v1"
 BEARINGS_SCHEMA = "fm-bearings.v1"
+HOME_SUMMARY_SCHEMA = "fm-secondmate-home-summary.v1"
 CHECKOUT_ROOT = Path(__file__).resolve().parent
 
 
@@ -63,6 +64,7 @@ RESTART_IDS_MAX = 8
 HANDOFF_KEYS_MAX = 20
 MODES = ("no-mistakes", "direct-PR", "local-only")
 BRIEF_MODES = ("no-mistakes", "direct-PR", "local-only", "scout")
+HARNESS_MODES = ("own", "crew", "secondmate", "secondmate-model", "secondmate-effort")
 VERDICTS = ("approve", "decline", "comment")
 
 
@@ -217,6 +219,16 @@ AUDIT_TOOL_TIERS = {
     "remote_file": 1,
     "remote_delta": 1,
     "handoff_status": 1,
+    "harness_detect": 1,
+    "project_mode": 1,
+    "lock_status": 1,
+    "lease_check": 1,
+    "bearings_board_path": 1,
+    "inbox_status": 1,
+    "inbox_list": 1,
+    "home_summary": 1,
+    "contributions_snapshot": 1,
+    "contributions_pending": 1,
     "send_message": 2,
     "lifecycle_interrupt": 3,
     "lifecycle_exit": 3,
@@ -285,6 +297,15 @@ AUDIT_VALIDATION_ERRORS = frozenset({
     "invalid resume",
     "no handoff for id",
     "cannot read handoff",
+    "invalid all",
+    "contributions was not JSON",
+    "contributions pending was not JSON",
+    "contributions too large for envelope",
+    "no home summary",
+    "cannot read home summary",
+    "home summary was not JSON",
+    "unexpected home summary schema",
+    "home summary too large for envelope",
     "bearings was not JSON",
     "unexpected bearings schema",
     "bearings too large for envelope",
@@ -323,7 +344,7 @@ def audit_target(name, args):
     if not isinstance(args, dict):
         return None
     for key in ("id", "target", "task_id", "origin_id", "request_id",
-                "receipt_id", "tool", "path", "log"):
+                "receipt_id", "tool", "path", "log", "project"):
         value = args.get(key)
         if isinstance(value, str) and value:
             return value
@@ -1218,6 +1239,235 @@ def tool_handoff_move(args):
         payload = dict(payload)
         payload.update({"id": task_id, "keys": keys})
     return payload, is_error
+def tool_harness_detect(args):
+    mode = args.get("mode", "own")
+    if mode not in HARNESS_MODES:
+        return {
+            "error": "invalid mode",
+            "expect": "one of own, crew, secondmate, secondmate-model, secondmate-effort",
+        }, True
+    argv = [BIN / "fm-harness.sh"]
+    if mode != "own":
+        argv.append(mode)
+    payload, is_error = owned_call(argv, "harness detection failed")
+    if not is_error:
+        payload = dict(payload)
+        first = (payload.get("stdout") or "").strip().splitlines()
+        payload.update({"mode": mode, "harness": first[0] if first else ""})
+    return payload, is_error
+
+
+def tool_project_mode(args):
+    project = args.get("project")
+    if not valid_project(project):
+        return {
+            "error": "invalid project",
+            "expect": "bare name or projects/<name>, no absolute paths or traversal",
+        }, True
+    # Mapped "<mode> <yolo>" only: --raw stays out (raw-pane access is a
+    # denied argv flag), so conditional policies resolve to their most
+    # rigorous leg exactly as the owning script maps them.
+    payload, is_error = owned_call(
+        [BIN / "fm-project-mode.sh", project],
+        "project mode refused or failed",
+    )
+    if not is_error:
+        payload = dict(payload)
+        tokens = (payload.get("stdout") or "").strip().split()
+        if len(tokens) == 2:
+            mode, yolo = tokens
+        else:
+            mode, yolo = None, None
+        payload.update({"project": project, "mode": mode, "yolo": yolo})
+    return payload, is_error
+
+
+def tool_lock_status(_args):
+    # Status only: acquiring the per-home lock via MCP would steal
+    # firstmate's own session lock, so only the read is mirrored.
+    payload, is_error = owned_call([BIN / "fm-lock.sh", "status"], "lock status failed")
+    if not is_error:
+        payload = dict(payload)
+        line = ((payload.get("stdout") or "").strip().splitlines() or [""])[0]
+        status = "unknown"
+        if line == "lock: free":
+            status = "free"
+        elif line.startswith("lock: held"):
+            status = "held"
+        elif line.startswith("lock: stale"):
+            status = "stale"
+        elif line.startswith("lock: unreadable"):
+            status = "unreadable"
+        payload.update({"status": status, "raw": line})
+    return payload, is_error
+
+
+def tool_lease_check(args):
+    task_id = args.get("id")
+    if not valid_id(task_id):
+        return {"error": "invalid id", "expect": "short task id, no slashes or traversal"}, True
+    # Check only: claim/release/release-actor/sweep are guarded by the
+    # supervision-actor contract (main vs branch), which an MCP call cannot
+    # name, so only the read is mirrored. Exit 1 with empty stdout is the
+    # script's defined unleased outcome, not a failure.
+    proc, err = run_script([BIN / "fm-lease.sh", "check", task_id])
+    if err:
+        return err, True
+    out, out_trunc = truncate(proc.stdout or "")
+    err_out, err_trunc = truncate(proc.stderr or "")
+    if proc.returncode == 0:
+        line = out.strip().splitlines()
+        holder = line[0] if line else ""
+        record = {"task_id": task_id, "leased": True, "holder": holder}
+        parts = holder.split()
+        if len(parts) == 4:
+            actor, pid, epoch, live = parts
+            # Digit-strict on both implementations (py + ts): anything
+            # else projects to null rather than guessing at number formats.
+            pid_num = int(pid) if pid.isascii() and pid.isdigit() else None
+            epoch_num = int(epoch) if epoch.isascii() and epoch.isdigit() else None
+            record.update({
+                "actor": actor,
+                "pid": pid_num,
+                "epoch": epoch_num,
+                "live": live == "live",
+            })
+        record.update({"stdout_truncated": out_trunc, "stderr_truncated": err_trunc})
+        return record, False
+    if proc.returncode == 1 and not out.strip():
+        return {"task_id": task_id, "leased": False}, False
+    return {
+        "error": "lease check failed",
+        "exit": proc.returncode,
+        "stdout": out,
+        "stderr": err_out,
+    }, True
+
+
+def tool_bearings_board_path(_args):
+    # Path only: build validates a payload, proves a live lavish session,
+    # and binds the keyed-answer intake — interactive captain surface that
+    # stays firstmate/agent-owned.
+    payload, is_error = owned_call(
+        [BIN / "fm-bearings-board.sh", "path"],
+        "bearings board path failed",
+    )
+    if not is_error:
+        payload = dict(payload)
+        payload.update({"path": (payload.get("stdout") or "").strip()})
+    return payload, is_error
+
+
+def tool_inbox_status(_args):
+    # Status only: durable-records read, no network, appends no wake.
+    return owned_call([BIN / "fm-inbox.sh", "status"], "inbox status failed")
+
+
+def tool_inbox_list(_args):
+    # List only: note/say queue wakes or call Bedrock; drain --ack moves
+    # records. All of those stay out.
+    return owned_call([BIN / "fm-inbox.sh", "list"], "inbox list failed")
+
+
+def tool_home_summary(_args):
+    # Native bounded read of the published ledger (same shape as
+    # status_tail): the refresh itself is firstmate-owned plumbing
+    # (session start, watcher, spawn, teardown call it --best-effort).
+    try:
+        state_resolved = state_dir().resolve()
+    except FileNotFoundError:
+        return {"error": "no home summary", "expect": "published state/home-summary.json in the served home"}, True
+    path = (state_resolved / "home-summary.json").resolve()
+    if path.parent != state_resolved:
+        return {"error": "no home summary", "expect": "published state/home-summary.json in the served home"}, True
+    try:
+        raw = path.read_bytes()
+    except FileNotFoundError:
+        return {"error": "no home summary", "expect": "published state/home-summary.json in the served home"}, True
+    except OSError as exc:
+        return {"error": "cannot read home summary", "detail": str(exc)}, True
+    if len(raw) > MAX_OUTPUT_BYTES:
+        return {"error": "home summary too large for envelope"}, True
+    try:
+        summary = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        out, _ = truncate(raw.decode("utf-8", "replace"))
+        return {"error": "home summary was not JSON", "output": out}, True
+    if not isinstance(summary, dict) or summary.get("schema") != HOME_SUMMARY_SCHEMA:
+        schema = summary.get("schema") if isinstance(summary, dict) else None
+        return {"error": "unexpected home summary schema", "schema": schema}, True
+    return summary, False
+
+
+def tool_contributions_snapshot(args):
+    want_all = args.get("all", False)
+    if not isinstance(want_all, bool):
+        return {"error": "invalid all", "expect": "boolean"}, True
+    # Snapshot + pending only: poll spends forge reads over the network
+    # and verdict/ack/arm mutate the saved records, so all stay out.
+    # Same two-step the fleet snapshot itself runs: contribution-input
+    # staged to a temp file, then the read-only snapshot over it.
+    proc, err = run_script([BIN / "fm-fleet-snapshot.sh", "--contribution-input"])
+    if err:
+        return err, True
+    if proc.returncode != 0:
+        out, _ = truncate(proc.stderr or proc.stdout or "")
+        return {"error": "contribution input failed", "exit": proc.returncode, "output": out}, True
+    if len(proc.stdout.encode("utf-8", "replace")) > MAX_OUTPUT_BYTES:
+        return {"error": "contribution input failed", "detail": "contribution input too large for envelope"}, True
+    tmp = None
+    try:
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            handle.write(proc.stdout)
+            tmp = handle.name
+        argv = [BIN / "fm-contributions.sh", "snapshot", tmp]
+        if want_all:
+            argv.append("--all")
+        proj, err = run_script(argv)
+        if err:
+            return err, True
+        if proj.returncode != 0:
+            out, _ = truncate(proj.stderr or proj.stdout or "")
+            return {"error": "contributions snapshot failed", "exit": proj.returncode, "output": out}, True
+        if len(proj.stdout.encode("utf-8", "replace")) > MAX_OUTPUT_BYTES:
+            return {"error": "contributions too large for envelope"}, True
+        try:
+            projection = json.loads(proj.stdout)
+        except json.JSONDecodeError:
+            out, _ = truncate(proj.stdout)
+            return {"error": "contributions was not JSON", "output": out}, True
+        if not isinstance(projection, dict):
+            out, _ = truncate(proj.stdout)
+            return {"error": "contributions was not JSON", "output": out}, True
+    finally:
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+    projection = dict(projection)
+    projection["all"] = want_all
+    return projection, False
+
+
+def tool_contributions_pending(_args):
+    proc, err = run_script([BIN / "fm-contributions.sh", "pending"])
+    if err:
+        return err, True
+    if proc.returncode != 0:
+        out, _ = truncate(proc.stderr or proc.stdout or "")
+        return {"error": "contributions pending failed", "exit": proc.returncode, "output": out}, True
+    if len(proc.stdout.encode("utf-8", "replace")) > MAX_OUTPUT_BYTES:
+        return {"error": "contributions too large for envelope"}, True
+    try:
+        pending = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        out, _ = truncate(proc.stdout)
+        return {"error": "contributions pending was not JSON", "output": out}, True
+    if not isinstance(pending, list):
+        out, _ = truncate(proc.stdout)
+        return {"error": "contributions pending was not JSON", "output": out}, True
+    return {"pending": pending}, False
 
 
 # Tools whose schemas carry a required per-call approval string. A
@@ -1428,6 +1678,78 @@ TOOLS = {
             "additionalProperties": False,
         },
         tool_handoff_status,
+    ),
+    "harness_detect": (
+        "Read-only harness detection for this home; closed mode subset, never walks process ancestry.",
+        {
+            "type": "object",
+            "properties": {
+                "mode": {"type": "string", "enum": ["own", "crew", "secondmate", "secondmate-model", "secondmate-effort"], "default": "own"},
+            },
+            "additionalProperties": False,
+        },
+        tool_harness_detect,
+    ),
+    "project_mode": (
+        "Read-only registered delivery posture (mode + yolo) for one project.",
+        {
+            "type": "object",
+            "properties": {"project": {"type": "string", "description": "Bare name or projects/<name>"}},
+            "required": ["project"],
+            "additionalProperties": False,
+        },
+        tool_project_mode,
+    ),
+    "lock_status": (
+        "Read-only per-home session lock status; acquiring stays out.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_lock_status,
+    ),
+    "lease_check": (
+        "Read-only per-task supervision lease check; claim/release/sweep stay out.",
+        {
+            "type": "object",
+            "properties": {"id": {"type": "string", "description": "Task id"}},
+            "required": ["id"],
+            "additionalProperties": False,
+        },
+        tool_lease_check,
+    ),
+    "bearings_board_path": (
+        "Read-only stable path of the captain's bearings board; building/arming stays out.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_bearings_board_path,
+    ),
+    "inbox_status": (
+        "Read-only captain inbox status from durable records; sends no wake.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_inbox_status,
+    ),
+    "inbox_list": (
+        "Read-only list of queued captain inbox notes.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_inbox_list,
+    ),
+    "home_summary": (
+        "Read-only published home-summary ledger; refresh stays firstmate-owned.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_home_summary,
+    ),
+    "contributions_snapshot": (
+        "Read-only owned-contribution coverage projected from the fleet snapshot; never contacts a forge.",
+        {
+            "type": "object",
+            "properties": {
+                "all": {"type": "boolean", "description": "Include rows for supervisor inspection", "default": False},
+            },
+            "additionalProperties": False,
+        },
+        tool_contributions_snapshot,
+    ),
+    "contributions_pending": (
+        "Read-only pending contribution event tokens from saved records.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_contributions_pending,
     ),
     "send_message": (
         "Steer one crew with a single verified prose line; slash commands, keys, raw panes, and lifecycle verbs are refused.",

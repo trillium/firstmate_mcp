@@ -27,9 +27,10 @@ const ROOT = path.resolve(HERE, "..", "..");
 const APPROVAL = "I authorize parity proof";
 
 const SNAPSHOT = { schema: "fm-fleet-snapshot.v1", generated: "stub", backlog: {}, tasks: [] };
+const CONTRIBUTION_INPUT = { backlog: {}, tasks: [] };
 const BEARINGS = { schema: "fm-bearings.v1", generated: "stub", in_flight: [], decisions_open: [], landed: [], omitted: [] };
 const STUBS = {
-  "fm-fleet-snapshot.sh": `echo '${JSON.stringify(SNAPSHOT)}'\n`,
+  "fm-fleet-snapshot.sh": `if [ "$1" = "--contribution-input" ]; then echo '${JSON.stringify(CONTRIBUTION_INPUT)}'; else echo '${JSON.stringify(SNAPSHOT)}'; fi\n`,
   "fm-crew-state.sh": "echo 'state: unknown · source: none · stub: no such crew'\n",
   "fm-peek.sh": 'echo "peek-stub:$1 lines=$2"\n',
   "fm-fleet-view.sh": "echo '# Fleet View stub'\n",
@@ -45,6 +46,13 @@ const STUBS = {
   "fm-secondmate-report.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-remote-secondmate-control.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-backlog-handoff.sh": "echo 'stub: refused' >&2\nexit 1\n",
+  "fm-harness.sh": 'echo "harness-stub:$1"\n',
+  "fm-project-mode.sh": 'echo "local-only off"\n',
+  "fm-lock.sh": "echo 'lock: free'\n",
+  "fm-lease.sh": 'if [ "$1" = "check" ]; then if [ "$2" = "leased-task" ]; then echo "main 4242 1700000000 live"; exit 0; else exit 1; fi; fi\nexit 2\n',
+  "fm-bearings-board.sh": 'echo "$FM_HOME/.lavish/bearings-board.html"\n',
+  "fm-inbox.sh": 'echo "inbox-stub:$1"\n',
+  "fm-contributions.sh": 'if [ "$1" = "pending" ]; then echo "[]"; else cat "$2"; fi\n',
   "fm-send.sh": "echo 'stub: no such crew' >&2\nexit 1\n",
   "fm-control.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-spawn.sh": "echo 'stub: refused' >&2\nexit 1\n",
@@ -212,6 +220,25 @@ async function main() {
       ["handoff bad resume", "handoff_move", { id: "m1", resume: "yes", approval: APPROVAL }],
       ["handoff stub error", "handoff_move", { id: "m1", keys: ["k1"], approval: APPROVAL }],
       ["handoff resume stub error", "handoff_move", { id: "m1", resume: true, approval: APPROVAL }],
+      ["harness_detect", "harness_detect", {}],
+      ["harness_detect crew", "harness_detect", { mode: "crew" }],
+      ["harness_detect bogus", "harness_detect", { mode: "bogus" }],
+      ["harness_detect null", "harness_detect", { mode: null }],
+      ["project_mode", "project_mode", { project: "myproj" }],
+      ["project_mode traversal", "project_mode", { project: "../escape" }],
+      ["lock_status", "lock_status", {}],
+      ["lease_check held", "lease_check", { id: "leased-task" }],
+      ["lease_check unleased", "lease_check", { id: "ghost-task" }],
+      ["lease_check traversal", "lease_check", { id: "../escape" }],
+      ["bearings_board_path", "bearings_board_path", {}],
+      ["inbox_status", "inbox_status", {}],
+      ["inbox_list", "inbox_list", {}],
+      ["home_summary missing", "home_summary", {}],
+      ["contributions_snapshot", "contributions_snapshot", {}],
+      ["contributions_snapshot all", "contributions_snapshot", { all: true }],
+      ["contributions_snapshot bad all", "contributions_snapshot", { all: "yes" }],
+      ["contributions_snapshot null all", "contributions_snapshot", { all: null }],
+      ["contributions_pending", "contributions_pending", {}],
     ];
     for (const entry of calls) {
       const [label, name, args] = entry.length === 2 ? [entry[0], entry[0], entry[1]] : entry;

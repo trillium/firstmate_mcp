@@ -222,6 +222,7 @@ COMMAND_AREAS = {
     "fm-mail.sh": ("voice-mail", "IMAP read / SMTP send plane"),
     "fm-mail-check.sh": ("voice-mail", "inbound mail check"),
     # ---- digests ----
+    "file: state/home-summary.json": ("digests", "published home-summary ledger read; refresh stays firstmate-owned"),
     "fm-bearings-snapshot.sh": ("digests", "compact bearings projection over the snapshot"),
     "fm-bearings-board.sh": ("digests", "bearings board render"),
     "fm-inbox.sh": ("digests", "captain's out-of-band capture surface"),
