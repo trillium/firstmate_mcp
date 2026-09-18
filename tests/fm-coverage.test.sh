@@ -49,6 +49,8 @@ test_manifest_and_deny_appear() {
   for id in fleet_snapshot backlog crew_state status_tail send_message fleet_poll \
     peek fleet_view review_diff bearings_snapshot wake_drain guard_check \
     remote_doctor remote_file remote_delta handoff_status \
+    harness_detect project_mode lock_status lease_check bearings_board_path \
+    inbox_status inbox_list home_summary contributions_snapshot contributions_pending \
     lifecycle_interrupt lifecycle_exit lifecycle_relaunch lifecycle_suspend lifecycle_resume \
     spawn_crew scaffold_brief decision_hold decision_resolve review_decision \
     secondmate_nudge secondmate_restart secondmate_report remote_control handoff_move \

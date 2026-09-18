@@ -21,6 +21,7 @@ export const SUPPORTED_PROTOCOL_VERSIONS = [
 
 export const SNAPSHOT_SCHEMA = "fm-fleet-snapshot.v1";
 export const BEARINGS_SCHEMA = "fm-bearings.v1";
+export const HOME_SUMMARY_SCHEMA = "fm-secondmate-home-summary.v1";
 
 /** Repo root: the TS tree lives one folder below it (ts/ -> root). */
 export const CHECKOUT_ROOT: string = path.resolve(
@@ -115,3 +116,12 @@ export const HANDOFF_LINES_MAX = 20;
 export const HANDOFF_DEFAULT_LINES = 10;
 export const RESTART_IDS_MAX = 8;
 export const HANDOFF_KEYS_MAX = 20;
+
+export const HARNESS_MODES = [
+  "own",
+  "crew",
+  "secondmate",
+  "secondmate-model",
+  "secondmate-effort",
+] as const;
+export type HarnessMode = (typeof HARNESS_MODES)[number];

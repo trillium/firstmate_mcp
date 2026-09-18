@@ -15,16 +15,16 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | Area | Mirrored | Denied | Gap |
 | --- | --- | --- | --- |
 | [Fleet runs](#fleet-runs) | 3 | 0 | 5 |
-| [Supervision](#supervision) | 6 | 4 | 30 |
-| [Sessions](#sessions) | 2 | 0 | 23 |
+| [Supervision](#supervision) | 8 | 4 | 28 |
+| [Sessions](#sessions) | 4 | 0 | 21 |
 | [Backlog / decisions](#backlog-decisions) | 4 | 0 | 9 |
 | [Secondmates / remotes](#secondmates-remotes) | 7 | 0 | 13 |
 | [PR pipeline](#pr-pipeline) | 1 | 5 | 5 |
 | [Relay](#relay) | 3 | 0 | 5 |
 | [Voice / mail](#voice-mail) | 0 | 0 | 2 |
-| [Digests](#digests) | 1 | 0 | 4 |
+| [Digests](#digests) | 5 | 0 | 1 |
 | [Installs](#installs) | 0 | 0 | 23 |
-| **Total** | **27** | **9** | **119** |
+| **Total** | **35** | **9** | **112** |
 
 ## Fleet runs
 
@@ -62,8 +62,8 @@ Control and data planes for live crews: daemon, lifecycle verbs, steer, wakes, g
 | `fm-crew-state.sh` | mirrored — `crew_state` (py✔ ts✔) | deterministic current-state read |
 | `fm-guard.sh` | mirrored — `guard_check` (py✔ ts✔) | watcher liveness / worktree-tangle guard |
 | `fm-kimi-turnend-hook.sh` | gap | kimi turn-end hook |
-| `fm-lease.sh` | gap | per-task supervision leases |
-| `fm-lock.sh` | gap | per-home session lock |
+| `fm-lease.sh` | mirrored — `lease_check` (py✔ ts✔) | per-task supervision leases |
+| `fm-lock.sh` | mirrored — `lock_status` (py✔ ts✔) | per-home session lock |
 | `fm-nm-run-is-live.sh` (removed upstream) | gap | single-run liveness probe; removed upstream since pin |
 | `fm-no-mistakes-liveness.sh` (removed upstream) | gap | shared-daemon liveness match; removed upstream since pin |
 | `fm-operational-input.sh` | gap | cross-language operational-input protocol |
@@ -107,13 +107,13 @@ Launching and owning agent sessions: start, harness, backends, spawn, briefs.
 | `fm-claude-stop-autoarm.sh` | gap | disable auto-arm in claude sessions |
 | `fm-claude-trust.sh` | gap | workspace-trust preregistration for spawns |
 | `fm-dispatch-resolve.sh` | gap | resolve one concrete dispatch |
-| `fm-harness.sh` | gap | harness detection for the process tree |
+| `fm-harness.sh` | mirrored — `harness_detect` (py✔ ts✔) | harness detection for the process tree |
 | `fm-herdr-ci-cleanup.sh` | gap | CI session cleanup |
 | `fm-herdr-lab.sh` | gap | isolated Herdr lab sessions |
 | `fm-herdr-session-cleanup.sh` | gap | session cleanup |
 | `fm-herdr-spur.sh` (removed upstream) | gap | agent watch spur; removed upstream since pin |
 | `fm-isolated-launch.sh` (removed upstream) | gap | isolated CLI launch; removed upstream since pin |
-| `fm-project-mode.sh` | gap | registered delivery posture (mode + yolo) |
+| `fm-project-mode.sh` | mirrored — `project_mode` (py✔ ts✔) | registered delivery posture (mode + yolo) |
 | `fm-session-start.sh` | gap | session bootstrap |
 | `fm-sessionstart-cursor.sh` | gap | cursor session-start path |
 | `fm-sessionstart-nudge.sh` | gap | session-start nudge |
@@ -215,11 +215,12 @@ Composed captain views: bearings, inbox, home summary, contributions.
 
 | Command | Mirror status | Notes |
 | --- | --- | --- |
-| `fm-bearings-board.sh` | gap | bearings board render |
+| `file: state/home-summary.json` | mirrored — `home_summary` (py✔ ts✔) | Published home-summary ledger; the refresh stays firstmate-owned. |
+| `fm-bearings-board.sh` | mirrored — `bearings_board_path` (py✔ ts✔) | bearings board render |
 | `fm-bearings-snapshot.sh` | mirrored — `bearings_snapshot` (py✔ ts✔) | compact bearings projection over the snapshot |
-| `fm-contributions.sh` | gap | published contributions observer |
+| `fm-contributions.sh` | mirrored — `contributions_snapshot` (py✔ ts✔), `contributions_pending` (py✔ ts✔) | published contributions observer |
 | `fm-home-summary-refresh.sh` | gap | published home-summary refresh |
-| `fm-inbox.sh` | gap | captain's out-of-band capture surface |
+| `fm-inbox.sh` | mirrored — `inbox_status` (py✔ ts✔), `inbox_list` (py✔ ts✔) | captain's out-of-band capture surface |
 
 ## Installs
 

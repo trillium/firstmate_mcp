@@ -252,6 +252,157 @@ features:
         Bounded native read with id validation and path confinement; no
         owning-script status verb exists. Staged moves only — handoff owns
         moves, receive owns intake.
+  - id: harness_detect
+    kind: upstream-mirror
+    summary: Harness detection for this home; closed mode subset, never process ancestry.
+    upstream_command: bin/fm-harness.sh
+    upstream_flags: ["own", "crew", "secondmate", "secondmate-model", "secondmate-effort"]
+    contract: schema/contracts.yaml#harness_detect
+    upstream_test: "tests/conformance/test_conformance.py::TestHarnessEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_harness_detect", "adapter/dispatch.py:\"harness_detect\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:harness_detect"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Closed detection-mode subset with a default of own; ancestry and
+        ancestry-descent pid walks plus validate-native-effort stay out.
+        Envelope truncates at 8KB.
+  - id: project_mode
+    kind: upstream-mirror
+    summary: Registered delivery posture (mode + yolo) for one project.
+    upstream_command: bin/fm-project-mode.sh
+    upstream_flags: ["<project>"]
+    contract: schema/contracts.yaml#project_mode
+    upstream_test: "tests/conformance/test_conformance.py::TestProjectModeEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_project_mode", "adapter/dispatch.py:\"project_mode\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:project_mode"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Mapped mode+yolo projection with project validation; --raw stays
+        out (denied argv flag), so conditional policies resolve to their
+        most rigorous leg exactly as upstream maps them.
+  - id: lock_status
+    kind: upstream-mirror
+    summary: Per-home session lock status; acquiring stays out.
+    upstream_command: bin/fm-lock.sh
+    upstream_flags: ["status"]
+    contract: schema/contracts.yaml#lock_status
+    upstream_test: "tests/conformance/test_conformance.py::TestLockStatusEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_lock_status", "adapter/dispatch.py:\"lock_status\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:lock_status"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Status subcommand only with a free/held/stale/unreadable
+        projection; acquiring would steal firstmate's own session lock and
+        stays out. Always exits 0 by contract.
+  - id: lease_check
+    kind: upstream-mirror
+    summary: Per-task supervision lease check; claim/release/sweep stay out.
+    upstream_command: bin/fm-lease.sh
+    upstream_flags: ["check", "<task>"]
+    contract: schema/contracts.yaml#lease_check
+    upstream_test: "tests/conformance/test_conformance.py::TestLeaseCheckEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_lease_check", "adapter/dispatch.py:\"lease_check\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:lease_check"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Check subcommand only with id validation; the defined unleased
+        outcome (exit 1, empty) projects to leased:false. Claim, release,
+        release-actor, and sweep are guarded by the supervision-actor
+        contract and stay out.
+  - id: bearings_board_path
+    kind: upstream-mirror
+    summary: Stable path of the captain's bearings board; building/arming stays out.
+    upstream_command: bin/fm-bearings-board.sh
+    upstream_flags: ["path"]
+    contract: schema/contracts.yaml#bearings_board_path
+    upstream_test: "tests/conformance/test_conformance.py::TestBearingsBoardEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_bearings_board_path", "adapter/dispatch.py:\"bearings_board_path\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:bearings_board_path"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Path subcommand only; build validates a payload, proves a live
+        lavish session, and binds the keyed-answer intake — interactive
+        captain surface that stays firstmate/agent-owned.
+  - id: inbox_status
+    kind: upstream-mirror
+    summary: Captain inbox status from durable records; sends no wake.
+    upstream_command: bin/fm-inbox.sh
+    upstream_flags: ["status"]
+    contract: schema/contracts.yaml#inbox_status
+    upstream_test: "tests/conformance/test_conformance.py::TestInboxEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_inbox_status", "adapter/dispatch.py:\"inbox_status\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:inbox_status"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Status subcommand only — durable-records read with no network and
+        no wake appended. note/say queue wakes or call Bedrock and drain
+        --ack moves records, so all stay out. Envelope truncates at 8KB.
+  - id: inbox_list
+    kind: upstream-mirror
+    summary: Queued captain inbox notes; list only.
+    upstream_command: bin/fm-inbox.sh
+    upstream_flags: ["list"]
+    contract: schema/contracts.yaml#inbox_list
+    upstream_test: "tests/conformance/test_conformance.py::TestInboxEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_inbox_list", "adapter/dispatch.py:\"inbox_list\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:inbox_list"]}
+    divergence:
+      status: intentional
+      reason: >-
+        List subcommand only; same out-of-scope set as inbox_status.
+        Envelope truncates at 8KB.
+  - id: home_summary
+    kind: upstream-mirror
+    summary: Published home-summary ledger; the refresh stays firstmate-owned.
+    upstream_command: "file: state/home-summary.json"
+    upstream_flags: ["<none>"]
+    contract: schema/contracts.yaml#home_summary
+    upstream_test: "tests/conformance/test_conformance.py::TestHomeSummaryEquivalence (adapter-vs-ledger equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_home_summary", "adapter/dispatch.py:\"home_summary\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:home_summary"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Bounded ledger read with path confinement and schema
+        fm-secondmate-home-summary.v1 validation; the refresh itself is
+        firstmate-owned plumbing (session start, watcher, spawn, teardown
+        call it --best-effort).
+  - id: contributions_snapshot
+    kind: upstream-mirror
+    summary: Owned-contribution coverage projected from the fleet snapshot; never contacts a forge.
+    upstream_command: bin/fm-contributions.sh
+    upstream_flags: ["snapshot", "<contribution-input>", "--all"]
+    contract: schema/contracts.yaml#contributions_snapshot
+    upstream_test: "tests/conformance/test_conformance.py::TestContributionsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_contributions_snapshot", "adapter/dispatch.py:\"contributions_snapshot\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:contributions_snapshot"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Snapshot only over the same contribution-input the fleet snapshot
+        stages, with a closed --all flag; poll spends forge reads over the
+        network and verdict/ack/arm mutate the saved records, so all stay
+        out. Envelope truncates at 8KB.
+  - id: contributions_pending
+    kind: upstream-mirror
+    summary: Pending contribution event tokens from saved records.
+    upstream_command: bin/fm-contributions.sh
+    upstream_flags: ["pending"]
+    contract: schema/contracts.yaml#contributions_pending
+    upstream_test: "tests/conformance/test_conformance.py::TestContributionsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_contributions_pending", "adapter/dispatch.py:\"contributions_pending\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:contributions_pending"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Pending subcommand only; same out-of-scope set as
+        contributions_snapshot.
   # ---- CHANGED: same owning scripts, narrower surface, per-call approval ----
   - id: lifecycle_interrupt
     kind: upstream-mirror

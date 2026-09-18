@@ -25,6 +25,16 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | secondmate_report | bin/fm-secondmate-report.sh | evolving | <verb>, <corr>, <note> | correlated parent-channel reports |
 | remote_control | bin/fm-remote-secondmate-control.sh | evolving | state, route, observe, send | closed remote secondmate control subset |
 | handoff_move | bin/fm-backlog-handoff.sh | evolving | <secondmate-id>, <item-key>..., --resume-pending | queued-item handoff moves |
+| harness_detect | bin/fm-harness.sh | stable | own, crew, secondmate, secondmate-model, secondmate-effort | harness detection reads (no ancestry walks) |
+| project_mode | bin/fm-project-mode.sh | stable | <project> | registered mode+yolo posture reads |
+| lock_status | bin/fm-lock.sh | stable | status | per-home session lock status reads |
+| lease_check | bin/fm-lease.sh | stable | check, <task> | per-task supervision lease reads |
+| bearings_board_path | bin/fm-bearings-board.sh | stable | path | stable bearings board path reads |
+| inbox_status | bin/fm-inbox.sh | stable | status | durable-records inbox status reads (no wake) |
+| inbox_list | bin/fm-inbox.sh | stable | list | queued inbox note reads |
+| home_summary | file: state/home-summary.json | stable | <none> | published home-summary ledger reads |
+| contributions_snapshot | bin/fm-contributions.sh | stable | snapshot, <contribution-input>, --all | owned-contribution coverage reads (no forge) |
+| contributions_pending | bin/fm-contributions.sh | stable | pending | pending contribution token reads |
 | spawn_crew | bin/fm-spawn.sh | evolving | task, project, mode, yolo | dispatch writes |
 | scaffold_brief | bin/fm-brief.sh | evolving | task, repo, mode/scout | dispatch writes |
 | receipt_submit | native: receipt store (state/mcp-receipts/) | experimental | <tool> <arguments> | detach long calls past the 30s budget |

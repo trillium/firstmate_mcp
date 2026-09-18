@@ -24,6 +24,9 @@ SUBPROCESS_TIMEOUT_S = 30
 
 MODES = ("no-mistakes", "direct-PR", "local-only")
 BRIEF_MODES = ("no-mistakes", "direct-PR", "local-only", "scout")
+HARNESS_MODES = ("own", "crew", "secondmate", "secondmate-model",
+                 "secondmate-effort")
+HOME_SUMMARY_SCHEMA = "fm-secondmate-home-summary.v1"
 VERDICTS = ("approve", "decline", "comment")
 YOLO = ("on", "off")
 
@@ -315,6 +318,59 @@ def _build_handoff_move(args):
             expect="1..20 backlog item keys, no slashes or traversal",
         )
     return _argv("fm-backlog-handoff.sh", task_id, *keys), None
+def _build_harness_detect(args):
+    mode = args.get("mode", "own")
+    if mode not in HARNESS_MODES:
+        return None, env.err(
+            "invalid-mode",
+            "invalid mode",
+            expect="one of own, crew, secondmate, secondmate-model, "
+                   "secondmate-effort",
+        )
+    # Ancestry/ancestry-descent (pid walks) and validate-native-effort
+    # stay out: detection only, never process introspection or policy.
+    if mode == "own":
+        return _argv("fm-harness.sh"), None
+    return _argv("fm-harness.sh", mode), None
+
+
+def _build_project_mode(args):
+    project = args.get("project")
+    if not v.valid_project(project):
+        return None, env.err(
+            "invalid-project",
+            "invalid project",
+            expect="bare name or projects/<name>, no absolute paths or traversal",
+        )
+    # Mapped "<mode> <yolo>" only: --raw is a denied argv flag, so
+    # conditional policies resolve to their most rigorous leg.
+    return _argv("fm-project-mode.sh", project), None
+
+
+def _build_lease_check(args):
+    task_id = args.get("id")
+    if not v.valid_id(task_id):
+        return None, ID_ERROR
+    # Check only: claim/release/release-actor/sweep are guarded by the
+    # supervision-actor contract, which an adapter call cannot name.
+    return _argv("fm-lease.sh", "check", task_id), None
+
+
+def _build_home_summary(_args):
+    # Native bounded ledger read under state_dir; no owning-script argv
+    # exists, mirroring the status_tail shape.
+    return [], None
+
+
+def _build_contributions_snapshot(args):
+    want_all = args.get("all", False)
+    if not isinstance(want_all, bool):
+        return None, env.err(
+            "invalid-all", "invalid all", expect="boolean"
+        )
+    # Snapshot + pending only: poll spends forge reads over the network
+    # and verdict/ack/arm mutate the saved records.
+    return _argv("fm-contributions.sh", "snapshot"), None
 
 
 def _build_review_diff(args):
@@ -549,6 +605,16 @@ TOOLS = {
     "secondmate_report": ("fm-secondmate-report.sh", _build_secondmate_report, True),
     "remote_control": ("fm-remote-secondmate-control.sh", _build_remote_control, True),
     "handoff_move": ("fm-backlog-handoff.sh", _build_handoff_move, True),
+    "harness_detect": ("fm-harness.sh", _build_harness_detect, False),
+    "project_mode": ("fm-project-mode.sh", _build_project_mode, False),
+    "lock_status": ("fm-lock.sh", None, False),
+    "lease_check": ("fm-lease.sh", _build_lease_check, False),
+    "bearings_board_path": ("fm-bearings-board.sh", None, False),
+    "inbox_status": ("fm-inbox.sh", None, False),
+    "inbox_list": ("fm-inbox.sh", None, False),
+    "home_summary": (None, _build_home_summary, False),
+    "contributions_snapshot": ("fm-contributions.sh", _build_contributions_snapshot, False),
+    "contributions_pending": ("fm-contributions.sh", None, False),
     "lifecycle_interrupt": ("fm-control.sh", _lifecycle_builder("interrupt", False), True),
     "lifecycle_exit": ("fm-control.sh", _lifecycle_builder("exit", False), True),
     "lifecycle_relaunch": ("fm-control.sh", _lifecycle_builder("relaunch", True), True),
@@ -958,6 +1024,227 @@ class Adapter:
         else:
             result.update({"id": args.get("id"), "keys": args.get("keys")})
         return result
+    def tool_harness_detect(self, args):
+        argv, error = _build_harness_detect(args)
+        if error:
+            return error
+        mode = args.get("mode", "own")
+        result = self.owned_call(argv, "harness detection failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        first = (result.get("stdout") or "").strip().splitlines()
+        result.update({"mode": mode, "harness": first[0] if first else ""})
+        return result
+
+    def tool_project_mode(self, args):
+        argv, error = _build_project_mode(args)
+        if error:
+            return error
+        result = self.owned_call(argv, "project mode refused or failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        tokens = (result.get("stdout") or "").strip().split()
+        if len(tokens) == 2:
+            mode, yolo = tokens
+        else:
+            mode, yolo = None, None
+        result.update({"project": args.get("project"),
+                       "mode": mode, "yolo": yolo})
+        return result
+
+    def tool_lock_status(self, _args):
+        # Status only: acquiring the per-home lock would steal firstmate's
+        # own session lock, so only the read is mirrored.
+        result = self.owned_call(["fm-lock.sh", "status"], "lock status failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        lines = (result.get("stdout") or "").strip().splitlines()
+        line = lines[0] if lines else ""
+        status = "unknown"
+        if line == "lock: free":
+            status = "free"
+        elif line.startswith("lock: held"):
+            status = "held"
+        elif line.startswith("lock: stale"):
+            status = "stale"
+        elif line.startswith("lock: unreadable"):
+            status = "unreadable"
+        result.update({"status": status, "raw": line})
+        return result
+
+    def tool_lease_check(self, args):
+        argv, error = _build_lease_check(args)
+        if error:
+            return error
+        task_id = args.get("id")
+        proc, run_error = self.run_script(argv)
+        if run_error:
+            return run_error
+        out, out_trunc = truncate(proc.stdout or "")
+        err_out, err_trunc = truncate(proc.stderr or "")
+        if proc.returncode == 0:
+            lines = out.strip().splitlines()
+            holder = lines[0] if lines else ""
+            record = env.ok(task_id=task_id, leased=True, holder=holder,
+                            stdout_truncated=out_trunc,
+                            stderr_truncated=err_trunc)
+            parts = holder.split()
+            if len(parts) == 4:
+                actor, pid, epoch, live = parts
+                try:
+                    pid_num, epoch_num = int(pid), int(epoch)
+                except ValueError:
+                    pid_num, epoch_num = None, None
+                record.update({"actor": actor, "pid": pid_num,
+                               "epoch": epoch_num, "live": live == "live"})
+            return record
+        if proc.returncode == 1 and not out.strip():
+            return env.ok(task_id=task_id, leased=False)
+        return env.err("lease-check-failed", "lease check failed",
+                       exit=proc.returncode, stdout=out, stderr=err_out)
+
+    def tool_bearings_board_path(self, _args):
+        # Path only: build proves a live lavish session and binds the
+        # keyed-answer intake — interactive captain surface that stays out.
+        result = self.owned_call(["fm-bearings-board.sh", "path"],
+                                 "bearings board path failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        result.update({"path": (result.get("stdout") or "").strip()})
+        return result
+
+    def tool_inbox_status(self, _args):
+        return self.owned_call(["fm-inbox.sh", "status"], "inbox status failed")
+
+    def tool_inbox_list(self, _args):
+        return self.owned_call(["fm-inbox.sh", "list"], "inbox list failed")
+
+    def tool_home_summary(self, _args):
+        try:
+            root = self.state_dir.resolve()
+        except OSError:
+            return env.err("no-home-summary", "no home summary",
+                           expect="published state/home-summary.json in the served home")
+        path = (root / "home-summary.json").resolve()
+        if path.parent != root:
+            return env.err("no-home-summary", "no home summary",
+                           expect="published state/home-summary.json in the served home")
+        try:
+            raw = path.read_bytes()
+        except FileNotFoundError:
+            return env.err("no-home-summary", "no home summary",
+                           expect="published state/home-summary.json in the served home")
+        except OSError as exc:
+            return env.err("cannot-read-home-summary",
+                           "cannot read home summary", detail=str(exc))
+        if len(raw) > MAX_OUTPUT_BYTES:
+            return env.err("home-summary-too-large",
+                           "home summary too large for envelope")
+        try:
+            summary = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            out, _ = truncate(raw.decode("utf-8", "replace"))
+            return env.err("home-summary-not-json",
+                           "home summary was not JSON", output=out)
+        if not isinstance(summary, dict) or \
+                summary.get("schema") != HOME_SUMMARY_SCHEMA:
+            schema = summary.get("schema") if isinstance(summary, dict) else None
+            return env.err("unexpected-home-summary-schema",
+                           "unexpected home summary schema", schema=schema)
+        return env.ok(**summary)
+
+    def tool_contributions_snapshot(self, args):
+        _argv_check, error = _build_contributions_snapshot(args)
+        if error:
+            return error
+        want_all = bool(args.get("all", False))
+        staged, stage_error = self._contribution_input()
+        if stage_error:
+            return stage_error
+        tmp = None
+        try:
+            with tempfile.NamedTemporaryFile("w", suffix=".json",
+                                              delete=False) as handle:
+                handle.write(staged)
+                tmp = handle.name
+            argv = _argv("fm-contributions.sh", "snapshot", tmp)
+            if want_all:
+                argv.append("--all")
+            proc, run_error = self.run_script(argv)
+            if run_error:
+                return run_error
+            if proc.returncode != 0:
+                out, _ = truncate(proc.stderr or proc.stdout or "")
+                return env.err("contributions-failed",
+                               "contributions snapshot failed",
+                               exit=proc.returncode, output=out)
+            if len(proc.stdout.encode("utf-8", "replace")) > MAX_OUTPUT_BYTES:
+                return env.err("contributions-too-large",
+                               "contributions too large for envelope")
+            try:
+                projection = json.loads(proc.stdout)
+            except json.JSONDecodeError:
+                out, _ = truncate(proc.stdout)
+                return env.err("contributions-not-json",
+                               "contributions was not JSON", output=out)
+            if not isinstance(projection, dict):
+                out, _ = truncate(proc.stdout)
+                return env.err("contributions-not-json",
+                               "contributions was not JSON", output=out)
+        finally:
+            if tmp:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+        projection = dict(projection)
+        projection["all"] = want_all
+        return env.ok(**projection)
+
+    def _contribution_input(self):
+        """Stage the canonical backlog/tasks ownership pair for a snapshot."""
+        proc, run_error = self.run_script(
+            ["fm-fleet-snapshot.sh", "--contribution-input"])
+        if run_error:
+            return None, run_error
+        if proc.returncode != 0:
+            out, _ = truncate(proc.stderr or proc.stdout or "")
+            return None, env.err("contribution-input-failed",
+                                  "contribution input failed",
+                                  exit=proc.returncode, output=out)
+        if len(proc.stdout.encode("utf-8", "replace")) > MAX_OUTPUT_BYTES:
+            return None, env.err("contribution-input-failed",
+                                  "contribution input failed",
+                                  detail="contribution input too large for envelope")
+        return proc.stdout, None
+
+    def tool_contributions_pending(self, _args):
+        proc, run_error = self.run_script(["fm-contributions.sh", "pending"])
+        if run_error:
+            return run_error
+        if proc.returncode != 0:
+            out, _ = truncate(proc.stderr or proc.stdout or "")
+            return env.err("contributions-pending-failed",
+                           "contributions pending failed",
+                           exit=proc.returncode, output=out)
+        if len(proc.stdout.encode("utf-8", "replace")) > MAX_OUTPUT_BYTES:
+            return env.err("contributions-too-large",
+                           "contributions too large for envelope")
+        try:
+            pending = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            out, _ = truncate(proc.stdout)
+            return env.err("contributions-pending-not-json",
+                           "contributions pending was not JSON", output=out)
+        if not isinstance(pending, list):
+            out, _ = truncate(proc.stdout)
+            return env.err("contributions-pending-not-json",
+                           "contributions pending was not JSON", output=out)
+        return env.ok(pending=pending)
 
     def tool_fleet_poll(self, args):
         try:

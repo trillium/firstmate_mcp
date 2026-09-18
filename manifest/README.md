@@ -29,7 +29,7 @@ tool plus py/ts status, denied-by-design with reason, or unmirrored gap.
 - Behavior owners stay the script headers; `schema/contracts.yaml` owns the
   depended-on declaration. This manifest tracks identity and status only.
 
-## Mirrored capabilities (25)
+## Mirrored capabilities (35)
 
 | Feature | Upstream surface | Contract | py | ts | Divergence |
 | --- | --- | --- | --- | --- | --- |
@@ -45,6 +45,14 @@ tool plus py/ts status, denied-by-design with reason, or unmirrored gap.
 | `bearings_snapshot` | `bin/fm-bearings-snapshot.sh --json` | `schema/contracts.yaml#bearings_snapshot` | ✅ | ✅ | intentional: local-only projection, no `--include-prs` network path |
 | `wake_drain` | `bin/fm-wake-drain.sh` | `schema/contracts.yaml#wake_drain` | ✅ | ✅ | intentional: the queue drain is the defined read, 8KB truncation |
 | `guard_check` | `bin/fm-guard.sh` | `schema/contracts.yaml#guard_check` | ✅ | ✅ | intentional: `FM_GUARD_READ_ONLY=1`, warn-only, never blocks |
+| `harness_detect` | `bin/fm-harness.sh` closed modes | `schema/contracts.yaml#harness_detect` | ✅ | ✅ | intentional: no ancestry walks, no native-effort validation |
+| `project_mode` | `bin/fm-project-mode.sh <project>` | `schema/contracts.yaml#project_mode` | ✅ | ✅ | intentional: mapped mode+yolo only, no `--raw` |
+| `lock_status` | `bin/fm-lock.sh status` | `schema/contracts.yaml#lock_status` | ✅ | ✅ | intentional: status only, acquiring would steal the session lock |
+| `lease_check` | `bin/fm-lease.sh check` | `schema/contracts.yaml#lease_check` | ✅ | ✅ | intentional: check only, actor-guarded mutations stay out |
+| `bearings_board_path` | `bin/fm-bearings-board.sh path` | `schema/contracts.yaml#bearings_board_path` | ✅ | ✅ | intentional: path only, build/arm stays agent-owned |
+| `inbox_status` / `inbox_list` | `bin/fm-inbox.sh status` / `list` | `schema/contracts.yaml#inbox_status` | ✅ | ✅ | intentional: durable-record reads only, no wake, no model call |
+| `home_summary` | `state/home-summary.json` file | `schema/contracts.yaml#home_summary` | ✅ | ✅ | intentional: ledger read, refresh stays firstmate-owned |
+| `contributions_snapshot` / `contributions_pending` | `bin/fm-contributions.sh snapshot` / `pending` | `schema/contracts.yaml#contributions_snapshot` | ✅ | ✅ | intentional: read-only projection, no forge reads, no record writes |
 | `lifecycle_interrupt/exit/relaunch/suspend/resume` | `bin/fm-control.sh` verbs | adapter safe-verb subset | ✅ | ✅ | intentional: per-call `I authorize` approval gate |
 | `spawn_crew` | `bin/fm-spawn.sh` | `schema/contracts.yaml#spawn_crew` | ✅ | ✅ | intentional: approval gate + safe flag subset |
 | `scaffold_brief` | `bin/fm-brief.sh` | `schema/contracts.yaml#scaffold_brief` | ✅ | ✅ | intentional: approval gate + safe flag subset |

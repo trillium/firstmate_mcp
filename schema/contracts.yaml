@@ -388,3 +388,163 @@ contracts:
       header: bin/fm-backlog-handoff.sh:1-40
       doc: INVENTORY.md
     notes: Dispatch write; move plus resume-pending only. Moves only Queued items via the backend owner.
+  - name: harness_detect
+    command: bin/fm-harness.sh
+    flags: ["own", "crew", "secondmate", "secondmate-model", "secondmate-effort"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["mode", "harness", "stdout"]
+    exits:
+      zero: harness name for the mode with mode echoed
+      nonzero: detection refused or failed; stderr carries the reason
+    stability: stable
+    pinned: fm-harness.v1
+    evidence:
+      header: bin/fm-harness.sh:1-20
+      doc: INVENTORY.md
+    notes: Closed mode subset; ancestry/ancestry-descent pid walks and validate-native-effort stay out.
+  - name: project_mode
+    command: bin/fm-project-mode.sh
+    flags: ["<project>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["project", "mode", "yolo", "stdout"]
+    exits:
+      zero: registered "<mode> <yolo>" pair with project echoed; unknown projects fall back to no-mistakes off with a stderr warning
+      nonzero: registry unreadable in a way the fallback cannot cover; stderr carries the reason
+    stability: stable
+    pinned: fm-project-mode.v1
+    evidence:
+      header: bin/fm-project-mode.sh:1-30
+      doc: INVENTORY.md
+    notes: Mapped mode+yolo only; --raw stays out (denied argv flag), so conditional policies resolve to their most rigorous leg.
+  - name: lock_status
+    command: bin/fm-lock.sh
+    flags: ["status"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["status", "raw", "stdout"]
+    exits:
+      zero: holder and liveness line with a free/held/stale/unreadable projection; always exits 0
+      nonzero: never nonzero by contract; stderr carries diagnostics on hiccup
+    stability: stable
+    pinned: fm-lock.status.v1
+    evidence:
+      header: bin/fm-lock.sh:1-20
+      doc: INVENTORY.md
+    notes: Status only; acquiring would steal firstmate's own session lock and stays out.
+  - name: lease_check
+    command: bin/fm-lease.sh
+    flags: ["check", "<task>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["task_id", "leased", "holder", "actor", "pid", "epoch", "live"]
+    exits:
+      zero: holder line projected with task echoed (actor pid epoch live|stale)
+      nonzero: exit 1 with empty stdout is the defined unleased outcome; other exits are typed failures with stderr carried
+    stability: stable
+    pinned: fm-lease.check.v1
+    evidence:
+      header: bin/fm-lease.sh:1-40
+      doc: INVENTORY.md
+    notes: Check only; claim/release/release-actor/sweep are guarded by the supervision-actor contract and stay out.
+  - name: bearings_board_path
+    command: bin/fm-bearings-board.sh
+    flags: ["path"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["path", "stdout"]
+    exits:
+      zero: stable board path for this home with path echoed
+      nonzero: board path unresolvable; stderr carries the reason
+    stability: stable
+    pinned: fm-bearings-board.path.v1
+    evidence:
+      header: bin/fm-bearings-board.sh:1-40
+      doc: INVENTORY.md
+    notes: Path only; build proves a live lavish session and binds the keyed-answer intake, which stays firstmate/agent-owned.
+  - name: inbox_status
+    command: bin/fm-inbox.sh
+    flags: ["status"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: durable-records status with no wake sent and no network read
+      nonzero: records unreadable; stderr carries the reason
+    stability: stable
+    pinned: fm-inbox.status.v1
+    evidence:
+      header: bin/fm-inbox.sh:1-40
+      doc: INVENTORY.md
+    notes: Status only; note/say queue wakes or call Bedrock and drain --ack moves records, so all stay out.
+  - name: inbox_list
+    command: bin/fm-inbox.sh
+    flags: ["list"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: queued note ids with bodies, or the empty marker
+      nonzero: inbox unreadable; stderr carries the reason
+    stability: stable
+    pinned: fm-inbox.list.v1
+    evidence:
+      header: bin/fm-inbox.sh:1-40
+      doc: INVENTORY.md
+    notes: List only; same out-of-scope set as inbox_status.
+  - name: home_summary
+    command: "file: state/home-summary.json"
+    flags: ["<none>"]
+    output:
+      format: json
+      schema_id: fm-secondmate-home-summary.v1
+      fields: ["schema", "generated", "generated_epoch", "state", "counts"]
+    exits:
+      zero: published ledger parsed with schema fm-secondmate-home-summary.v1
+      nonzero: unpublished, unreadable, oversize, or off-schema ledger; the reason names which
+    stability: stable
+    pinned: fm-secondmate-home-summary.v1
+    evidence:
+      header: bin/fm-home-summary-refresh.sh:1-20
+      doc: INVENTORY.md
+    notes: Dispatch read; ledger only, never the refresh. Refresh is firstmate-owned plumbing (session start, watcher, spawn, teardown call it --best-effort).
+  - name: contributions_snapshot
+    command: bin/fm-contributions.sh
+    flags: ["snapshot", "<contribution-input>", "--all"]
+    output:
+      format: json
+      schema_id: none
+      fields: ["known", "checked", "counts", "captain", "all"]
+    exits:
+      zero: owned-contribution coverage projected over the staged backlog/tasks pair with the all flag echoed
+      nonzero: contribution-input staging or the snapshot refused or failed; stderr carries the reason
+    stability: stable
+    pinned: fm-contributions.snapshot.v1
+    evidence:
+      header: bin/fm-contributions.sh:1-30
+      doc: INVENTORY.md
+    notes: Snapshot only over the same contribution-input the fleet snapshot stages; poll spends forge reads and verdict/ack/arm mutate records, so all stay out.
+  - name: contributions_pending
+    command: bin/fm-contributions.sh
+    flags: ["pending"]
+    output:
+      format: json
+      schema_id: none
+      fields: ["pending"]
+    exits:
+      zero: pending event tokens with task and url attached, or an empty list
+      nonzero: saved records unreadable; stderr carries the reason
+    stability: stable
+    pinned: fm-contributions.pending.v1
+    evidence:
+      header: bin/fm-contributions.sh:1-30
+      doc: INVENTORY.md
+    notes: Pending only; same out-of-scope set as contributions_snapshot.

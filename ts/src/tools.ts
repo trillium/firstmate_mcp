@@ -1,10 +1,13 @@
 /**
- * The 36 smarts-only tools, in feature-manifest order.
+ * The 46 smarts-only tools, in feature-manifest order.
  *
  * SUPPORTED (no approval): fleet_snapshot, backlog, crew_state,
  * status_tail, send_message (+ fleet_poll, the read-only poller, peek,
  * fleet_view, review_diff, bearings_snapshot, wake_drain, guard_check,
  * remote_doctor, remote_file, remote_delta, handoff_status,
+ * harness_detect, project_mode, lock_status, lease_check,
+ * bearings_board_path, inbox_status, inbox_list, home_summary,
+ * contributions_snapshot, contributions_pending,
  * plus receipt_submit/receipt_status, the fail-closed async receipts).
  * CHANGED (approval-gated): decision_hold, decision_resolve,
  * lifecycle_interrupt/exit/relaunch/suspend/resume, relay_reply/dismiss/
@@ -30,6 +33,8 @@ import {
   BRIEF_MODES,
   HANDOFF_DEFAULT_LINES,
   HANDOFF_KEYS_MAX,
+  HARNESS_MODES,
+  HOME_SUMMARY_SCHEMA,
   MAX_OUTPUT_BYTES,
   MODES,
   RECEIPT_DIRNAME,
@@ -781,6 +786,331 @@ async function toolHandoffStatus(args: ToolArgs, ctx: ToolContext): Promise<Tool
   };
 }
 
+// --- Wave 3: session + digest reads (Tier 1, no approval) ---
+//
+// Pure status projections only. Session-start orchestration
+// (fm-session-start.sh, fm-sessionstart-run.sh and its transports),
+// Herdr lifecycle (fm-herdr-lab.sh, *-cleanup.sh), spawn trust
+// preregistration (fm-claude-trust.sh, fm-agy-trust.sh), the networked
+// dispatch resolver, watcher checkpoint runs, and lock/lease acquisition
+// all stay out; the owning scripts still fail closed on anything refused.
+
+async function toolHarnessDetect(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // Default only when the key is absent: an explicit null is invalid,
+  // exactly as the Python server's args.get("mode", "own") treats it.
+  const rawMode = args["mode"];
+  const mode = rawMode === undefined ? "own" : rawMode;
+  if (!(HARNESS_MODES as readonly unknown[]).includes(mode)) {
+    return {
+      payload: {
+        error: "invalid mode",
+        expect: "one of own, crew, secondmate, secondmate-model, secondmate-effort",
+      },
+      isError: true,
+    };
+  }
+  const cmd =
+    mode === "own"
+      ? argv(path.join(ctx.binDir, "fm-harness.sh"))
+      : argv(path.join(ctx.binDir, "fm-harness.sh"), mode as string);
+  const { payload, isError } = await ownedCall(cmd, "harness detection failed", ctx.run);
+  if (isError) return { payload, isError: true };
+  const first = ((payload["stdout"] as string) || "").trim().split("\n");
+  return { payload: { ...payload, mode, harness: first[0] ?? "" }, isError: false };
+}
+
+async function toolProjectMode(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const project = args["project"];
+  if (!validProject(project)) {
+    return {
+      payload: {
+        error: "invalid project",
+        expect: "bare name or projects/<name>, no absolute paths or traversal",
+      },
+      isError: true,
+    };
+  }
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-project-mode.sh"), project as string),
+    "project mode refused or failed",
+    ctx.run,
+  );
+  if (isError) return { payload, isError: true };
+  // Mirror the Python projection exactly: exactly two tokens map to
+  // mode/yolo, anything else maps to null/null.
+  const tokens = ((payload["stdout"] as string) || "").trim().split(/\s+/).filter(Boolean);
+  const mode = tokens.length === 2 ? tokens[0] : null;
+  const yolo = tokens.length === 2 ? tokens[1] : null;
+  return { payload: { ...payload, project, mode, yolo }, isError: false };
+}
+
+async function toolLockStatus(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-lock.sh"), "status"),
+    "lock status failed",
+    ctx.run,
+  );
+  if (isError) return { payload, isError: true };
+  const lines = ((payload["stdout"] as string) || "").trim().split("\n");
+  const line = lines[0] ?? "";
+  let status = "unknown";
+  if (line === "lock: free") status = "free";
+  else if (line.startsWith("lock: held")) status = "held";
+  else if (line.startsWith("lock: stale")) status = "stale";
+  else if (line.startsWith("lock: unreadable")) status = "unreadable";
+  return { payload: { ...payload, status, raw: line }, isError: false };
+}
+
+async function toolLeaseCheck(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["id"];
+  if (!validId(taskId)) {
+    return {
+      payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  const res = await ctx.run([
+    path.join(ctx.binDir, "fm-lease.sh"),
+    "check",
+    taskId as string,
+  ]);
+  if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
+  const [out, outTrunc] = truncate(res.stdout || "");
+  const [, errTrunc] = truncate(res.stderr || "");
+  if (res.exitCode === 0) {
+    const holderLines = out.trim().split("\n");
+    const holder = holderLines[0] ?? "";
+    const record: Record<string, unknown> = {
+      task_id: taskId,
+      leased: true,
+      holder,
+      stdout_truncated: outTrunc,
+      stderr_truncated: errTrunc,
+    };
+    const parts = holder.split(/\s+/).filter(Boolean);
+    if (parts.length === 4) {
+      const [actor, pid, epoch, live] = parts;
+      const pidNum = /^\d+$/.test(pid) ? Number(pid) : null;
+      const epochNum = /^\d+$/.test(epoch) ? Number(epoch) : null;
+      record["actor"] = actor;
+      record["pid"] = pidNum;
+      record["epoch"] = epochNum;
+      record["live"] = live === "live";
+    }
+    return { payload: record, isError: false };
+  }
+  if (res.exitCode === 1 && out.trim() === "") {
+    return { payload: { task_id: taskId, leased: false }, isError: false };
+  }
+  const [errOut] = truncate(res.stderr || "");
+  return {
+    payload: {
+      error: "lease check failed",
+      exit: res.exitCode,
+      stdout: out,
+      stderr: errOut,
+    },
+    isError: true,
+  };
+}
+
+async function toolBearingsBoardPath(
+  _args: ToolArgs,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-bearings-board.sh"), "path"),
+    "bearings board path failed",
+    ctx.run,
+  );
+  if (isError) return { payload, isError: true };
+  return {
+    payload: { ...payload, path: ((payload["stdout"] as string) || "").trim() },
+    isError: false,
+  };
+}
+
+async function toolInboxStatus(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  return ownedCall(
+    argv(path.join(ctx.binDir, "fm-inbox.sh"), "status"),
+    "inbox status failed",
+    ctx.run,
+  );
+}
+
+async function toolInboxList(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  return ownedCall(
+    argv(path.join(ctx.binDir, "fm-inbox.sh"), "list"),
+    "inbox list failed",
+    ctx.run,
+  );
+}
+
+async function toolHomeSummary(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const root = path.resolve(ctx.stateDir);
+  const file = path.resolve(root, "home-summary.json");
+  if (path.dirname(file) !== root) {
+    return {
+      payload: {
+        error: "no home summary",
+        expect: "published state/home-summary.json in the served home",
+      },
+      isError: true,
+    };
+  }
+  let raw: Buffer;
+  try {
+    raw = fs.readFileSync(file);
+  } catch (exc) {
+    const nodeErr = exc as NodeJS.ErrnoException;
+    if (nodeErr?.code === "ENOENT") {
+      return {
+        payload: {
+          error: "no home summary",
+          expect: "published state/home-summary.json in the served home",
+        },
+        isError: true,
+      };
+    }
+    return {
+      payload: { error: "cannot read home summary", detail: String(exc) },
+      isError: true,
+    };
+  }
+  if (raw.length > MAX_OUTPUT_BYTES) {
+    return { payload: { error: "home summary too large for envelope" }, isError: true };
+  }
+  let summary: Record<string, unknown>;
+  try {
+    summary = JSON.parse(raw.toString("utf8")) as Record<string, unknown>;
+  } catch {
+    const [out] = truncate(raw.toString("utf8"));
+    return { payload: { error: "home summary was not JSON", output: out }, isError: true };
+  }
+  if (typeof summary !== "object" || summary === null || summary["schema"] !== HOME_SUMMARY_SCHEMA) {
+    const schema =
+      typeof summary === "object" && summary !== null
+        ? (summary["schema"] as unknown)
+        : null;
+    return {
+      payload: { error: "unexpected home summary schema", schema },
+      isError: true,
+    };
+  }
+  return { payload: summary, isError: false };
+}
+
+async function contributionInput(
+  ctx: ToolContext,
+): Promise<{ staged: string | null; error: Record<string, unknown> | null }> {
+  const res = await ctx.run([
+    path.join(ctx.binDir, "fm-fleet-snapshot.sh"),
+    "--contribution-input",
+  ]);
+  if (!isRunResult(res)) return { staged: null, error: res as Record<string, unknown> };
+  if (res.exitCode !== 0) {
+    const [out] = truncate(res.stderr || res.stdout || "");
+    return {
+      staged: null,
+      error: { error: "contribution input failed", exit: res.exitCode, output: out },
+    };
+  }
+  if (byteLength(res.stdout) > MAX_OUTPUT_BYTES) {
+    return {
+      staged: null,
+      error: {
+        error: "contribution input failed",
+        detail: "contribution input too large for envelope",
+      },
+    };
+  }
+  return { staged: res.stdout, error: null };
+}
+
+async function toolContributionsSnapshot(
+  args: ToolArgs,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  // Default only when the key is absent: an explicit null is invalid,
+  // exactly as the Python server's args.get("all", False) treats it.
+  const rawAll = args["all"];
+  const wantAll = rawAll === undefined ? false : rawAll;
+  if (typeof wantAll !== "boolean") {
+    return { payload: { error: "invalid all", expect: "boolean" }, isError: true };
+  }
+  const { staged, error } = await contributionInput(ctx);
+  if (error !== null || staged === null) {
+    return { payload: error as Record<string, unknown>, isError: true };
+  }
+  const tmp = writeTempFile(staged);
+  try {
+    const cmd = argv(path.join(ctx.binDir, "fm-contributions.sh"), "snapshot", tmp);
+    if (wantAll) cmd.push("--all");
+    const res = await ctx.run(cmd);
+    if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
+    if (res.exitCode !== 0) {
+      const [out] = truncate(res.stderr || res.stdout || "");
+      return {
+        payload: { error: "contributions snapshot failed", exit: res.exitCode, output: out },
+        isError: true,
+      };
+    }
+    if (byteLength(res.stdout) > MAX_OUTPUT_BYTES) {
+      return { payload: { error: "contributions too large for envelope" }, isError: true };
+    }
+    let projection: Record<string, unknown>;
+    try {
+      projection = JSON.parse(res.stdout) as Record<string, unknown>;
+    } catch {
+      const [out] = truncate(res.stdout);
+      return { payload: { error: "contributions was not JSON", output: out }, isError: true };
+    }
+    if (typeof projection !== "object" || projection === null || Array.isArray(projection)) {
+      const [out] = truncate(res.stdout);
+      return { payload: { error: "contributions was not JSON", output: out }, isError: true };
+    }
+    return { payload: { ...projection, all: wantAll }, isError: false };
+  } finally {
+    removeTempFile(tmp);
+  }
+}
+
+async function toolContributionsPending(
+  _args: ToolArgs,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const res = await ctx.run([path.join(ctx.binDir, "fm-contributions.sh"), "pending"]);
+  if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
+  if (res.exitCode !== 0) {
+    const [out] = truncate(res.stderr || res.stdout || "");
+    return {
+      payload: { error: "contributions pending failed", exit: res.exitCode, output: out },
+      isError: true,
+    };
+  }
+  if (byteLength(res.stdout) > MAX_OUTPUT_BYTES) {
+    return { payload: { error: "contributions too large for envelope" }, isError: true };
+  }
+  let pending: unknown;
+  try {
+    pending = JSON.parse(res.stdout) as unknown;
+  } catch {
+    const [out] = truncate(res.stdout);
+    return {
+      payload: { error: "contributions pending was not JSON", output: out },
+      isError: true,
+    };
+  }
+  if (!Array.isArray(pending)) {
+    const [out] = truncate(res.stdout);
+    return {
+      payload: { error: "contributions pending was not JSON", output: out },
+      isError: true,
+    };
+  }
+  return { payload: { pending }, isError: false };
+}
+
 // --- CHANGED: approval-gated writes ---
 
 async function lifecycleTool(
@@ -1486,6 +1816,85 @@ export const TOOLS: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolHandoffStatus,
+  },
+  harness_detect: {
+    description:
+      "Read-only harness detection for this home; closed mode subset, never walks process ancestry.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: {
+          type: "string",
+          enum: ["own", "crew", "secondmate", "secondmate-model", "secondmate-effort"],
+          default: "own",
+        },
+      },
+      additionalProperties: false,
+    },
+    handler: toolHarnessDetect,
+  },
+  project_mode: {
+    description: "Read-only registered delivery posture (mode + yolo) for one project.",
+    inputSchema: {
+      type: "object",
+      properties: { project: { type: "string", description: "Bare name or projects/<name>" } },
+      required: ["project"],
+      additionalProperties: false,
+    },
+    handler: toolProjectMode,
+  },
+  lock_status: {
+    description: "Read-only per-home session lock status; acquiring stays out.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolLockStatus,
+  },
+  lease_check: {
+    description: "Read-only per-task supervision lease check; claim/release/sweep stay out.",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string", description: "Task id" } },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    handler: toolLeaseCheck,
+  },
+  bearings_board_path: {
+    description:
+      "Read-only stable path of the captain's bearings board; building/arming stays out.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolBearingsBoardPath,
+  },
+  inbox_status: {
+    description: "Read-only captain inbox status from durable records; sends no wake.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolInboxStatus,
+  },
+  inbox_list: {
+    description: "Read-only list of queued captain inbox notes.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolInboxList,
+  },
+  home_summary: {
+    description: "Read-only published home-summary ledger; refresh stays firstmate-owned.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolHomeSummary,
+  },
+  contributions_snapshot: {
+    description:
+      "Read-only owned-contribution coverage projected from the fleet snapshot; never contacts a forge.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        all: { type: "boolean", description: "Include rows for supervisor inspection", default: false },
+      },
+      additionalProperties: false,
+    },
+    handler: toolContributionsSnapshot,
+  },
+  contributions_pending: {
+    description: "Read-only pending contribution event tokens from saved records.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolContributionsPending,
   },
   send_message: {
     description:

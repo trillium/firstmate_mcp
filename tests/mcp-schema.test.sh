@@ -42,7 +42,7 @@ assert_contains() {
 stub_fm_home() {
   local home=$1
   mkdir -p "$home/bin"
-  for script in fm-fleet-snapshot.sh fm-crew-state.sh fm-send.sh fm-spawn.sh fm-brief.sh fm-peek.sh fm-fleet-view.sh fm-review-diff.sh fm-bearings-snapshot.sh fm-wake-drain.sh fm-guard.sh fm-control.sh fm-decision-hold.sh fm-review-decision.sh fm-x-reply.sh fm-x-dismiss.sh fm-x-followup.sh fm-remote-doctor.sh fm-remote-file.sh fm-remote-delta-read.sh fm-secondmate-reconcile.sh fm-secondmate-restart.sh fm-secondmate-report.sh fm-remote-secondmate-control.sh fm-backlog-handoff.sh; do
+  for script in fm-fleet-snapshot.sh fm-crew-state.sh fm-send.sh fm-spawn.sh fm-brief.sh fm-peek.sh fm-fleet-view.sh fm-review-diff.sh fm-bearings-snapshot.sh fm-wake-drain.sh fm-guard.sh fm-control.sh fm-decision-hold.sh fm-review-decision.sh fm-x-reply.sh fm-x-dismiss.sh fm-x-followup.sh fm-remote-doctor.sh fm-remote-file.sh fm-remote-delta-read.sh fm-secondmate-reconcile.sh fm-secondmate-restart.sh fm-secondmate-report.sh fm-remote-secondmate-control.sh fm-backlog-handoff.sh fm-harness.sh fm-project-mode.sh fm-lock.sh fm-lease.sh fm-bearings-board.sh fm-inbox.sh fm-contributions.sh; do
     printf '#!/usr/bin/env bash\nexit 0\n' > "$home/bin/$script"
     chmod +x "$home/bin/$script"
   done
