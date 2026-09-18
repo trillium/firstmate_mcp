@@ -27,6 +27,13 @@ When updating this file, preserve this bar for all agents and keep entries conci
   commands newer than that pin.
 - The repo tree has no `bin/`; the server resolves scripts through `FM_HOME/bin`
   (`fm_mcp_server.py:24-25`), defaulting to the live firstmate checkout.
+  Line binding (line, pinned revs, full resolution order with example):
+  README.md "Line binding and checkout resolution". Line is the
+  `trillium/firstmate` fork, fork-pinned; checkout pin is the
+  `sources/firstmate` gitlink, drift inventory rev is
+  `drift/baseline.json: firstmate_revision`; server order is
+  `CHECKOUT_BIN` > `FM_HOME/bin`, with `FIRSTMATE_HOME` > `FM_REAL_HOME` >
+  `FM_CHECKOUT` for the conformance reference lookup only.
 - Envelope (fm_mcp_server.py): `SUBPROCESS_TIMEOUT_S=30`, `MAX_OUTPUT_BYTES=1MB`.
   No call blocks past 30s: `run_script` starts children in their own session
   and kills the whole process group on timeout, auditing a typed timeout
