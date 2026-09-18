@@ -64,7 +64,9 @@ READ_TOOLS = frozenset({
     "remote_delta", "handoff_status", "harness_detect", "project_mode",
     "lock_status", "lease_check", "bearings_board_path", "inbox_status",
     "inbox_list", "home_summary", "contributions_snapshot",
-    "contributions_pending",
+    "contributions_pending", "mail_status", "mail_read", "voice_status",
+    "lint_versions", "tool_update_check", "vendor_auth_probe",
+    "startup_memory", "pr_state", "relay_poll",
 })
 
 # Scripts the suite may execute. Anything else fails closed at the runner.
@@ -75,6 +77,10 @@ READ_SCRIPTS = frozenset({
     "fm-remote-file.sh", "fm-remote-delta-read.sh", "fm-harness.sh",
     "fm-project-mode.sh", "fm-lock.sh", "fm-lease.sh",
     "fm-bearings-board.sh", "fm-inbox.sh", "fm-contributions.sh",
+    "fm-mail.sh", "fm_voice_records.py", "fm-lint.sh",
+    "fm-lint-workflows.sh", "fm-tool-update-check.sh",
+    "fm-vendor-auth-probe.sh", "fm-startup-memory-budget.sh",
+    "fm-pr-state.sh", "fm-x-poll.sh",
 })
 
 
@@ -97,7 +103,12 @@ REQUIRED_SCRIPTS = ("fm-fleet-snapshot.sh", "fm-crew-state.sh",
                     "fm-remote-delta-read.sh", "fm-harness.sh",
                     "fm-project-mode.sh", "fm-lock.sh", "fm-lease.sh",
                     "fm-bearings-board.sh", "fm-inbox.sh",
-                    "fm-contributions.sh")
+                    "fm-contributions.sh", "fm-mail.sh",
+                    "fm_voice_records.py", "fm-lint.sh",
+                    "fm-lint-workflows.sh", "fm-tool-update-check.sh",
+                    "fm-vendor-auth-probe.sh",
+                    "fm-startup-memory-budget.sh", "fm-pr-state.sh",
+                    "fm-x-poll.sh")
 
 
 def scratch_env(scratch):
@@ -702,6 +713,142 @@ class TestContributionsEquivalence(ConformanceBase):
         self.assertEqual(len(self.runner.calls), before)
 
 
+class TestMailEquivalence(ConformanceBase):
+    def test_mail_status_matches_direct(self):
+        # Scratch home carries no mail credentials, so both paths fail
+        # the same way (missing .env values); with credentials both
+        # print config plus cursor. Either way the outputs agree.
+        proc = run_direct("fm-mail.sh", ["status"], self.env)
+        result = self.adapter.dispatch("mail_status", {})
+        _assert_text_matches(self, result, proc)
+
+    def test_mail_read_matches_direct(self):
+        proc = run_direct("fm-mail.sh", ["read"], self.env)
+        result = self.adapter.dispatch("mail_read", {})
+        if proc.returncode == 0:
+            self.assertTrue(env.is_ok(result), result)
+            self.assertEqual(result["stdout"], proc.stdout)
+            self.assertIn("BODY.PEEK", result.get("warning", ""))
+        else:
+            _assert_text_matches(self, result, proc)
+
+
+class TestVoiceEquivalence(ConformanceBase):
+    def test_voice_status_matches_direct(self):
+        for scope in ("counts", "full"):
+            with self.subTest(scope=scope):
+                proc = run_direct("fm_voice_records.py",
+                                  ["status", "--scope", scope], self.env)
+                self.assertEqual(proc.returncode, 0, proc.stderr[:500])
+                direct = json.loads(proc.stdout)
+                result = self.adapter.dispatch("voice_status", {"scope": scope})
+                self.assertTrue(env.is_ok(result), result)
+                claimed = dict(result)
+                claimed.pop("ok", None)
+                self.assertEqual(claimed, direct)
+
+    def test_voice_status_defaults_to_counts(self):
+        proc = run_direct("fm_voice_records.py",
+                          ["status", "--scope", "counts"], self.env)
+        self.assertEqual(proc.returncode, 0, proc.stderr[:500])
+        result = self.adapter.dispatch("voice_status", {})
+        self.assertTrue(env.is_ok(result), result)
+        claimed = dict(result)
+        claimed.pop("ok", None)
+        self.assertEqual(claimed, json.loads(proc.stdout))
+
+    def test_voice_rejects_bad_scope_without_spawn(self):
+        before = len(self.runner.calls)
+        result = self.adapter.dispatch("voice_status", {"scope": "bogus"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-scope")
+        self.assertEqual(len(self.runner.calls), before)
+
+
+class TestInstallsEquivalence(ConformanceBase):
+    def test_lint_versions_match_direct(self):
+        shell = run_direct("fm-lint.sh", ["--required-version"], self.env)
+        self.assertEqual(shell.returncode, 0, shell.stderr[:500])
+        action = run_direct("fm-lint-workflows.sh", ["--required-version"],
+                            self.env)
+        self.assertEqual(action.returncode, 0, action.stderr[:500])
+        result = self.adapter.dispatch("lint_versions", {})
+        self.assertTrue(env.is_ok(result), result)
+        self.assertEqual(result["shellcheck"], shell.stdout.strip())
+        self.assertEqual(result["actionlint"], action.stdout.strip())
+
+    def test_tool_update_check_matches_direct(self):
+        proc = run_direct("fm-tool-update-check.sh", ["check"], self.env)
+        result = self.adapter.dispatch("tool_update_check", {})
+        _assert_text_matches(self, result, proc)
+
+    def test_vendor_auth_probe_matches_direct(self):
+        proc = run_direct("fm-vendor-auth-probe.sh", ["grok"], self.env)
+        self.assertEqual(proc.returncode, 0, proc.stderr[:500])
+        result = self.adapter.dispatch("vendor_auth_probe", {"probe": "grok"})
+        self.assertTrue(env.is_ok(result), result)
+        self.assertEqual(result["probe"], "grok")
+        self.assertEqual(result["stdout"], proc.stdout)
+
+    def test_vendor_auth_probe_rejects_allowlist_without_spawn(self):
+        before = len(self.runner.calls)
+        result = self.adapter.dispatch("vendor_auth_probe", {"probe": "bogus"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-probe")
+        self.assertEqual(len(self.runner.calls), before)
+
+    def test_startup_memory_matches_direct(self):
+        for mode in ("read", "report"):
+            with self.subTest(mode=mode):
+                proc = run_direct("fm-startup-memory-budget.sh", [mode],
+                                  self.env)
+                result = self.adapter.dispatch("startup_memory", {"mode": mode})
+                if proc.returncode == 0:
+                    self.assertTrue(env.is_ok(result), result)
+                    self.assertEqual(result["stdout"], proc.stdout)
+                    self.assertEqual(result["mode"], mode)
+                else:
+                    _assert_text_matches(self, result, proc)
+
+    def test_startup_memory_rejects_bad_mode_without_spawn(self):
+        before = len(self.runner.calls)
+        result = self.adapter.dispatch("startup_memory", {"mode": "bogus"})
+        self.assertTrue(env.is_err(result), result)
+        self.assertEqual(result["error"]["code"], "invalid-mode")
+        self.assertEqual(len(self.runner.calls), before)
+
+
+class TestSmallGapsEquivalence(ConformanceBase):
+    PR_URL = "https://github.com/octocat/Hello-World/pull/42"
+
+    def test_pr_state_matches_direct(self):
+        proc = run_direct("fm-pr-state.sh", [self.PR_URL], self.env)
+        result = self.adapter.dispatch("pr_state", {"url": self.PR_URL})
+        if proc.returncode == 0:
+            self.assertTrue(env.is_ok(result), result)
+            self.assertEqual(result["stdout"], proc.stdout)
+            self.assertEqual(result["url"], self.PR_URL)
+        else:
+            _assert_text_matches(self, result, proc)
+
+    def test_pr_state_rejects_non_github_without_spawn(self):
+        before = len(self.runner.calls)
+        for url in ("not a url",
+                    "https://example.com/octo/repo/pull/1",
+                    "https://github.com/bad--owner/repo/pull/1"):
+            with self.subTest(url=url):
+                result = self.adapter.dispatch("pr_state", {"url": url})
+                self.assertTrue(env.is_err(result), result)
+                self.assertEqual(result["error"]["code"], "invalid-url")
+        self.assertEqual(len(self.runner.calls), before)
+
+    def test_relay_poll_matches_direct(self):
+        proc = run_direct("fm-x-poll.sh", [], self.env)
+        self.assertEqual(proc.returncode, 0)
+        result = self.adapter.dispatch("relay_poll", {})
+        _assert_text_matches(self, result, proc)
+
+
 class TestSideEffectFree(ConformanceBase):
     def test_snapshot_served_from_scratch_home(self):
         result = self.adapter.dispatch("fleet_snapshot", {})
@@ -750,6 +897,16 @@ class TestSideEffectFree(ConformanceBase):
         self.adapter.dispatch("home_summary", {})
         self.adapter.dispatch("contributions_snapshot", {})
         self.adapter.dispatch("contributions_pending", {})
+        self.adapter.dispatch("mail_status", {})
+        self.adapter.dispatch("mail_read", {})
+        self.adapter.dispatch("voice_status", {"scope": "counts"})
+        self.adapter.dispatch("lint_versions", {})
+        self.adapter.dispatch("tool_update_check", {})
+        self.adapter.dispatch("vendor_auth_probe", {"probe": "grok"})
+        self.adapter.dispatch("startup_memory", {"mode": "read"})
+        self.adapter.dispatch("pr_state",
+                              {"url": "https://github.com/octocat/Hello-World/pull/42"})
+        self.adapter.dispatch("relay_poll", {})
         for script in self.runner.scripts_run():
             self.assertIn(script, READ_SCRIPTS, f"non-read script ran: {script}")
 
@@ -770,7 +927,8 @@ class TestSideEffectFree(ConformanceBase):
         for name in ("send_message", "lifecycle_interrupt", "spawn_crew",
                      "scaffold_brief", "decision_hold", "relay_reply",
                      "secondmate_nudge", "secondmate_restart",
-                     "secondmate_report", "remote_control", "handoff_move"):
+                     "secondmate_report", "remote_control", "handoff_move",
+                     "voice_queue", "mail_send"):
             with self.subTest(tool=name):
                 with self.assertRaises(AssertionError):
                     self.adapter.dispatch(name, {})

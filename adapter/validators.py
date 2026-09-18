@@ -35,6 +35,13 @@ HANDOFF_DEFAULT_LINES = 10
 RESTART_IDS_MAX = 8
 HANDOFF_KEYS_MAX = 20
 REMOTE_CONTROL_VERBS = ("state", "route", "observe", "send")
+VENDOR_AUTH_PROBES = ("grok",)
+VOICE_SCOPES = ("counts", "full")
+STARTUP_MEMORY_MODES = ("read", "report")
+MAIL_TO_MAX_CHARS = 200
+MAIL_SUBJECT_MAX_CHARS = 200
+MAIL_BODY_MAX_CHARS = 5000
+VOICE_QUEUE_MAX_CHARS = 500
 
 
 def valid_id(value):
@@ -187,6 +194,78 @@ def valid_id_list(value, max_items):
     if not all(valid_id(item) for item in value):
         return None
     return list(value)
+
+
+def valid_probe(value):
+    """Named vendor auth probe: closed allowlist, nothing else."""
+    return isinstance(value, str) and value in VENDOR_AUTH_PROBES
+
+
+def valid_voice_scope(value):
+    """Voice read scope: counts (default, safe by construction) or full."""
+    return isinstance(value, str) and value in VOICE_SCOPES
+
+
+def valid_startup_mode(value):
+    """Startup-memory mode: read (budget) or report (estimate)."""
+    return isinstance(value, str) and value in STARTUP_MEMORY_MODES
+
+
+def valid_mail_to(value):
+    """SMTP recipient: single line, no whitespace, must contain @."""
+    if not isinstance(value, str):
+        return False
+    if not 3 <= len(value) <= MAIL_TO_MAX_CHARS:
+        return False
+    if "\n" in value or "\r" in value:
+        return False
+    if any(c in value for c in (" ", "\t")):
+        return False
+    if "@" not in value:
+        return False
+    return True
+
+
+def valid_mail_subject(value):
+    """SMTP subject: single line, 1..200 chars."""
+    return valid_single_line(value, MAIL_SUBJECT_MAX_CHARS)
+
+
+def valid_mail_body(value):
+    """SMTP body: 1..5000 chars, newlines allowed (piped via stdin)."""
+    return (
+        isinstance(value, str)
+        and 1 <= len(value) <= MAIL_BODY_MAX_CHARS
+        and "\r" not in value
+    )
+
+
+def valid_voice_queue_text(value):
+    """Handover request text: single line, 1..500 chars."""
+    return valid_single_line(value, VOICE_QUEUE_MAX_CHARS)
+
+
+def valid_pr_url(value):
+    """GitHub pull-request URL only: the exact shape fm-pr-state.sh owns.
+
+    Mirrors bin/fm-pr-lib.sh fm_pr_url_parse's github branch (owner without
+    leading/trailing dash or double dash, repo 1..100, numeric PR number),
+    so the adapter refuses before spawning what the script would refuse after."""
+    if not isinstance(value, str):
+        return False
+    import re as _re
+    match = _re.fullmatch(
+        r"https://github\.com/([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9-]{0,37}[A-Za-z0-9])/"
+        r"([A-Za-z0-9._-]{1,100})/pull/([1-9][0-9]*)",
+        value,
+    )
+    if not match:
+        return False
+    if "--" in match.group(1):
+        return False
+    if match.group(2) in (".", ".."):
+        return False
+    return True
 
 
 def confine_state_path(state_dir, task_id):

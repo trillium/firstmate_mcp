@@ -19,12 +19,20 @@ import {
   HANDOFF_LINES_MAX,
   HANDOFF_LINES_MIN,
   ID_RE,
+  MAIL_BODY_MAX_CHARS,
+  MAIL_SUBJECT_MAX_CHARS,
+  MAIL_TO_MAX_CHARS,
   PROJECT_RE,
+  PR_URL_RE,
   REL_PATH_RE,
   REMOTE_FILE_BYTES_MAX,
   REMOTE_FILE_BYTES_MIN,
   SEND_TEXT_MAX_CHARS,
   SHA256_RE,
+  STARTUP_MEMORY_MODES,
+  VENDOR_AUTH_PROBES,
+  VOICE_QUEUE_MAX_CHARS,
+  VOICE_SCOPES,
 } from "./constants.js";
 
 export const NOTE_MAX_CHARS = 500;
@@ -183,6 +191,64 @@ export function validIdList(value: unknown, maxItems: number): string[] | null {
   if (!Array.isArray(value) || value.length < 1 || value.length > maxItems) return null;
   if (!value.every((item) => validId(item))) return null;
   return [...value] as string[];
+}
+
+/** Named vendor auth probe: closed allowlist, nothing else. */
+export function validProbe(value: unknown): value is string {
+  return typeof value === "string" && (VENDOR_AUTH_PROBES as readonly string[]).includes(value);
+}
+
+/** Voice read scope: counts (default, safe by construction) or full. */
+export function validVoiceScope(value: unknown): value is string {
+  return typeof value === "string" && (VOICE_SCOPES as readonly string[]).includes(value);
+}
+
+/** Startup-memory mode: read (budget) or report (estimate). */
+export function validStartupMode(value: unknown): value is string {
+  return typeof value === "string" && (STARTUP_MEMORY_MODES as readonly string[]).includes(value);
+}
+
+/** SMTP recipient: single line, no whitespace, must contain @. */
+export function validMailTo(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 3 || value.length > MAIL_TO_MAX_CHARS) return false;
+  if (value.includes("\n") || value.includes("\r")) return false;
+  if (value.includes(" ") || value.includes("\t")) return false;
+  return value.includes("@");
+}
+
+/** SMTP subject: single line, 1..200 chars. */
+export function validMailSubject(value: unknown): value is string {
+  return validSingleLine(value, MAIL_SUBJECT_MAX_CHARS);
+}
+
+/** SMTP body: 1..5000 chars, newlines allowed (piped via stdin). */
+export function validMailBody(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length >= 1 &&
+    value.length <= MAIL_BODY_MAX_CHARS &&
+    !value.includes("\r")
+  );
+}
+
+/** Handover request text: single line, 1..500 chars. */
+export function validVoiceQueueText(value: unknown): value is string {
+  return validSingleLine(value, VOICE_QUEUE_MAX_CHARS);
+}
+
+/**
+ * GitHub pull-request URL only: the exact shape fm-pr-state.sh owns.
+ * Mirrors bin/fm-pr-lib.sh fm_pr_url_parse's github branch, so the
+ * handler refuses before spawning what the script would refuse after.
+ */
+export function validPrUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const match = PR_URL_RE.exec(value);
+  if (!match) return false;
+  if (match[1].includes("--")) return false;
+  if (match[2] === "." || match[2] === "..") return false;
+  return true;
 }
 
 /**

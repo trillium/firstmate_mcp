@@ -548,3 +548,179 @@ contracts:
       header: bin/fm-contributions.sh:1-30
       doc: INVENTORY.md
     notes: Pending only; same out-of-scope set as contributions_snapshot.
+  - name: mail_status
+    command: bin/fm-mail.sh
+    flags: ["status"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: configuration plus last poll cursor with no network and no wake
+      nonzero: mail credentials unconfigured or cursor unreadable; stderr carries the reason
+    stability: stable
+    pinned: fm-mail.status.v1
+    evidence:
+      header: bin/fm-mail.sh:1-30
+      doc: INVENTORY.md
+    notes: Status only; read/poll need IMAP credentials from the home .env (outside MCP) and poll queues wakes, so poll stays out.
+  - name: mail_read
+    command: bin/fm-mail.sh
+    flags: ["read"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: unseen-INBOX digest over BODY.PEEK with a never-marks-seen warning echoed
+      nonzero: mail credentials unconfigured or IMAP unreachable; stderr carries the reason
+    stability: stable
+    pinned: fm-mail.read.v1
+    evidence:
+      header: bin/fm-mail.sh:1-30
+      doc: INVENTORY.md
+    notes: Read only; BODY.PEEK never marks mail seen. Credentials live outside MCP in the home .env and never cross args or logs.
+  - name: mail_send
+    command: bin/fm-mail.sh
+    flags: ["send", "<to>", "<subject>", "-"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["to", "subject", "stdout"]
+    exits:
+      zero: one SMTP message sent with to and subject echoed
+      nonzero: send refused or failed, including missing mail consent; stderr carries the reason
+    stability: evolving
+    pinned: fm-mail.safe-subset.v1
+    evidence:
+      header: bin/fm-mail.sh:1-30
+      doc: INVENTORY.md
+    notes: Dispatch write; body travels via stdin ("-" form), never argv. SMTP credentials live outside MCP; poll/check-arm stay firstmate-owned.
+  - name: voice_status
+    command: bin/fm_voice_records.py
+    flags: ["status", "--scope"]
+    output:
+      format: json
+      schema_id: none
+      fields: ["scope", "workers_on_deck", "in_flight", "queued"]
+    exits:
+      zero: allowed status answer for the scope with scope echoed
+      nonzero: unreadable records or unknown scope; stderr carries the reason
+    stability: stable
+    pinned: fm-voice-records.status.v1
+    evidence:
+      header: bin/fm_voice_records.py:1-30
+      doc: INVENTORY.md
+    notes: Durable-records read only; counts is safe by construction, full only via the captain's own read-scope with the deny list enforced inside. No mic, no Bedrock, no audio.
+  - name: voice_queue
+    command: bin/fm_voice_records.py
+    flags: ["queue", "<text>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["queued", "stdout"]
+    exits:
+      zero: one request handed to firstmate with queued echoed
+      nonzero: queue refused or failed; stderr carries the reason
+    stability: evolving
+    pinned: fm-voice-records.queue.v1
+    evidence:
+      header: bin/fm_voice_records.py:1-30
+      doc: INVENTORY.md
+    notes: Dispatch write; handover queue only. The mic client and Bedrock relay have no tool and stay out.
+  - name: lint_versions
+    command: bin/fm-lint.sh
+    flags: ["--required-version"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["shellcheck", "actionlint"]
+    exits:
+      zero: required ShellCheck and actionlint pins with both echoed
+      nonzero: pin lookup failed; stderr carries the reason
+    stability: stable
+    pinned: fm-lint.versions.v1
+    evidence:
+      header: bin/fm-lint.sh:1-30
+      doc: INVENTORY.md
+    notes: Version probes only (fm-lint.sh plus fm-lint-workflows.sh); the lint runs and all installers stay out.
+  - name: tool_update_check
+    command: bin/fm-tool-update-check.sh
+    flags: ["check"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: one line per tool needing attention, or silence when current
+      nonzero: sweep failed; stderr carries the reason
+    stability: stable
+    pinned: fm-tool-update.check.v1
+    evidence:
+      header: bin/fm-tool-update-check.sh:1-30
+      doc: INVENTORY.md
+    notes: Report-only check; arm/disarm mutate the watcher and stay out. Repairs, installs, and PATH edits never happen here.
+  - name: vendor_auth_probe
+    command: bin/fm-vendor-auth-probe.sh
+    flags: ["<probe>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["probe", "stdout"]
+    exits:
+      zero: one sanitized probe/status/version line with probe echoed (exit never encodes the result)
+      nonzero: usage error only; stderr carries the reason
+    stability: stable
+    pinned: fm-vendor-auth-probe.v1
+    evidence:
+      header: bin/fm-vendor-auth-probe.sh:1-30
+      doc: INVENTORY.md
+    notes: Closed probe allowlist with a hard-bounded non-interactive argv; raw vendor output is classified inside and never printed.
+  - name: startup_memory
+    command: bin/fm-startup-memory-budget.sh
+    flags: ["read", "report"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["mode", "stdout"]
+    exits:
+      zero: validated budget (read) or local estimate (report) with mode echoed
+      nonzero: absent or invalid budget config; stderr carries the reason
+    stability: stable
+    pinned: fm-startup-memory-budget.v1
+    evidence:
+      header: bin/fm-startup-memory-budget.sh:1-30
+      doc: INVENTORY.md
+    notes: Read/report only; never creates or repairs configuration. Bootstrap owns default materialization.
+  - name: pr_state
+    command: bin/fm-pr-state.sh
+    flags: ["<pr-url>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["url", "stdout"]
+    exits:
+      zero: one line per visible blocker, or silence with a nothing-reported note; blockers never change the exit
+      nonzero: lookup or usage refusal, including non-GitHub URLs; stderr carries the reason
+    stability: stable
+    pinned: fm-pr-state.v1
+    evidence:
+      header: bin/fm-pr-state.sh:1-30
+      doc: INVENTORY.md
+    notes: One-shot read-only blockers read over a validated GitHub PR URL; never posts, requests, approves, or merges.
+  - name: relay_poll
+    command: bin/fm-x-poll.sh
+    flags: ["<none>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: one wake line per new mention or terminal-result set, or silence; always exits 0 by contract
+      nonzero: never nonzero by contract; diagnostics are rate-limited lines, not exits
+    stability: stable
+    pinned: fm-x-poll.v1
+    evidence:
+      header: bin/fm-x-poll.sh:1-30
+      doc: INVENTORY.md
+    notes: Short bounded poll; hard no-op without relay consent (FMX token). Failures mean no wake this cycle, never a merge signal.

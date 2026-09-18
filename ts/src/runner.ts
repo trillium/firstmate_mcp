@@ -90,6 +90,8 @@ export interface RunnerOptions {
   timeoutS?: number;
   cwd?: string;
   env?: NodeJS.ProcessEnv;
+  /** Optional stdin payload (mail-send body); piped, never argv. */
+  input?: string;
 }
 
 /**
@@ -104,6 +106,7 @@ export function runScriptEffect(
   const timeoutS = opts.timeoutS ?? SUBPROCESS_TIMEOUT_S;
   const cwd = opts.cwd ?? CHECKOUT_ROOT;
   const env = opts.env ?? process.env;
+  const input = opts.input;
   const scoped = Effect.scoped(
     Effect.gen(function* () {
       const child = yield* Effect.acquireRelease(
@@ -130,6 +133,20 @@ export function runScriptEffect(
           child.stderr?.on("data", (chunk: Buffer) => {
             stderr += chunk.toString("utf8");
           });
+          // Piped stdin (mail-send body): written once, then closed so
+          // the child never blocks on an open pipe. Untouched otherwise.
+          if (input !== undefined) {
+            try {
+              child.stdin?.write(input);
+            } catch {
+              /* child already gone; close carries the outcome */
+            }
+            try {
+              child.stdin?.end();
+            } catch {
+              /* already closed */
+            }
+          }
           child.on("error", (exc: Error & { code?: string }) => {
             resume(
               Effect.fail(

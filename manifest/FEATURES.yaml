@@ -403,6 +403,139 @@ features:
       reason: >-
         Pending subcommand only; same out-of-scope set as
         contributions_snapshot.
+  - id: mail_status
+    kind: upstream-mirror
+    summary: Mail configuration and last poll cursor; no network, no wake.
+    upstream_command: bin/fm-mail.sh
+    upstream_flags: ["status"]
+    contract: schema/contracts.yaml#mail_status
+    upstream_test: "tests/conformance/test_conformance.py::TestMailEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_mail_status", "adapter/dispatch.py:\"mail_status\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:mail_status"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Status subcommand only — config plus cursor with no network and
+        no wake. read needs IMAP credentials from the home .env (outside
+        MCP); poll queues wakes and its check-arm stays firstmate-owned.
+  - id: mail_read
+    kind: upstream-mirror
+    summary: Unseen-INBOX digest over BODY.PEEK; mail stays unseen until firstmate answers.
+    upstream_command: bin/fm-mail.sh
+    upstream_flags: ["read"]
+    contract: schema/contracts.yaml#mail_read
+    upstream_test: "tests/conformance/test_conformance.py::TestMailEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_mail_read", "adapter/dispatch.py:\"mail_read\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:mail_read"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Read subcommand only with a never-marks-seen warning echoed;
+        BODY.PEEK is owned by the script. Credentials live outside MCP
+        in the home .env and never cross args or logs; inert without them.
+  - id: voice_status
+    kind: upstream-mirror
+    summary: Voice-agent status answer from durable records; no mic, no Bedrock, no audio.
+    upstream_command: bin/fm_voice_records.py
+    upstream_flags: ["status", "--scope"]
+    contract: schema/contracts.yaml#voice_status
+    upstream_test: "tests/conformance/test_conformance.py::TestVoiceEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_voice_status", "adapter/dispatch.py:\"voice_status\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:voice_status"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Status subcommand only with a closed counts/full scope (default
+        counts, safe by construction); full only via the captain's own
+        read-scope with the helper's deny list enforced inside. The mic
+        client and Bedrock relay have no tool — mic hardware and AWS
+        credentials stay out of MCP.
+  - id: lint_versions
+    kind: upstream-mirror
+    summary: Required ShellCheck/actionlint pins from the lint owners; probes only.
+    upstream_command: bin/fm-lint.sh
+    upstream_flags: ["--required-version"]
+    contract: schema/contracts.yaml#lint_versions
+    upstream_test: "tests/conformance/test_conformance.py::TestInstallsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_lint_versions", "adapter/dispatch.py:\"lint_versions\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:lint_versions"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Composite read of both required-version probes (fm-lint.sh plus
+        fm-lint-workflows.sh); the lint runs and all installers stay out.
+  - id: tool_update_check
+    kind: upstream-mirror
+    summary: Watched-tool update report; repairs nothing, installs nothing.
+    upstream_command: bin/fm-tool-update-check.sh
+    upstream_flags: ["check"]
+    contract: schema/contracts.yaml#tool_update_check
+    upstream_test: "tests/conformance/test_conformance.py::TestInstallsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_tool_update_check", "adapter/dispatch.py:\"tool_update_check\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:tool_update_check"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Check subcommand only; arm/disarm mutate the watcher and stay
+        out. The sweep reports and never installs, updates, or reorders PATH.
+  - id: vendor_auth_probe
+    kind: upstream-mirror
+    summary: Bounded vendor auth probe; raw output is classified, never printed.
+    upstream_command: bin/fm-vendor-auth-probe.sh
+    upstream_flags: ["<probe>"]
+    contract: schema/contracts.yaml#vendor_auth_probe
+    upstream_test: "tests/conformance/test_conformance.py::TestInstallsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_vendor_auth_probe", "adapter/dispatch.py:\"vendor_auth_probe\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:vendor_auth_probe"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Closed single-probe allowlist with the script's hard-bounded
+        non-interactive argv; exit never encodes the result. Raw vendor
+        output is classified inside and never leaves the script.
+  - id: startup_memory
+    kind: upstream-mirror
+    summary: Startup-memory budget read or local estimate; never creates config.
+    upstream_command: bin/fm-startup-memory-budget.sh
+    upstream_flags: ["read", "report"]
+    contract: schema/contracts.yaml#startup_memory
+    upstream_test: "tests/conformance/test_conformance.py::TestInstallsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_startup_memory", "adapter/dispatch.py:\"startup_memory\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:startup_memory"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Read/report modes only; absent or invalid config is a typed
+        error, never an inferred default. Bootstrap owns materialization.
+  - id: pr_state
+    kind: upstream-mirror
+    summary: Visible blockers on one GitHub pull request; never posts or merges.
+    upstream_command: bin/fm-pr-state.sh
+    upstream_flags: ["<pr-url>"]
+    contract: schema/contracts.yaml#pr_state
+    upstream_test: "tests/conformance/test_conformance.py::TestSmallGapsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_pr_state", "adapter/dispatch.py:\"pr_state\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:pr_state"]}
+    divergence:
+      status: intentional
+      reason: >-
+        GitHub PR URLs only (adapter refuses before spawning what the
+        script refuses after); blockers never change the exit. Posting,
+        requesting, approving, and merging stay out.
+  - id: relay_poll
+    kind: upstream-mirror
+    summary: Short bounded poll of the relay connector; hard no-op without consent.
+    upstream_command: bin/fm-x-poll.sh
+    upstream_flags: ["<none>"]
+    contract: schema/contracts.yaml#relay_poll
+    upstream_test: "tests/conformance/test_conformance.py::TestSmallGapsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_relay_poll", "adapter/dispatch.py:\"relay_poll\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:relay_poll"]}
+    divergence:
+      status: intentional
+      reason: >-
+        No-arg poll only; inert without the FMX pairing token, which
+        lives outside MCP. Failures mean no wake this cycle, never a merge.
   # ---- CHANGED: same owning scripts, narrower surface, per-call approval ----
   - id: lifecycle_interrupt
     kind: upstream-mirror
@@ -684,6 +817,39 @@ features:
         subset with 1..20 key validation; upstream fm-backlog-handoff.sh
         knows no MCP approval string. Moves only Queued items through the
         backend owner, which stays authoritative.
+  - id: voice_queue
+    kind: upstream-mirror
+    summary: Hand one request to firstmate through the voice handover queue.
+    upstream_command: bin/fm_voice_records.py
+    upstream_flags: ["queue", "<text>"]
+    contract: schema/contracts.yaml#voice_queue
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_voice_queue", "adapter/dispatch.py:\"voice_queue\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:voice_queue"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus single-line 1..500
+        text validation; upstream fm_voice_records.py knows no MCP
+        approval string. Handover queue only — no microphone, no audio,
+        no Bedrock session; the mic client and relay stay out.
+  - id: mail_send
+    kind: upstream-mirror
+    summary: Send one SMTP message; credentials live outside MCP.
+    upstream_command: bin/fm-mail.sh
+    upstream_flags: ["send", "<to>", "<subject>", "-"]
+    contract: schema/contracts.yaml#mail_send
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_mail_send", "adapter/dispatch.py:\"mail_send\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:mail_send"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus validated to/subject
+        with the body piped via stdin (never argv, never logged);
+        upstream fm-mail.sh knows no MCP approval string. SMTP
+        credentials live outside MCP in the home .env; poll/check-arm
+        stay firstmate-owned.
   # ---- NEW: local-only Trillium extensions (survive upstream reconciliation) ----
   - id: drift_detection
     kind: local

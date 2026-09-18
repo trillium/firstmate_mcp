@@ -52,6 +52,17 @@ REL_PATH_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_./-]{0,255}")
 SHA256_RE = re.compile(r"[0-9a-fA-F]{64}")
 CORR_RE = re.compile(r"(?:corr=)?[0-9a-fA-F]{16}")
 REMOTE_CONTROL_VERBS = ("state", "route", "observe", "send")
+VENDOR_AUTH_PROBES = ("grok",)
+VOICE_SCOPES = ("counts", "full")
+STARTUP_MEMORY_MODES = ("read", "report")
+MAIL_TO_MAX_CHARS = 200
+MAIL_SUBJECT_MAX_CHARS = 200
+MAIL_BODY_MAX_CHARS = 5000
+VOICE_QUEUE_MAX_CHARS = 500
+PR_URL_RE = re.compile(
+    r"https://github\.com/([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9-]{0,37}[A-Za-z0-9])/"
+    r"([A-Za-z0-9._-]{1,100})/pull/([1-9][0-9]*)"
+)
 REMOTE_FILE_BYTES_MIN = 1
 REMOTE_FILE_BYTES_MAX = 262144
 REMOTE_FILE_DEFAULT_MAX_BYTES = 8192
@@ -177,6 +188,69 @@ def valid_id_list(value, max_items):
     return list(value)
 
 
+def valid_probe(value):
+    return isinstance(value, str) and value in VENDOR_AUTH_PROBES
+
+
+def valid_voice_scope(value):
+    return isinstance(value, str) and value in VOICE_SCOPES
+
+
+def valid_startup_mode(value):
+    return isinstance(value, str) and value in STARTUP_MEMORY_MODES
+
+
+def valid_mail_to(value):
+    if not isinstance(value, str):
+        return False
+    if not 3 <= len(value) <= MAIL_TO_MAX_CHARS:
+        return False
+    if "\n" in value or "\r" in value:
+        return False
+    if any(c in value for c in (" ", "\t")):
+        return False
+    return "@" in value
+
+
+def valid_mail_subject(value):
+    return (
+        isinstance(value, str)
+        and 1 <= len(value) <= MAIL_SUBJECT_MAX_CHARS
+        and "\n" not in value
+        and "\r" not in value
+    )
+
+
+def valid_mail_body(value):
+    return (
+        isinstance(value, str)
+        and 1 <= len(value) <= MAIL_BODY_MAX_CHARS
+        and "\r" not in value
+    )
+
+
+def valid_voice_queue_text(value):
+    return (
+        isinstance(value, str)
+        and 1 <= len(value) <= VOICE_QUEUE_MAX_CHARS
+        and "\n" not in value
+        and "\r" not in value
+    )
+
+
+def valid_pr_url(value):
+    if not isinstance(value, str):
+        return False
+    match = PR_URL_RE.fullmatch(value)
+    if not match:
+        return False
+    if "--" in match.group(1):
+        return False
+    if match.group(2) in (".", ".."):
+        return False
+    return True
+
+
 def confine_handoff_path(home_data_dir, task_id):
     if not valid_id(task_id):
         return None
@@ -250,6 +324,17 @@ AUDIT_TOOL_TIERS = {
     "secondmate_report": 3,
     "remote_control": 3,
     "handoff_move": 3,
+    "voice_queue": 3,
+    "mail_send": 4,
+    "mail_status": 1,
+    "mail_read": 1,
+    "voice_status": 1,
+    "lint_versions": 1,
+    "tool_update_check": 1,
+    "vendor_auth_probe": 1,
+    "startup_memory": 1,
+    "pr_state": 1,
+    "relay_poll": 1,
 }
 AUDIT_FORBIDDEN_TOOLS = (
     "promote_scout",
@@ -295,6 +380,11 @@ AUDIT_VALIDATION_ERRORS = frozenset({
     "invalid corr",
     "invalid keys",
     "invalid resume",
+    "invalid to",
+    "invalid subject",
+    "invalid body",
+    "invalid scope",
+    "invalid probe",
     "no handoff for id",
     "cannot read handoff",
     "invalid all",
@@ -309,6 +399,8 @@ AUDIT_VALIDATION_ERRORS = frozenset({
     "bearings was not JSON",
     "unexpected bearings schema",
     "bearings too large for envelope",
+    "invalid url",
+    "voice status was not JSON",
     "invalid tool",
     "invalid arguments",
     "unknown tool",
@@ -455,6 +547,30 @@ def run_script(argv, timeout_s=None):
         return None, {"error": "executable not found", "detail": str(exc)}
     try:
         stdout, stderr = proc.communicate(timeout=budget)
+    except subprocess.TimeoutExpired:
+        terminate_process_group(proc)
+        stdout, stderr = proc.communicate()
+        return None, {"error": "timed out", "timeout_s": budget}
+    return subprocess.CompletedProcess(proc.args, proc.returncode, stdout, stderr), None
+
+
+def run_script_with_input(argv, stdin_text, timeout_s=None):
+    """run_script variant that pipes stdin_text to the child (mail-send body)."""
+    budget = timeout_s if timeout_s is not None else _current_timeout()
+    try:
+        proc = subprocess.Popen(
+            [str(a) for a in argv],
+            cwd=str(CHECKOUT_ROOT),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        )
+    except FileNotFoundError as exc:
+        return None, {"error": "executable not found", "detail": str(exc)}
+    try:
+        stdout, stderr = proc.communicate(input=stdin_text, timeout=budget)
     except subprocess.TimeoutExpired:
         terminate_process_group(proc)
         stdout, stderr = proc.communicate()
@@ -1488,6 +1604,176 @@ def tool_contributions_pending(_args):
     return {"pending": pending}, False
 
 
+def tool_mail_status(_args):
+    # Config + cursor only: no network, no wake.
+    return owned_call([BIN / "fm-mail.sh", "status"], "mail status failed")
+
+
+def tool_mail_read(_args):
+    # BODY.PEEK digest: mail stays unseen until firstmate answers.
+    # Credentials live outside MCP (home .env); inert without them.
+    payload, is_error = owned_call([BIN / "fm-mail.sh", "read"], "mail read failed")
+    if not is_error:
+        payload = dict(payload)
+        payload.update({
+            "warning": "BODY.PEEK digest; mail stays unseen until firstmate answers",
+        })
+    return payload, is_error
+
+
+def tool_mail_send(args):
+    to = args.get("to")
+    subject = args.get("subject")
+    body = args.get("body")
+    if not valid_mail_to(to):
+        return {"error": "invalid to",
+                "expect": "single-line recipient address with @, 3..200 chars, no whitespace"}, True
+    if not valid_mail_subject(subject):
+        return {"error": "invalid subject",
+                "expect": "single line, 1..200 chars"}, True
+    if not valid_mail_body(body):
+        return {"error": "invalid body", "expect": "1..5000 chars"}, True
+    if not valid_approval(args.get("approval")):
+        return approval_error(), True
+    # Body via stdin ("-" form), exactly like the owning script's
+    # `send <to> <subject> -`: no body text in argv, never logged.
+    proc, err = run_script_with_input([BIN / "fm-mail.sh", "send", to, subject, "-"], body)
+    if err:
+        return err, True
+    out, out_trunc = truncate(proc.stdout or "")
+    err_out, err_trunc = truncate(proc.stderr or "")
+    if proc.returncode != 0:
+        return {
+            "error": "mail send refused or failed",
+            "exit": proc.returncode,
+            "stdout": out,
+            "stderr": err_out,
+        }, True
+    return {
+        "ok": True,
+        "to": to,
+        "subject": subject,
+        "stdout": out,
+        "stdout_truncated": out_trunc,
+        "stderr": err_out,
+        "stderr_truncated": err_trunc,
+    }, False
+
+
+def tool_voice_status(args):
+    scope = args.get("scope", "counts")
+    if not valid_voice_scope(scope):
+        return {"error": "invalid scope", "expect": "one of counts, full"}, True
+    # Counts is safe by construction (no record free text); full widens
+    # only via the captain's own config/voice-read-scope, enforced inside
+    # the helper alongside the deny list. No mic, no Bedrock, no audio.
+    proc, err = run_script([BIN / "fm_voice_records.py", "status", "--scope", scope])
+    if err:
+        return err, True
+    if proc.returncode != 0:
+        out, _ = truncate(proc.stderr or proc.stdout or "")
+        return {"error": "voice status failed", "exit": proc.returncode, "output": out}, True
+    try:
+        status = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        out, _ = truncate(proc.stdout)
+        return {"error": "voice status was not JSON", "output": out}, True
+    if not isinstance(status, dict):
+        out, _ = truncate(proc.stdout)
+        return {"error": "voice status was not JSON", "output": out}, True
+    return status, False
+
+
+def tool_voice_queue(args):
+    text = args.get("text")
+    if not valid_voice_queue_text(text):
+        return {"error": "invalid text", "expect": "single line, 1..500 chars"}, True
+    if not valid_approval(args.get("approval")):
+        return approval_error(), True
+    # Handover queue only: hands text to firstmate via fm-inbox.sh note.
+    # No microphone, no audio, no Bedrock session.
+    payload, is_error = owned_call(
+        [BIN / "fm_voice_records.py", "queue", text],
+        "voice queue refused or failed",
+    )
+    if not is_error:
+        payload = dict(payload)
+        payload.update({"queued": True})
+    return payload, is_error
+
+
+def tool_lint_versions(_args):
+    # Version probes only: the required ShellCheck/actionlint pins.
+    proc, err = run_script([BIN / "fm-lint.sh", "--required-version"])
+    if err:
+        return err, True
+    if proc.returncode != 0:
+        out, _ = truncate(proc.stderr or proc.stdout or "")
+        return {"error": "lint versions failed", "exit": proc.returncode, "output": out}, True
+    shellcheck = (proc.stdout or "").strip()
+    proc2, err2 = run_script([BIN / "fm-lint-workflows.sh", "--required-version"])
+    if err2:
+        return err2, True
+    if proc2.returncode != 0:
+        out, _ = truncate(proc2.stderr or proc2.stdout or "")
+        return {"error": "lint versions failed", "exit": proc2.returncode, "output": out}, True
+    return {"shellcheck": shellcheck, "actionlint": (proc2.stdout or "").strip()}, False
+
+
+def tool_tool_update_check(_args):
+    # Report-only sweep: repairs nothing, installs nothing, mutates nothing.
+    return owned_call([BIN / "fm-tool-update-check.sh", "check"], "tool update check failed")
+
+
+def tool_vendor_auth_probe(args):
+    probe = args.get("probe")
+    if not valid_probe(probe):
+        return {"error": "invalid probe", "expect": "one of grok"}, True
+    # Bounded non-destructive probe; raw vendor output is classified
+    # inside the script and never printed, logged, or passed through.
+    payload, is_error = owned_call(
+        [BIN / "fm-vendor-auth-probe.sh", probe],
+        "vendor auth probe failed",
+    )
+    if not is_error:
+        payload = dict(payload)
+        payload.update({"probe": probe})
+    return payload, is_error
+
+
+def tool_startup_memory(args):
+    mode = args.get("mode", "read")
+    if not valid_startup_mode(mode):
+        return {"error": "invalid mode", "expect": "one of read, report"}, True
+    # Validated budget read or local estimate; never creates or repairs config.
+    payload, is_error = owned_call(
+        [BIN / "fm-startup-memory-budget.sh", mode],
+        "startup memory read failed",
+    )
+    if not is_error:
+        payload = dict(payload)
+        payload.update({"mode": mode})
+    return payload, is_error
+
+
+def tool_pr_state(args):
+    url = args.get("url")
+    if not valid_pr_url(url):
+        return {"error": "invalid url",
+                "expect": "https://github.com/<owner>/<repo>/pull/<number>"}, True
+    # One-shot read-only blockers read; never posts, requests, or merges.
+    payload, is_error = owned_call([BIN / "fm-pr-state.sh", url], "pr state failed")
+    if not is_error:
+        payload = dict(payload)
+        payload.update({"url": url})
+    return payload, is_error
+
+
+def tool_relay_poll(_args):
+    # Short bounded poll; hard no-op without relay consent (FMX token).
+    return owned_call([BIN / "fm-x-poll.sh"], "relay poll failed")
+
+
 # Tools whose schemas carry a required per-call approval string. A
 # receipt_submit for one of these targets only schedules when the nested
 # arguments carry a valid approval; open tools submit freely.
@@ -1497,7 +1783,7 @@ NEEDS_APPROVAL = frozenset({
     "scaffold_brief", "decision_hold", "decision_resolve",
     "review_decision", "relay_reply", "relay_dismiss", "relay_followup",
     "secondmate_nudge", "secondmate_restart", "secondmate_report",
-    "remote_control", "handoff_move",
+    "remote_control", "handoff_move", "voice_queue", "mail_send",
 })
 
 
@@ -1924,6 +2210,89 @@ TOOLS = {
             "resume": {"type": "boolean", "description": "Resume pending wakes; takes no keys", "default": False},
         }),
         tool_handoff_move,
+    ),
+    "mail_status": (
+        "Read-only mail configuration and last poll cursor; no network, no wake.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_mail_status,
+    ),
+    "mail_read": (
+        "Read-only unseen-INBOX digest over BODY.PEEK; mail stays unseen until firstmate answers.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_mail_read,
+    ),
+    "mail_send": (
+        "External send: one SMTP message via fm-mail.sh send; credentials live outside MCP.",
+        approval_schema({
+            "to": {"type": "string", "description": "Recipient address with @"},
+            "subject": {"type": "string", "description": "Subject, single line 1..200 chars"},
+            "body": {"type": "string", "description": "Body, 1..5000 chars, piped via stdin"},
+        }),
+        tool_mail_send,
+    ),
+    "voice_status": (
+        "Read-only voice-agent status answer from durable records; no mic, no Bedrock, no audio.",
+        {
+            "type": "object",
+            "properties": {
+                "scope": {"type": "string", "enum": ["counts", "full"], "default": "counts"},
+            },
+            "additionalProperties": False,
+        },
+        tool_voice_status,
+    ),
+    "voice_queue": (
+        "Authority write: hand one request to firstmate through the voice handover queue.",
+        approval_schema({
+            "text": {"type": "string", "description": "Request text, single line 1..500 chars"},
+        }),
+        tool_voice_queue,
+    ),
+    "lint_versions": (
+        "Read-only required ShellCheck/actionlint pins from the lint owners.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_lint_versions,
+    ),
+    "tool_update_check": (
+        "Read-only watched-tool update report; repairs nothing, installs nothing.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_tool_update_check,
+    ),
+    "vendor_auth_probe": (
+        "Read-only bounded vendor auth probe; raw output is classified, never printed.",
+        {
+            "type": "object",
+            "properties": {"probe": {"type": "string", "enum": ["grok"]}},
+            "required": ["probe"],
+            "additionalProperties": False,
+        },
+        tool_vendor_auth_probe,
+    ),
+    "startup_memory": (
+        "Read-only startup-memory budget read or local estimate; never creates config.",
+        {
+            "type": "object",
+            "properties": {
+                "mode": {"type": "string", "enum": ["read", "report"], "default": "read"},
+            },
+            "additionalProperties": False,
+        },
+        tool_startup_memory,
+    ),
+    "pr_state": (
+        "Read-only blockers on one GitHub pull request; never posts, requests, or merges.",
+        {
+            "type": "object",
+            "properties": {"url": {"type": "string", "description": "https://github.com/<owner>/<repo>/pull/<number>"}},
+            "required": ["url"],
+            "additionalProperties": False,
+        },
+        tool_pr_state,
+    ),
+    "relay_poll": (
+        "Read-only short-poll of the relay connector; hard no-op without relay consent.",
+        {"type": "object", "properties": {}, "additionalProperties": False},
+        tool_relay_poll,
     ),
     "receipt_submit": (
         "Detach one tool call past the 30s fail-closed budget; returns a pending receipt to poll with receipt_status.",

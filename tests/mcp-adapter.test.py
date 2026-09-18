@@ -178,6 +178,34 @@ class ValidatorsTest(unittest.TestCase):
             self.assertIsNone(v.confine_handoff_path(data, "../escape"))
             self.assertIsNone(v.confine_handoff_path(data, "a/b"))
 
+    def test_wave4_validators(self):
+        self.assertTrue(v.valid_probe("grok"))
+        self.assertFalse(v.valid_probe("bogus"))
+        self.assertFalse(v.valid_probe(None))
+        self.assertTrue(v.valid_voice_scope("counts"))
+        self.assertTrue(v.valid_voice_scope("full"))
+        self.assertFalse(v.valid_voice_scope("everything"))
+        self.assertTrue(v.valid_startup_mode("read"))
+        self.assertTrue(v.valid_startup_mode("report"))
+        self.assertFalse(v.valid_startup_mode("boot"))
+        self.assertTrue(v.valid_mail_to("a@example.com"))
+        self.assertFalse(v.valid_mail_to("not-an-address"))
+        self.assertFalse(v.valid_mail_to("a@b c.co"))
+        self.assertFalse(v.valid_mail_to("a\n@b.co"))
+        self.assertTrue(v.valid_mail_subject("hello"))
+        self.assertFalse(v.valid_mail_subject("one\ntwo"))
+        self.assertFalse(v.valid_mail_subject(""))
+        self.assertTrue(v.valid_mail_body("hello\nworld"))
+        self.assertFalse(v.valid_mail_body(""))
+        self.assertFalse(v.valid_mail_body("x" * 5001))
+        self.assertTrue(v.valid_voice_queue_text("check the fleet"))
+        self.assertFalse(v.valid_voice_queue_text("one\ntwo"))
+        self.assertTrue(v.valid_pr_url("https://github.com/octo/repo/pull/42"))
+        self.assertFalse(v.valid_pr_url("https://example.com/o/r/pull/1"))
+        self.assertFalse(v.valid_pr_url("not a url"))
+        self.assertFalse(
+            v.valid_pr_url("https://github.com/bad--owner/repo/pull/1"))
+
 
 class EnvelopeTest(unittest.TestCase):
     def test_ok_shape(self):
@@ -505,6 +533,80 @@ class ValidationRejectionTest(unittest.TestCase):
         result = adapter.dispatch("contributions_snapshot", {"all": "yes"})
         self.assertTrue(env.is_err(result))
         self.assertEqual(result["error"]["code"], "invalid-all")
+        self.assertEqual(seen, [])
+
+    def test_wave4_authority_tools_require_approval(self):
+        adapter, seen, _ = make_adapter()
+        cases = [
+            ("voice_queue", {"text": "check the fleet"}),
+            ("mail_send", {"to": "a@example.com", "subject": "hi",
+                            "body": "hello"}),
+        ]
+        for name, args in cases:
+            with self.subTest(tool=name):
+                result = adapter.dispatch(name, args)
+                self.assertTrue(env.is_err(result), name)
+                self.assertEqual(result["error"]["code"],
+                                 "approval-required", name)
+        self.assertEqual(seen, [])
+
+    def test_mail_send_validates_to_subject_body(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("mail_send", {"to": "not-an-address",
+                                                 "subject": "hi", "body": "b",
+                                                 "approval": APPROVAL})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-to")
+        result = adapter.dispatch("mail_send", {"to": "a@example.com",
+                                                 "subject": "hi\nthere", "body": "b",
+                                                 "approval": APPROVAL})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-subject")
+        result = adapter.dispatch("mail_send", {"to": "a@example.com",
+                                                 "subject": "hi", "body": "",
+                                                 "approval": APPROVAL})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-body")
+        self.assertEqual(seen, [])
+
+    def test_voice_status_validates_scope(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("voice_status", {"scope": "bogus"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-scope")
+        self.assertEqual(seen, [])
+
+    def test_voice_queue_validates_text(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("voice_queue", {"text": "one\ntwo",
+                                                  "approval": APPROVAL})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-text")
+        self.assertEqual(seen, [])
+
+    def test_vendor_auth_probe_validates_allowlist(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("vendor_auth_probe", {"probe": "bogus"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-probe")
+        self.assertEqual(seen, [])
+
+    def test_startup_memory_validates_mode(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("startup_memory", {"mode": "bogus"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-mode")
+        self.assertEqual(seen, [])
+
+    def test_pr_state_validates_url(self):
+        adapter, seen, _ = make_adapter()
+        result = adapter.dispatch("pr_state", {"url": "not a url"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-url")
+        result = adapter.dispatch("pr_state",
+                                  {"url": "https://example.com/o/r/pull/1"})
+        self.assertTrue(env.is_err(result))
+        self.assertEqual(result["error"]["code"], "invalid-url")
         self.assertEqual(seen, [])
 
 
