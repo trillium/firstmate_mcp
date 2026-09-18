@@ -35,7 +35,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
   boundaries are independent and not drift-checked against each other.
 - TypeScript sibling (`ts/`, stdio parity, no runtime deps): bun is the
   primary runtime (`bun install`, `bun run test:bun` is the full TS proof:
-  validators, envelope, auth, 71-check server suite, conformance fixtures);
+  validators, envelope, auth, server suite, conformance fixtures);
   node stays as fallback compat (`npm test` must stay green alongside).
   `bash tests/conformance/ts-parity.sh` diffs py/ts payloads field-for-field
   under both runtimes plus the TS fixtures. The TS path follows the live

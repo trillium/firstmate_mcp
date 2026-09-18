@@ -51,6 +51,10 @@ export function stateDir(): string {
   return process.env.FM_STATE_OVERRIDE ?? path.join(homeDir(), "state");
 }
 
+export function dataDir(): string {
+  return process.env.FM_DATA_OVERRIDE ?? path.join(homeDir(), "data");
+}
+
 /**
  * Fail-closed call budget: no tool call ever blocks an external caller
  * past this. A script that cannot finish in time is killed as a whole
@@ -93,3 +97,21 @@ export const VERDICTS = ["approve", "decline", "comment"] as const;
 export type Verdict = (typeof VERDICTS)[number];
 
 export const YOLO = ["on", "off"] as const;
+
+export const REL_PATH_RE = /^[A-Za-z0-9][A-Za-z0-9_./-]{0,255}$/;
+export const SHA256_RE = /^[0-9a-fA-F]{64}$/;
+export const CORR_RE = /^(?:corr=)?[0-9a-fA-F]{16}$/;
+
+export const REMOTE_CONTROL_VERBS = ["state", "route", "observe", "send"] as const;
+export type RemoteControlVerb = (typeof REMOTE_CONTROL_VERBS)[number];
+
+export const REMOTE_FILE_BYTES_MIN = 1;
+export const REMOTE_FILE_BYTES_MAX = 262144;
+export const REMOTE_FILE_DEFAULT_MAX_BYTES = 8192;
+export const DELTA_WAIT_MIN = 0;
+export const DELTA_WAIT_MAX = 10;
+export const HANDOFF_LINES_MIN = 1;
+export const HANDOFF_LINES_MAX = 20;
+export const HANDOFF_DEFAULT_LINES = 10;
+export const RESTART_IDS_MAX = 8;
+export const HANDOFF_KEYS_MAX = 20;

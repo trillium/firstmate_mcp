@@ -115,6 +115,17 @@ const AUDIT_VALIDATION_ERRORS: ReadonlySet<string> = new Set([
   "invalid count",
   "invalid interval_s",
   "invalid stat",
+  "invalid path",
+  "invalid max_bytes",
+  "invalid offset",
+  "invalid sha256",
+  "invalid wait",
+  "invalid verb",
+  "invalid corr",
+  "invalid keys",
+  "invalid resume",
+  "no handoff for id",
+  "cannot read handoff",
   "bearings was not JSON",
   "unexpected bearings schema",
   "bearings too large for envelope",
@@ -137,7 +148,7 @@ const AUDIT_VALIDATION_ERRORS: ReadonlySet<string> = new Set([
 function auditTarget(args: unknown): string | null {
   if (typeof args !== "object" || args === null || Array.isArray(args)) return null;
   const record = args as Record<string, unknown>;
-  for (const key of ["id", "target", "task_id", "origin_id", "request_id", "receipt_id", "tool"]) {
+  for (const key of ["id", "target", "task_id", "origin_id", "request_id", "receipt_id", "tool", "path", "log"]) {
     const value = record[key];
     if (typeof value === "string" && value !== "") return value;
   }

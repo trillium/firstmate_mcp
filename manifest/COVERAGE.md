@@ -17,14 +17,14 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Fleet runs](#fleet-runs) | 3 | 0 | 5 |
 | [Supervision](#supervision) | 6 | 4 | 30 |
 | [Sessions](#sessions) | 2 | 0 | 23 |
-| [Backlog / decisions](#backlog-decisions) | 2 | 0 | 10 |
-| [Secondmates / remotes](#secondmates-remotes) | 0 | 0 | 20 |
+| [Backlog / decisions](#backlog-decisions) | 4 | 0 | 9 |
+| [Secondmates / remotes](#secondmates-remotes) | 7 | 0 | 13 |
 | [PR pipeline](#pr-pipeline) | 1 | 5 | 5 |
 | [Relay](#relay) | 3 | 0 | 5 |
 | [Voice / mail](#voice-mail) | 0 | 0 | 2 |
 | [Digests](#digests) | 1 | 0 | 4 |
 | [Installs](#installs) | 0 | 0 | 23 |
-| **Total** | **18** | **9** | **127** |
+| **Total** | **27** | **9** | **119** |
 
 ## Fleet runs
 
@@ -126,7 +126,8 @@ Queue mechanics and durable captain decisions: backlog moves, holds, verdicts.
 
 | Command | Mirror status | Notes |
 | --- | --- | --- |
-| `fm-backlog-handoff.sh` | gap | secondmate handoff moves |
+| `file: data/handoff/<id>.outbox.md` | mirrored — `handoff_status` (py✔ ts✔) | Staged handoff outbox read; list staged moves or read one outbox tail. |
+| `fm-backlog-handoff.sh` | mirrored — `handoff_move` (py✔ ts✔) | secondmate handoff moves |
 | `fm-backlog-import-beads.sh` (removed upstream) | gap | one-time backlog.md importer; removed upstream since pin |
 | `fm-backlog-receive.sh` | gap | remote outbox receipt |
 | `fm-bead-stamp.sh` (removed upstream) | gap | bead stamp helper; removed upstream since pin |
@@ -149,10 +150,10 @@ Persistent secondmates and remote homes: launch, control, reconcile, inherit.
 | `fm-config-push.sh` | gap | push inherited local material to live homes |
 | `fm-extension.sh` | gap | tracked entrypoint for fm-on extension bindings |
 | `fm-on.sh` | gap | run one tracked command in a remote home |
-| `fm-remote-delta-read.sh` | gap | bounded remote delta reads |
-| `fm-remote-doctor.sh` | gap | remote home diagnostics |
+| `fm-remote-delta-read.sh` | mirrored — `remote_delta` (py✔ ts✔) | bounded remote delta reads |
+| `fm-remote-doctor.sh` | mirrored — `remote_doctor` (py✔ ts✔) | remote home diagnostics |
 | `fm-remote-entrypoint.sh` | gap | remote-end launch entrypoint |
-| `fm-remote-file.sh` | gap | remote file reads |
+| `fm-remote-file.sh` | mirrored — `remote_file` (py✔ ts✔) | remote file reads |
 | `fm-remote-herdr-guard.sh` | gap | fm-remote Herdr server login-session guard |
 | `fm-remote-home-provision.sh` | gap | remote home provisioning |
 | `fm-remote-home-seed.sh` | gap | remote home seeding |
@@ -161,10 +162,10 @@ Persistent secondmates and remote homes: launch, control, reconcile, inherit.
 | `fm-remote-job-reap-orphans.sh` | gap | reap orphaned remote jobs |
 | `fm-remote-job-worker.sh` | gap | remote job worker |
 | `fm-remote-launch.sh` (removed upstream) | gap | remote mini launch/reclaim; removed upstream since pin |
-| `fm-remote-secondmate-control.sh` | gap | remote secondmate lifecycle |
-| `fm-secondmate-reconcile.sh` | gap | ask a secondmate to reconcile its books |
-| `fm-secondmate-report.sh` | gap | secondmate report read |
-| `fm-secondmate-restart.sh` | gap | restart secondmates onto current wiring |
+| `fm-remote-secondmate-control.sh` | mirrored — `remote_control` (py✔ ts✔) | remote secondmate lifecycle |
+| `fm-secondmate-reconcile.sh` | mirrored — `secondmate_nudge` (py✔ ts✔) | ask a secondmate to reconcile its books |
+| `fm-secondmate-report.sh` | mirrored — `secondmate_report` (py✔ ts✔) | secondmate report read |
+| `fm-secondmate-restart.sh` | mirrored — `secondmate_restart` (py✔ ts✔) | restart secondmates onto current wiring |
 
 ## PR pipeline
 

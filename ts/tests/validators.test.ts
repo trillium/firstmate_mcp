@@ -8,12 +8,21 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  confineHandoffPath,
   confineStatePath,
   validApproval,
+  validCorr,
+  validDeltaWait,
+  validHandoffLines,
   validId,
+  validIdList,
+  validNonnegInt,
   validNote,
   validPeekLines,
   validProject,
+  validRelpath,
+  validRemoteMaxBytes,
+  validSha256,
   validSingleLine,
   validStatusLines,
   validSteerText,
@@ -111,6 +120,110 @@ describe("validPeekLines", () => {
     assert.equal(validPeekLines("many"), null);
     assert.equal(validPeekLines(null), null);
     assert.equal(validPeekLines(undefined), null);
+  });
+});
+
+describe("validRelpath", () => {
+  it("accepts home-relative paths", () => {
+    assert.equal(validRelpath("data/backlog.md"), true);
+    assert.equal(validRelpath("state/handoff/x.outbox.md"), true);
+  });
+  it("rejects absolute paths, traversal, empties, controls", () => {
+    assert.equal(validRelpath("/abs/path"), false);
+    assert.equal(validRelpath("../up"), false);
+    assert.equal(validRelpath("a//b"), false);
+    assert.equal(validRelpath("a/./b"), false);
+    assert.equal(validRelpath("a/../b"), false);
+    assert.equal(validRelpath(""), false);
+    assert.equal(validRelpath("a\tb"), false);
+    assert.equal(validRelpath(null), false);
+  });
+});
+
+describe("validSha256 and validCorr", () => {
+  it("accepts 64 hex chars", () => {
+    assert.equal(validSha256("e".repeat(64)), true);
+  });
+  it("rejects short, non-hex, empty", () => {
+    assert.equal(validSha256("e".repeat(63)), false);
+    assert.equal(validSha256("z".repeat(64)), false);
+    assert.equal(validSha256(null), false);
+  });
+  it("accepts 16 hex with optional corr= prefix", () => {
+    assert.equal(validCorr("abcdef0123456789"), true);
+    assert.equal(validCorr("corr=abcdef0123456789"), true);
+  });
+  it("rejects short and non-hex corr", () => {
+    assert.equal(validCorr("abcdef01"), false);
+    assert.equal(validCorr("zzzzz0123456789ab"), false);
+    assert.equal(validCorr(null), false);
+  });
+});
+
+describe("delta windows", () => {
+  it("passes nonnegative offsets", () => {
+    assert.equal(validNonnegInt(0), 0);
+    assert.equal(validNonnegInt("42"), 42);
+  });
+  it("rejects negative, non-integer, bool", () => {
+    assert.equal(validNonnegInt(-1), null);
+    assert.equal(validNonnegInt("many"), null);
+    assert.equal(validNonnegInt(null), null);
+    assert.equal(validNonnegInt(true), null);
+  });
+  it("clamps waits into 0..10", () => {
+    assert.equal(validDeltaWait(0), 0);
+    assert.equal(validDeltaWait(300), 10);
+    assert.equal(validDeltaWait(-5), 0);
+  });
+  it("returns null for bad waits", () => {
+    assert.equal(validDeltaWait("long"), null);
+    assert.equal(validDeltaWait(null), null);
+  });
+  it("clamps byte caps into 1..256KB", () => {
+    assert.equal(validRemoteMaxBytes(8192), 8192);
+    assert.equal(validRemoteMaxBytes(10 ** 9), 262144);
+    assert.equal(validRemoteMaxBytes(0), 1);
+  });
+  it("returns null for bad byte caps", () => {
+    assert.equal(validRemoteMaxBytes("big"), null);
+    assert.equal(validRemoteMaxBytes(null), null);
+  });
+  it("passes handoff lines through 1..20", () => {
+    assert.equal(validHandoffLines(10), 10);
+    assert.equal(validHandoffLines(999), 20);
+    assert.equal(validHandoffLines(0), 1);
+  });
+  it("returns null for bad handoff lines", () => {
+    assert.equal(validHandoffLines("many"), null);
+    assert.equal(validHandoffLines(null), null);
+    assert.equal(validHandoffLines(undefined), null);
+  });
+});
+
+describe("validIdList", () => {
+  it("accepts capped id lists", () => {
+    assert.deepEqual(validIdList(["a", "b"], 8), ["a", "b"]);
+  });
+  it("rejects empty, overlong, bad ids, non-lists", () => {
+    assert.equal(validIdList([], 8), null);
+    assert.equal(validIdList(["a", "a", "a", "a", "a", "a", "a", "a", "a"], 8), null);
+    assert.equal(validIdList(["../x"], 8), null);
+    assert.equal(validIdList("a", 8), null);
+    assert.equal(validIdList(null, 8), null);
+  });
+});
+
+describe("confineHandoffPath", () => {
+  it("confines ids under data/handoff", () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "fm-ts-valid-"));
+    const data = path.join(home, "data");
+    fs.mkdirSync(path.join(data, "handoff"), { recursive: true });
+    const okPath = confineHandoffPath(data, "mate-1");
+    assert.equal(okPath, path.resolve(data, "handoff", "mate-1.outbox.md"));
+    assert.equal(confineHandoffPath(data, "../escape"), null);
+    assert.equal(confineHandoffPath(data, "a/b"), null);
+    fs.rmSync(home, { recursive: true, force: true });
   });
 });
 

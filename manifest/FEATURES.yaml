@@ -193,6 +193,65 @@ features:
       reason: >-
         Served with FM_GUARD_READ_ONLY=1 so the mirror never clears banner
         state; upstream defaults clear. Always exits 0 by contract.
+  - id: remote_doctor
+    kind: upstream-mirror
+    summary: Remote-home readiness diagnostic read; check mode only, repairs stay out.
+    upstream_command: bin/fm-remote-doctor.sh
+    upstream_flags: ["<none>"]
+    contract: schema/contracts.yaml#remote_doctor
+    upstream_test: "tests/conformance/test_conformance.py::TestRemoteDoctorEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_remote_doctor", "adapter/dispatch.py:\"remote_doctor\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:remote_doctor"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Check mode only with no flag subset; the --fix repair path stays
+        out of scope. Envelope truncates at 8KB.
+  - id: remote_file
+    kind: upstream-mirror
+    summary: Bounded read of one home-relative file; get only, intake stays out.
+    upstream_command: bin/fm-remote-file.sh
+    upstream_flags: ["get", "<relative-path>", "<max-bytes>"]
+    contract: schema/contracts.yaml#remote_file
+    upstream_test: "tests/conformance/test_conformance.py::TestRemoteFileEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_remote_file", "adapter/dispatch.py:\"remote_file\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:remote_file"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Get-only subset with adapter-side traversal refusal and a bounded
+        8KB default byte cap; upstream defaults to 256KB and owns the put
+        handoff-intake path, which stays out. Envelope truncates at 8KB.
+  - id: remote_delta
+    kind: upstream-mirror
+    summary: Continuity-checked delta read of one append-only log; never consumes the source.
+    upstream_command: bin/fm-remote-delta-read.sh
+    upstream_flags: ["<relative-log>", "<offset>", "<prefix-sha256>"]
+    contract: schema/contracts.yaml#remote_delta
+    upstream_test: "tests/conformance/test_conformance.py::TestRemoteDeltaEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_remote_delta", "adapter/dispatch.py:\"remote_delta\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:remote_delta"]}
+    divergence:
+      status: intentional
+      reason: >-
+        The wait window is clamped to 0..10s so no call nears the 30s
+        envelope; upstream allows 300s. Adapter-side cursor and hash-shape
+        validation refuses before spawning.
+  - id: handoff_status
+    kind: upstream-mirror
+    summary: Staged handoff outbox read; list staged moves or read one outbox tail.
+    upstream_command: "file: data/handoff/<id>.outbox.md"
+    upstream_flags: ["<id>", "lines=1..20"]
+    contract: schema/contracts.yaml#handoff_status
+    upstream_test: "tests/conformance/test_conformance.py::TestHandoffStatusEquivalence (adapter-vs-file equivalence under a scratch FM_HOME)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_handoff_status", "adapter/dispatch.py:\"handoff_status\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:handoff_status"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Bounded native read with id validation and path confinement; no
+        owning-script status verb exists. Staged moves only — handoff owns
+        moves, receive owns intake.
   # ---- CHANGED: same owning scripts, narrower surface, per-call approval ----
   - id: lifecycle_interrupt
     kind: upstream-mirror
@@ -389,6 +448,89 @@ features:
         Per-call "I authorize" approval gate on top of external relay consent,
         which is never duplicated inside MCP; upstream fm-x-followup.sh knows
         no MCP approval string. Inert without that consent.
+  - id: secondmate_nudge
+    kind: upstream-mirror
+    summary: Ask mismatched secondmates to reconcile through the cooldown-guarded notify path.
+    upstream_command: bin/fm-secondmate-reconcile.sh
+    upstream_flags: ["notify"]
+    contract: schema/contracts.yaml#secondmate_nudge
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_secondmate_nudge", "adapter/dispatch.py:\"secondmate_nudge\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:secondmate_nudge"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the notify-only subset;
+        upstream fm-secondmate-reconcile.sh knows no MCP approval string.
+        request snapshot plumbing and watcher-internal process-requests stay
+        out. Same owning script, narrower surface.
+  - id: secondmate_restart
+    kind: upstream-mirror
+    summary: Restart secondmates onto current wiring after persist; ids only, no flags.
+    upstream_command: bin/fm-secondmate-restart.sh
+    upstream_flags: ["<secondmate-id>..."]
+    contract: schema/contracts.yaml#secondmate_restart
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_secondmate_restart", "adapter/dispatch.py:\"secondmate_restart\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:secondmate_restart"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus 1..8 id validation;
+        upstream fm-secondmate-restart.sh knows no MCP approval string. The
+        persist gate and partial exit-3 vocabulary stay in the owning
+        script. Same owning script, narrower surface.
+  - id: secondmate_report
+    kind: upstream-mirror
+    summary: Append one correlated report to the parent channel; the helper resolves the destination.
+    upstream_command: bin/fm-secondmate-report.sh
+    upstream_flags: ["<verb>", "<corr>", "<note>"]
+    contract: schema/contracts.yaml#secondmate_report
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_secondmate_report", "adapter/dispatch.py:\"secondmate_report\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:secondmate_report"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the note-only form with
+        verb-slug and 16-hex corr validation; upstream
+        fm-secondmate-report.sh knows no MCP approval string. The helper
+        resolves the parent channel itself, so no status path crosses the
+        boundary; --doc stays out.
+  - id: remote_control
+    kind: upstream-mirror
+    summary: Closed state/route/observe/send subset of remote secondmate lifecycle control.
+    upstream_command: bin/fm-remote-secondmate-control.sh
+    upstream_flags: ["<verb>", "<id>"]
+    contract: schema/contracts.yaml#remote_control
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_remote_control", "adapter/dispatch.py:\"remote_control\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:remote_control"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the closed
+        state/route/observe/send verb set with send-text steer validation;
+        upstream fm-remote-secondmate-control.sh knows no MCP approval
+        string. launch/relaunch (firstmate-owned provisioning), key/capture
+        (raw pane access), and sync/update/retire (remote code and pane
+        teardown) stay out.
+  - id: handoff_move
+    kind: upstream-mirror
+    summary: Hand queued backlog items to a secondmate, or resume pending wakes.
+    upstream_command: bin/fm-backlog-handoff.sh
+    upstream_flags: ["<secondmate-id>", "<item-key>..."]
+    contract: schema/contracts.yaml#handoff_move
+    upstream_test: "test_client.py (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_handoff_move", "adapter/dispatch.py:\"handoff_move\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:handoff_move"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate plus the move/resume-pending
+        subset with 1..20 key validation; upstream fm-backlog-handoff.sh
+        knows no MCP approval string. Moves only Queued items through the
+        backend owner, which stays authoritative.
   # ---- NEW: local-only Trillium extensions (survive upstream reconciliation) ----
   - id: drift_detection
     kind: local

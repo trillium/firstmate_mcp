@@ -16,6 +16,15 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | bearings_snapshot | bin/fm-bearings-snapshot.sh | stable | --json | pick-up digest reads (local-only) |
 | wake_drain | bin/fm-wake-drain.sh | stable | <none> | drained-wake record reads |
 | guard_check | bin/fm-guard.sh | stable | <none> | liveness/tangle verdict reads |
+| remote_doctor | bin/fm-remote-doctor.sh | stable | <none> | remote readiness diagnostic reads (check mode) |
+| remote_file | bin/fm-remote-file.sh | stable | get, <relative-path>, <max-bytes> | bounded home-relative file reads |
+| remote_delta | bin/fm-remote-delta-read.sh | stable | <relative-log>, <offset>, <prefix-sha256>, wait 0..10 | continuity-checked log delta reads |
+| handoff_status | file: data/handoff/<id>.outbox.md | stable | <id>, lines=1..20 | staged handoff outbox reads |
+| secondmate_nudge | bin/fm-secondmate-reconcile.sh | evolving | notify | cooldown-guarded reconcile asks |
+| secondmate_restart | bin/fm-secondmate-restart.sh | evolving | <secondmate-id>... | persist-gated secondmate restarts |
+| secondmate_report | bin/fm-secondmate-report.sh | evolving | <verb>, <corr>, <note> | correlated parent-channel reports |
+| remote_control | bin/fm-remote-secondmate-control.sh | evolving | state, route, observe, send | closed remote secondmate control subset |
+| handoff_move | bin/fm-backlog-handoff.sh | evolving | <secondmate-id>, <item-key>..., --resume-pending | queued-item handoff moves |
 | spawn_crew | bin/fm-spawn.sh | evolving | task, project, mode, yolo | dispatch writes |
 | scaffold_brief | bin/fm-brief.sh | evolving | task, repo, mode/scout | dispatch writes |
 | receipt_submit | native: receipt store (state/mcp-receipts/) | experimental | <tool> <arguments> | detach long calls past the 30s budget |

@@ -135,6 +135,188 @@ def _build_peek(args):
     return _argv("fm-peek.sh", target, str(lines)), None
 
 
+def _build_remote_file(args):
+    relpath = args.get("path")
+    if not v.valid_relpath(relpath):
+        return None, env.err(
+            "invalid-path",
+            "invalid path",
+            expect="relative path under the home, no traversal",
+        )
+    raw_max = args.get("max_bytes", v.REMOTE_FILE_DEFAULT_MAX_BYTES)
+    max_bytes = v.valid_remote_max_bytes(raw_max)
+    if max_bytes is None:
+        return None, env.err(
+            "invalid-max-bytes",
+            "invalid max_bytes",
+            expect="integer 1..262144",
+        )
+    return _argv("fm-remote-file.sh", "get", relpath, str(max_bytes)), None
+
+
+def _build_remote_delta(args):
+    rel_log = args.get("log")
+    if not v.valid_relpath(rel_log):
+        return None, env.err(
+            "invalid-path",
+            "invalid path",
+            expect="relative log path under the home, no traversal",
+        )
+    offset = v.valid_nonneg_int(args.get("offset", 0))
+    if offset is None:
+        return None, env.err(
+            "invalid-offset",
+            "invalid offset",
+            expect="nonnegative integer byte cursor",
+        )
+    sha = args.get("sha256")
+    if not v.valid_sha256(sha):
+        return None, env.err(
+            "invalid-sha256",
+            "invalid sha256",
+            expect="64 hex chars of the exact prefix",
+        )
+    wait = v.valid_delta_wait(args.get("wait", 0))
+    if wait is None:
+        return None, env.err(
+            "invalid-wait",
+            "invalid wait",
+            expect="integer 0..10 seconds",
+        )
+    return _argv("fm-remote-delta-read.sh", rel_log, str(offset), sha,
+                  str(wait)), None
+
+
+def _build_handoff_status(args):
+    task_id = args.get("id")
+    if task_id is not None and not v.valid_id(task_id):
+        return None, ID_ERROR
+    lines = v.valid_handoff_lines(args.get("lines", v.HANDOFF_DEFAULT_LINES))
+    if lines is None:
+        return None, env.err(
+            "invalid-lines", "invalid lines", expect="integer 1..20"
+        )
+    # The read is native (bounded outbox files under data/handoff/); no
+    # owning-script argv exists, mirroring the status_tail shape.
+    return [], None
+
+
+def _build_secondmate_nudge(args):
+    # Notify-only subset: the backstop asks mismatched secondmates to
+    # reconcile through the cooldown-guarded notify path. request (snapshot
+    # plumbing) and process-requests (watcher-internal queue claim) stay out.
+    if not v.valid_approval(args.get("approval")):
+        return None, APPROVAL_ERROR
+    return _argv("fm-secondmate-reconcile.sh", "notify"), None
+
+
+def _build_secondmate_restart(args):
+    ids = v.valid_id_list(args.get("ids"), v.RESTART_IDS_MAX)
+    if ids is None:
+        return None, env.err(
+            "invalid-id",
+            "invalid id",
+            expect="1..8 secondmate ids, no slashes or traversal",
+        )
+    if not v.valid_approval(args.get("approval")):
+        return None, APPROVAL_ERROR
+    return _argv("fm-secondmate-restart.sh", *ids), None
+
+
+def _build_secondmate_report(args):
+    verb = args.get("verb")
+    if not v.valid_id(verb):
+        return None, env.err(
+            "invalid-verb",
+            "invalid verb",
+            expect="short slug, no slashes or traversal",
+        )
+    corr = args.get("corr")
+    if not v.valid_corr(corr):
+        return None, env.err(
+            "invalid-corr",
+            "invalid corr",
+            expect="16 hex chars, optional corr= prefix",
+        )
+    note = args.get("note")
+    if not v.valid_note(note):
+        return None, env.err(
+            "invalid-note",
+            "invalid note",
+            expect="single line, 1..500 chars",
+        )
+    if not v.valid_approval(args.get("approval")):
+        return None, APPROVAL_ERROR
+    return _argv("fm-secondmate-report.sh", verb, corr, note), None
+
+
+def _build_remote_control(args):
+    verb = args.get("verb")
+    if verb not in v.REMOTE_CONTROL_VERBS:
+        return None, env.err(
+            "invalid-verb",
+            "invalid verb",
+            expect="one of state, route, observe, send",
+        )
+    task_id = args.get("id")
+    if not v.valid_id(task_id):
+        return None, ID_ERROR
+    if not v.valid_approval(args.get("approval")):
+        return None, APPROVAL_ERROR
+    argv = _argv("fm-remote-secondmate-control.sh", verb, task_id)
+    if verb == "send":
+        text = args.get("text")
+        if not isinstance(text, str) or not 1 <= len(text) <= v.SEND_TEXT_MAX_CHARS:
+            return None, env.err(
+                "invalid-text",
+                "invalid text",
+                expect=f"single line, 1..{v.SEND_TEXT_MAX_CHARS} chars",
+            )
+        if "\n" in text or "\r" in text:
+            return None, env.err(
+                "invalid-text", "invalid text",
+                expect="single line, no newlines",
+            )
+        if text.lstrip().startswith("/"):
+            return None, env.err(
+                "slash-commands-refused",
+                "slash commands refused",
+                expect="plain prose steer only",
+            )
+        argv.append(text)
+    return argv, None
+
+
+def _build_handoff_move(args):
+    task_id = args.get("id")
+    if not v.valid_id(task_id):
+        return None, ID_ERROR
+    resume = args.get("resume", False)
+    if not isinstance(resume, bool):
+        return None, env.err(
+            "invalid-resume", "invalid resume", expect="boolean"
+        )
+    if not v.valid_approval(args.get("approval")):
+        return None, APPROVAL_ERROR
+    if resume:
+        keys = args.get("keys", [])
+        if keys not in ([], None):
+            return None, env.err(
+                "invalid-keys",
+                "invalid keys",
+                expect="resume takes no keys",
+            )
+        return _argv("fm-backlog-handoff.sh", "--resume-pending"), None
+    keys = v.valid_id_list(args.get("keys"), v.HANDOFF_KEYS_MAX)
+    if keys is None:
+        return None, env.err(
+            "invalid-keys",
+            "invalid keys",
+            expect="1..20 backlog item keys, no slashes or traversal",
+        )
+    return _argv("fm-backlog-handoff.sh", task_id, *keys), None
+
+
 def _build_review_diff(args):
     task_id = args.get("id")
     if not v.valid_id(task_id):
@@ -358,6 +540,15 @@ TOOLS = {
     "bearings_snapshot": ("fm-bearings-snapshot.sh", None, False),
     "wake_drain": ("fm-wake-drain.sh", None, False),
     "guard_check": ("fm-guard.sh", None, False),
+    "remote_doctor": ("fm-remote-doctor.sh", None, False),
+    "remote_file": ("fm-remote-file.sh", _build_remote_file, False),
+    "remote_delta": ("fm-remote-delta-read.sh", _build_remote_delta, False),
+    "handoff_status": (None, _build_handoff_status, False),
+    "secondmate_nudge": ("fm-secondmate-reconcile.sh", _build_secondmate_nudge, True),
+    "secondmate_restart": ("fm-secondmate-restart.sh", _build_secondmate_restart, True),
+    "secondmate_report": ("fm-secondmate-report.sh", _build_secondmate_report, True),
+    "remote_control": ("fm-remote-secondmate-control.sh", _build_remote_control, True),
+    "handoff_move": ("fm-backlog-handoff.sh", _build_handoff_move, True),
     "lifecycle_interrupt": ("fm-control.sh", _lifecycle_builder("interrupt", False), True),
     "lifecycle_exit": ("fm-control.sh", _lifecycle_builder("exit", False), True),
     "lifecycle_relaunch": ("fm-control.sh", _lifecycle_builder("relaunch", True), True),
@@ -396,6 +587,8 @@ class Adapter:
         self.home = Path(pinned) if pinned else self.checkout_root
         override = os.environ.get("FM_STATE_OVERRIDE")
         self.state_dir = Path(override) if override else self.home / "state"
+        data_override = os.environ.get("FM_DATA_OVERRIDE")
+        self.data_dir = Path(data_override) if data_override else self.home / "data"
         self._runner = runner or subprocess.run
 
     def run_script(self, argv):
@@ -630,6 +823,141 @@ class Adapter:
                 os.environ.pop("FM_GUARD_READ_ONLY", None)
             else:
                 os.environ["FM_GUARD_READ_ONLY"] = prev
+
+    def tool_remote_doctor(self, _args):
+        # Check mode only: the --fix repair path stays out of scope.
+        return self.owned_call(["fm-remote-doctor.sh"], "doctor failed")
+
+    def tool_remote_file(self, args):
+        argv, error = _build_remote_file(args)
+        if error:
+            return error
+        result = self.owned_call(argv, "remote file read failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        result.update({
+            "path": args.get("path"),
+            "max_bytes": v.valid_remote_max_bytes(
+                args.get("max_bytes", v.REMOTE_FILE_DEFAULT_MAX_BYTES)),
+        })
+        return result
+
+    def tool_remote_delta(self, args):
+        argv, error = _build_remote_delta(args)
+        if error:
+            return error
+        result = self.owned_call(argv, "remote delta read failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        result.update({
+            "log": args.get("log"),
+            "offset": v.valid_nonneg_int(args.get("offset", 0)),
+        })
+        return result
+
+    def tool_handoff_status(self, args):
+        _, error = _build_handoff_status(args)
+        if error:
+            return error
+        lines = v.valid_handoff_lines(
+            args.get("lines", v.HANDOFF_DEFAULT_LINES))
+        handoff_dir = self.data_dir / "handoff"
+        task_id = args.get("id")
+        if task_id is None:
+            try:
+                names = sorted(p.name for p in handoff_dir.iterdir()
+                               if p.is_file() and not p.is_symlink()
+                               and p.name.endswith(".outbox.md"))
+            except FileNotFoundError:
+                return env.ok(outboxes=[])
+            except OSError as exc:
+                return env.err("cannot-read-handoff",
+                               "cannot read handoff", detail=str(exc))
+            outboxes = []
+            for name in names:
+                try:
+                    text = (handoff_dir / name).read_text(
+                        encoding="utf-8", errors="replace").splitlines()
+                    size = (handoff_dir / name).stat().st_size
+                except OSError as exc:
+                    return env.err("cannot-read-handoff",
+                                   "cannot read handoff", detail=str(exc))
+                outboxes.append({
+                    "id": name[: -len(".outbox.md")],
+                    "bytes": size,
+                    "total_lines": len(text),
+                })
+            return env.ok(outboxes=outboxes)
+        path = v.confine_handoff_path(self.data_dir, task_id)
+        if path is None:
+            return ID_ERROR
+        try:
+            content = path.read_text(
+                encoding="utf-8", errors="replace").splitlines()
+            size = path.stat().st_size
+        except FileNotFoundError:
+            return env.err("no-handoff", "no handoff for id", id=task_id)
+        except OSError as exc:
+            return env.err("cannot-read-handoff",
+                           "cannot read handoff", detail=str(exc))
+        return env.ok(id=task_id, bytes=size, total_lines=len(content),
+                      lines=content[-lines:])
+
+    def tool_secondmate_nudge(self, args):
+        argv, error = _build_secondmate_nudge(args)
+        if error:
+            return error
+        return self.owned_call(argv, "reconcile notify refused or failed")
+
+    def tool_secondmate_restart(self, args):
+        argv, error = _build_secondmate_restart(args)
+        if error:
+            return error
+        result = self.owned_call(argv, "secondmate restart refused or failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        result.update({"ids": args.get("ids")})
+        return result
+
+    def tool_secondmate_report(self, args):
+        argv, error = _build_secondmate_report(args)
+        if error:
+            return error
+        result = self.owned_call(argv, "secondmate report refused or failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        result.update({"verb": args.get("verb"), "corr": args.get("corr")})
+        return result
+
+    def tool_remote_control(self, args):
+        argv, error = _build_remote_control(args)
+        if error:
+            return error
+        verb = args.get("verb")
+        result = self.owned_call(argv, "remote control refused or failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        result.update({"verb": verb, "id": args.get("id")})
+        return result
+
+    def tool_handoff_move(self, args):
+        argv, error = _build_handoff_move(args)
+        if error:
+            return error
+        result = self.owned_call(argv, "handoff refused or failed")
+        if env.is_err(result):
+            return result
+        result = dict(result)
+        if args.get("resume", False):
+            result.update({"id": args.get("id"), "resumed": True})
+        else:
+            result.update({"id": args.get("id"), "keys": args.get("keys")})
+        return result
 
     def tool_fleet_poll(self, args):
         try:

@@ -10,6 +10,7 @@ import { Context, Layer } from "effect";
 import {
   CHECKOUT_ROOT,
   binDir as defaultBinDir,
+  dataDir as defaultDataDir,
   homeDir as defaultHomeDir,
   stateDir as defaultStateDir,
 } from "./constants.js";
@@ -18,6 +19,7 @@ export interface Config {
   readonly homeDir: string;
   readonly binDir: string;
   readonly stateDir: string;
+  readonly dataDir: string;
   readonly checkoutRoot: string;
 }
 
@@ -32,6 +34,7 @@ export function resolveConfig(): Config {
     homeDir: defaultHomeDir(),
     binDir: defaultBinDir(),
     stateDir: defaultStateDir(),
+    dataDir: defaultDataDir(),
     checkoutRoot: CHECKOUT_ROOT,
   };
 }
@@ -57,6 +60,7 @@ export function makeTestConfig(
       homeDir: overrides.homeDir ?? base.homeDir,
       binDir: overrides.binDir ?? base.binDir,
       stateDir: overrides.stateDir ?? base.stateDir,
+      dataDir: overrides.dataDir ?? base.dataDir,
       checkoutRoot: overrides.checkoutRoot ?? base.checkoutRoot,
     }),
   );

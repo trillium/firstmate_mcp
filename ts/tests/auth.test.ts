@@ -34,7 +34,8 @@ const APPROVAL = "I authorize lifecycle_interrupt on fm-task1 (2026-09-13)";
 const TIER1_TOOLS = [
   "fleet_snapshot", "backlog", "crew_state", "status_tail", "fleet_poll",
   "peek", "fleet_view", "review_diff", "bearings_snapshot",
-  "wake_drain", "guard_check",
+  "wake_drain", "guard_check", "remote_doctor", "remote_file",
+  "remote_delta", "handoff_status",
   "receipt_submit", "receipt_status",
 ];
 const TIER3_TOOLS = Object.entries(TOOL_TIERS)
@@ -46,7 +47,7 @@ const TIER4_TOOLS = Object.entries(TOOL_TIERS)
 
 describe("tier assignments", () => {
   it("covers every tool", () => {
-    assert.equal(Object.keys(TOOL_TIERS).length, 27);
+    assert.equal(Object.keys(TOOL_TIERS).length, 36);
   });
   it("tier 1 is open reads", () => {
     for (const tool of TIER1_TOOLS) assert.equal(tierOf(tool), TIER_OPEN, tool);
@@ -55,7 +56,7 @@ describe("tier assignments", () => {
     assert.equal(tierOf("send_message"), TIER_STEER);
   });
   it("tier 3 is authority writes", () => {
-    assert.equal(TIER3_TOOLS.length, 10);
+    assert.equal(TIER3_TOOLS.length, 15);
     for (const tool of TIER3_TOOLS) assert.equal(tierOf(tool), TIER_AUTHORITY, tool);
   });
   it("tier 4 is external sends", () => {

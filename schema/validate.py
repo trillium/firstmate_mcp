@@ -43,6 +43,15 @@ CURRENT_PINS = {
     "bearings_snapshot": "fm-bearings.v1",
     "wake_drain": "fm-wake-drain.v1",
     "guard_check": "fm-guard.v1",
+    "remote_doctor": "fm-remote-doctor.v1",
+    "remote_file": "fm-remote-file.get.v1",
+    "remote_delta": "fm-remote-delta-read.v1",
+    "handoff_status": "handoff-outbox.v1",
+    "secondmate_nudge": "fm-reconcile.notify.v1",
+    "secondmate_restart": "fm-secondmate-restart.v1",
+    "secondmate_report": "fm-secondmate-report.v1",
+    "remote_control": "fm-remote-control.safe-subset.v1",
+    "handoff_move": "fm-handoff.safe-subset.v1",
 }
 
 
