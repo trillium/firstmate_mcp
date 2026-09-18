@@ -131,12 +131,12 @@ Queue mechanics and durable captain decisions: backlog moves, holds, verdicts.
 | `fm-backlog-import-beads.sh` (removed upstream) | gap | one-time backlog.md importer; removed upstream since pin |
 | `fm-backlog-receive.sh` | gap | remote outbox receipt |
 | `fm-bead-stamp.sh` (removed upstream) | gap | bead stamp helper; removed upstream since pin |
-| `fm-captain-hold.sh` | gap | unified held-for-captain mechanics; supersedes review-decision upstream |
+| `fm-captain-hold.sh` | mirrored — `review_decision` (py✔ ts✔) | unified held-for-captain mechanics; supersedes review-decision upstream |
 | `fm-decision-hold.sh` | mirrored — `decision_hold` (py✔ ts✔), `decision_resolve` (py✔ ts✔) | durable captain holds behind approval |
 | `fm-groom-json-field.sh` (removed upstream) | gap | groom field helper; removed upstream since pin |
 | `fm-groom.sh` (removed upstream) | gap | idea->brief->dispatch generator; removed upstream since pin |
 | `fm-ledger.sh` (removed upstream) | gap | landed-but-open bead surface; removed upstream since pin |
-| `fm-review-decision.sh` (removed upstream) | mirrored — stale: `review_decision` (py✔ ts✔) | removed upstream since pin; adapter still dispatches it |
+| `fm-review-decision.sh` (removed upstream) | gap | removed upstream since pin; review_decision now ports onto fm-captain-hold.sh answer |
 | `fm-staleness-file.sh` (removed upstream) | gap | staleness-file writer; removed upstream since pin |
 | `fm-tasks-axi.sh` | gap | backlog backend CLI for this home |
 

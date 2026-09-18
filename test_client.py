@@ -50,7 +50,7 @@ STUBS = {
     "fm-spawn.sh": "echo 'stub: refused' >&2\nexit 1\n",
     "fm-brief.sh": "echo 'stub: refused' >&2\nexit 1\n",
     "fm-decision-hold.sh": "echo 'stub: refused' >&2\nexit 1\n",
-    "fm-review-decision.sh": "echo 'stub: refused' >&2\nexit 1\n",
+    "fm-captain-hold.sh": "echo \"stub: captain-hold $1 $2\" >&2\nexit 1\n",
     "fm-x-reply.sh": "echo 'stub: refused' >&2\nexit 1\n",
     "fm-x-dismiss.sh": "echo 'stub: refused' >&2\nexit 1\n",
     "fm-x-followup.sh": "echo 'stub: refused' >&2\nexit 1\n",
@@ -357,6 +357,11 @@ def main():
         check("review refuses without approval", is_error(resp) and "approval" in payload(resp).get("error", ""))
         resp = boxed.call("review_decision", {"id": "no-such-id", "verdict": "bogus", "approval": APPROVAL})
         check("review rejects bad verdict", is_error(resp))
+        resp = boxed.call("review_decision", {"id": "no-such-id", "verdict": "comment", "approval": APPROVAL})
+        check("review comment verdict requires text", is_error(resp))
+        resp = boxed.call("review_decision", {"id": "no-such-id", "verdict": "approve", "approval": APPROVAL})
+        check("review valid call reaches captain-hold answer and stays structured",
+              is_error(resp) and "answer" in payload(resp).get("stderr", ""))
 
         resp = boxed.call("relay_reply", {"request_id": "no-such-id", "text": "hello"})
         check("relay reply refuses without approval", is_error(resp) and "approval" in payload(resp).get("error", ""))

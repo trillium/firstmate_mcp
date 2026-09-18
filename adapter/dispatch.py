@@ -513,6 +513,14 @@ def _build_decision_hold(args):
 
 
 def _build_review_decision(args):
+    """Validate review_decision args and compose the captain's decision text.
+
+    Upstream removed bin/fm-review-decision.sh (superseded by
+    bin/fm-captain-hold.sh); the tool now records the closed verdict set as
+    the captain's own words through `fm-captain-hold.sh answer`, which takes
+    a decision file, never argv prose. Returns (decision_text, None) on
+    success so the caller can stage the file; the approval gate stays.
+    """
     task_id = args.get("id")
     verdict = args.get("verdict")
     comment = args.get("comment", "")
@@ -524,6 +532,14 @@ def _build_review_decision(args):
             "invalid verdict",
             expect="one of approve, decline, comment",
         )
+    if verdict == "comment" and not (
+        isinstance(comment, str) and comment.strip()
+    ):
+        return None, env.err(
+            "invalid-comment",
+            "comment verdict requires comment text",
+            expect="single line, 1..500 chars",
+        )
     if comment and not v.valid_note(comment):
         return None, env.err(
             "invalid-comment",
@@ -532,10 +548,9 @@ def _build_review_decision(args):
         )
     if not v.valid_approval(args.get("approval")):
         return None, APPROVAL_ERROR
-    argv = _argv("fm-review-decision.sh", task_id, verdict)
-    if comment:
-        argv.append(comment)
-    return argv, None
+    if isinstance(comment, str) and comment.strip():
+        return "%s - %s" % (verdict, comment), None
+    return verdict, None
 
 
 def _relay_text_args(args, id_field, max_chars):
@@ -624,7 +639,7 @@ TOOLS = {
     "scaffold_brief": ("fm-brief.sh", _build_scaffold_brief, True),
     "decision_hold": ("fm-decision-hold.sh", _build_decision_hold, True),
     "decision_resolve": ("fm-decision-hold.sh", None, True),
-    "review_decision": ("fm-review-decision.sh", _build_review_decision, True),
+    "review_decision": ("fm-captain-hold.sh", _build_review_decision, True),
     "relay_reply": ("fm-x-reply.sh", _build_relay_reply, True),
     "relay_dismiss": ("fm-x-dismiss.sh", _build_relay_dismiss, True),
     "relay_followup": ("fm-x-followup.sh", None, True),
@@ -1400,10 +1415,26 @@ class Adapter:
         return result
 
     def tool_review_decision(self, args):
-        argv, error = _build_review_decision(args)
+        decision_text, error = _build_review_decision(args)
         if error:
             return error
-        result = self.owned_call(argv, "review decision refused or failed")
+        tmp = None
+        try:
+            with tempfile.NamedTemporaryFile("w", suffix=".md",
+                                             delete=False) as handle:
+                handle.write(decision_text)
+                tmp = handle.name
+            result = self.owned_call(
+                _argv("fm-captain-hold.sh", "answer", args.get("id"),
+                      "--decision-file", tmp),
+                "review decision refused or failed",
+            )
+        finally:
+            if tmp:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
         if env.is_err(result):
             return result
         result = dict(result)

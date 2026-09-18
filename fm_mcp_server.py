@@ -828,14 +828,32 @@ def tool_review_decision(args):
         return {"error": "invalid id", "expect": "short task id, no slashes or traversal"}, True
     if verdict not in VERDICTS:
         return {"error": "invalid verdict", "expect": "one of approve, decline, comment"}, True
+    if verdict == "comment" and not (isinstance(comment, str) and comment.strip()):
+        return {"error": "comment verdict requires comment text", "expect": "single line, 1..500 chars"}, True
     if comment and not valid_note(comment):
         return {"error": "invalid comment", "expect": "single line, 1..500 chars"}, True
     if not valid_approval(args.get("approval")):
         return approval_error(), True
-    argv = [BIN / "fm-review-decision.sh", task_id, verdict]
-    if comment:
-        argv.append(comment)
-    payload, is_error = owned_call(argv, "review decision refused or failed")
+    if isinstance(comment, str) and comment.strip():
+        decision_text = "%s - %s" % (verdict, comment)
+    else:
+        decision_text = verdict
+    tmp = None
+    try:
+        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as handle:
+            handle.write(decision_text)
+            tmp = handle.name
+        payload, is_error = owned_call(
+            [BIN / "fm-captain-hold.sh", "answer", task_id,
+             "--decision-file", tmp],
+            "review decision refused or failed",
+        )
+    finally:
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
     if not is_error:
         payload = dict(payload)
         payload.update({"id": task_id, "verdict": verdict})
@@ -1838,7 +1856,7 @@ TOOLS = {
         tool_decision_resolve,
     ),
     "review_decision": (
-        "Authority write: record one captain approve, decline, or comment via fm-review-decision.sh.",
+        "Authority write: record one captain approve, decline, or comment via fm-captain-hold.sh answer with a decision file.",
         approval_schema({
             "id": {"type": "string"},
             "verdict": {"type": "string", "enum": list(VERDICTS)},

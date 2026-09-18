@@ -46,7 +46,7 @@ STUBS = {
     "fm-spawn.sh": "echo \"cutover-proof: spawn $1\"\nexit 0\n",
     "fm-brief.sh": "echo \"cutover-proof: brief $1\"\nexit 0\n",
     "fm-decision-hold.sh": "echo \"cutover-proof: decision $1\"\nexit 0\n",
-    "fm-review-decision.sh": "echo \"cutover-proof: review $1 $2\"\nexit 0",
+    "fm-captain-hold.sh": "echo \"cutover-proof: answer $2\"\nexit 0",
     "fm-x-reply.sh": ("echo 'cutover-proof: relay consent required "
                       "(no FMX_PAIRING_TOKEN)' >&2\nexit 3\n"),
     "fm-x-dismiss.sh": ("echo 'cutover-proof: relay consent required "
