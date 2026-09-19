@@ -42,7 +42,6 @@ ok - snapshot event hints
 ### crew_state
 
 - upstream file: `fm-crew-state.test.sh`
-<<<<<<< HEAD
 - upstream ref: **pass** — exit 0; tail: ok - R3 historical inventory yields to the current busy pane
 ok - R3 historical inventory yields to current worker status
 ok - superseded cancelled run preserves the replacement review gate
@@ -50,18 +49,9 @@ ok - competing live runs report unknown with both run ids
 ok - newer failed run remains failed beside an older live run
 ok - missing run selection reports unknown with candidate ids
 ok - wrong-id 
-- py: **pass**, ts (bun): **pass**
-  - `crew_state:crew_state {'id': 'no-such-crew'}` — py pass, ts pass
-  - `crew_state:crew_state {'id': '../escape'}` — py pass, ts pass
-||||||| parent of 7a9dd60 (feat(rewire): update generators, CI, test harnesses, and manifest for TS sole server)
-- upstream ref: **pass** — exit 0; tail: ok - local work advanced past run head invalidates attribution
-ok - pipeline-owned active run binds without head equality and beats the failed row
-ok - a genuinely failed run with no later run is not hidden
-ok - coarse scan anchors the unresolvable active row instead of falling to an older one
-ok - coarse scan with a mismatched anchor stays unknown and lets the pane answer
-ok - the e
-- py: **pass**, ts (bun): **pass**
-  - `crew_state:crew_state {'id': 'no-such-crew'}` — py pass, ts pass
+- ts (bun): **pass**
+  - `crew_state:crew_state {'id': 'no-such-crew'}` — ts pass
+  - `crew_state:crew_state {'id': '../escape'}` — ts pass
   - `crew_state:crew_state {'id': '../escape'}` — py pass, ts pass
 =======
 - upstream ref: **pass** — exit 0; tail: ok - local work advanced past run head invalidates attribution

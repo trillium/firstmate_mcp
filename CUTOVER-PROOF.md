@@ -1,6 +1,6 @@
 # CUTOVER-PROOF — live fleet through firstmate_mcp
 
-Generated 2026-09-19T18:07:39Z by `python3 scripts/cutover_prove.py` against a
+Generated 2026-09-19T18:09:59Z by `python3 scripts/cutover_prove.py` against a
 scratch home only (`/tmp/fm-mcp-cutover-proof`). The live fleet
 was never touched.
 
@@ -55,16 +55,16 @@ Decisions in order: allow/ok, allow/ok, allow/ok, allow/ok, allow/ok, allow/ok, 
 the token text never appears in the log (hash only). Full lines:
 
 ```json
-{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":244,"reason":"ok","target":null,"tier":1,"tool":"fleet_snapshot","ts":"2026-09-19T18:07:38Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":8,"reason":"ok","target":null,"tier":1,"tool":"backlog","ts":"2026-09-19T18:07:38Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":219,"reason":"ok","target":"demo-1","tier":1,"tool":"crew_state","ts":"2026-09-19T18:07:38Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":0,"reason":"ok","target":"demo-1","tier":1,"tool":"status_tail","ts":"2026-09-19T18:07:38Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":9,"reason":"ok","target":null,"tier":1,"tool":"fleet_poll","ts":"2026-09-19T18:07:38Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":212,"reason":"ok","target":"demo-1","tier":2,"tool":"send_message","ts":"2026-09-19T18:07:39Z","v":1}
-{"actor":"cutover-proof","approval_ref":"f036c0f72b3af1ea","decision":"allow","duration_ms":208,"reason":"ok","target":"demo-1","tier":3,"tool":"lifecycle_interrupt","ts":"2026-09-19T18:07:39Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"refuse","duration_ms":0,"reason":"approval-required","target":"demo-1","tier":3,"tool":"lifecycle_interrupt","ts":"2026-09-19T18:07:39Z","v":1}
-{"actor":"cutover-proof","approval_ref":"2cd3c30d309da9d6","decision":"allow","duration_ms":232,"reason":"ok","target":"req-1","tier":4,"tool":"relay_reply","ts":"2026-09-19T18:07:39Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"refuse","duration_ms":0,"reason":"unknown-tool","target":null,"tier":"forbidden","tool":"promote_scout","ts":"2026-09-19T18:07:39Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":248,"reason":"ok","target":null,"tier":1,"tool":"fleet_snapshot","ts":"2026-09-19T18:09:58Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":8,"reason":"ok","target":null,"tier":1,"tool":"backlog","ts":"2026-09-19T18:09:58Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":143,"reason":"ok","target":"demo-1","tier":1,"tool":"crew_state","ts":"2026-09-19T18:09:58Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":0,"reason":"ok","target":"demo-1","tier":1,"tool":"status_tail","ts":"2026-09-19T18:09:58Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":6,"reason":"ok","target":null,"tier":1,"tool":"fleet_poll","ts":"2026-09-19T18:09:58Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":141,"reason":"ok","target":"demo-1","tier":2,"tool":"send_message","ts":"2026-09-19T18:09:59Z","v":1}
+{"actor":"cutover-proof","approval_ref":"f036c0f72b3af1ea","decision":"allow","duration_ms":152,"reason":"ok","target":"demo-1","tier":3,"tool":"lifecycle_interrupt","ts":"2026-09-19T18:09:59Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"refuse","duration_ms":0,"reason":"approval-required","target":"demo-1","tier":3,"tool":"lifecycle_interrupt","ts":"2026-09-19T18:09:59Z","v":1}
+{"actor":"cutover-proof","approval_ref":"2cd3c30d309da9d6","decision":"allow","duration_ms":131,"reason":"ok","target":"req-1","tier":4,"tool":"relay_reply","ts":"2026-09-19T18:09:59Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"refuse","duration_ms":0,"reason":"unknown-tool","target":null,"tier":"forbidden","tool":"promote_scout","ts":"2026-09-19T18:09:59Z","v":1}
 ```
 
 ## Residual risks
