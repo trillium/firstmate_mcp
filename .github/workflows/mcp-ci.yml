@@ -49,22 +49,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: "pnpm"
+          cache-dependency-path: "ts/pnpm-lock.yaml"
       - name: ts proof suites under bun (primary runtime)
         run: |
           cd ts
-          bun install --no-progress
+          pnpm install --frozen-lockfile
           bun run test:bun
       - name: ts proof suites under node (fallback compat)
         run: |
           cd ts
-          npm install --no-audit --no-fund
-          npm test
+          pnpm test
       - name: ts multi-runtime proof plus conformance fixtures
         run: bash tests/conformance/ts-parity.sh
       - name: ts conformance fixtures
@@ -93,12 +97,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: "pnpm"
+          cache-dependency-path: "ts/pnpm-lock.yaml"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"

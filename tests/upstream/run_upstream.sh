@@ -20,12 +20,14 @@ command -v python3 >/dev/null 2>&1 || fail "python3 unavailable for upstream har
 
 if [ ! -f "$ROOT/ts/dist/server.js" ]; then
   echo "--- building ts/ (dist missing) ---"
-  if command -v bun >/dev/null 2>&1; then
+  if command -v pnpm >/dev/null 2>&1; then
+    (cd "$ROOT/ts" && pnpm install && pnpm run build) || fail "ts build failed (pnpm)"
+  elif command -v bun >/dev/null 2>&1; then
     (cd "$ROOT/ts" && bun install --no-progress && bun run build) || fail "ts build failed (bun)"
   elif command -v npm >/dev/null 2>&1; then
     (cd "$ROOT/ts" && npm install --no-audit --no-fund && npm run build) || fail "ts build failed (npm)"
   else
-    echo "warn: no bun/npm; TS column will skip (dist missing)"
+    echo "warn: no pnpm/bun/npm; TS column will skip (dist missing)"
   fi
 fi
 
