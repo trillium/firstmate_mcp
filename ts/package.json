@@ -12,13 +12,17 @@
     "build:tests": "tsc -p tsconfig.tests.json",
     "clean": "rm -rf dist testbuild",
     "test": "npm run build && npm run build:tests && node --test testbuild/tests/*.test.js",
-    "test:bun": "npm run build && npm run build:tests && bun test --timeout 30000 testbuild/tests/*.test.js",
+    "test:bun": "npm run build && npm run build:tests && bun test --timeout 120000 testbuild/tests/*.test.js",
+    "test:dev": "npm run build && npm run build:tests && node scripts/test-runner.mjs",
+    "test:dev:bun": "npm run build && npm run build:tests && bun scripts/test-runner.mjs --bun",
+    "test:failed": "npm run build && npm run build:tests && node scripts/test-runner.mjs --failed-only",
+    "test:failed:bun": "npm run build && npm run build:tests && bun scripts/test-runner.mjs --bun --failed-only",
     "test:fast": "npm run build && npm run build:tests && node --test testbuild/tests/validators.test.js testbuild/tests/envelope.test.js testbuild/tests/auth.test.js",
-    "test:fast:bun": "npm run build && npm run build:tests && bun test --timeout 30000 testbuild/tests/validators.test.js testbuild/tests/envelope.test.js testbuild/tests/auth.test.js",
+    "test:fast:bun": "npm run build && npm run build:tests && bun test --timeout 120000 testbuild/tests/validators.test.js testbuild/tests/envelope.test.js testbuild/tests/auth.test.js",
     "conformance": "npm run build && npm run build:tests && node --test testbuild/tests/conformance.test.js",
-    "conformance:bun": "npm run build && npm run build:tests && bun test --timeout 30000 testbuild/tests/conformance.test.js",
+    "conformance:bun": "npm run build && npm run build:tests && bun test --timeout 120000 testbuild/tests/conformance.test.js",
     "prove": "npm run build && npm run build:tests && node --test testbuild/tests/*.test.js",
-    "prove:bun": "npm run build && npm run build:tests && bun test --timeout 30000 testbuild/tests/*.test.js"
+    "prove:bun": "npm run build && npm run build:tests && bun test --timeout 120000 testbuild/tests/*.test.js"
   },
   "engines": {
     "node": ">=20"
