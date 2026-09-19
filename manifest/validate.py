@@ -43,7 +43,7 @@ ID_RE = re.compile(r"^[a-z0-9_]+$")
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 KINDS = ("upstream-mirror", "local", "fork")
-STATUSES = ("implemented", "partial", "missing")
+STATUSES = ("implemented", "partial", "missing", "retired")
 DIVERGENCE = ("none", "intentional", "not-applicable")
 REQUIRED = ("summary", "contract", "upstream_test", "py", "ts", "divergence")
 
@@ -70,11 +70,11 @@ def check_evidence(entry_id, side, impl):
         return [f"feature '{entry_id}' {side}.status '{status}' not in {list(STATUSES)}"]
     evidence = impl.get("evidence") or []
     note = impl.get("note") or ""
-    if status == "missing":
+    if status in ("missing", "retired"):
         if evidence:
             errors.append(
-                f"feature '{entry_id}' {side} is 'missing' but carries evidence; "
-                "a missing status must not point at an implementation"
+                f"feature '{entry_id}' {side} is '{status}' but carries evidence; "
+                f"a {status} status must not point at an implementation"
             )
     elif status == "partial" and not note:
         errors.append(

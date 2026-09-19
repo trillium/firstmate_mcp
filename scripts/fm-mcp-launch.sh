@@ -1,24 +1,22 @@
 #!/usr/bin/env bash
 # Cutover launcher: serve a live firstmate fleet through firstmate_mcp.
 #
-# Pins one home, stays local-only, then execs the proven server with stdio
+# Pins one home, stays local-only, then execs the TypeScript server with stdio
 # as the only transport (newline-delimited JSON-RPC on stdin/stdout, logs
 # on stderr). No TCP, no SSE, no multi-user wiring in this task.
 #
 # Usage:
-#   scripts/fm-mcp-launch.sh --home /path/to/firstmate [--server py|ts]
+#   scripts/fm-mcp-launch.sh --home /path/to/firstmate [--server ts]
 #       [--runtime bun|node] [--audit-log PATH] [--actor NAME]
 #
-# Env equivalents: FM_HOME, FM_MCP_SERVER (py|ts), FM_MCP_RUNTIME,
+# Env equivalents: FM_HOME, FM_MCP_SERVER (ts), FM_MCP_RUNTIME,
 # FM_AUDIT_LOG, FM_ACTOR. CLI flags win over env.
 #
 #   --home is required: FM_HOME is inherited from the server environment,
 #     so the launcher pins it rather than passing it per call (AUTH.md).
 #     Default audit log is $FM_HOME/state/mcp-audit.jsonl; every allow and
-#     every refuse appends one JSON line (auth/AUTH.md format).
-#   --server py (default) runs the proven Python server; --server ts runs
-#     the TypeScript sibling where it already proves parity
-#     (tests/conformance/ts-parity.sh).
+#     every refuse appends one JSON line (AUTH.md format).
+#   --server ts (default) runs the TypeScript server.
 #
 # Approval flow: every authority-bearing or externally visible tool takes
 # an explicit per-call `approval` string starting with `I authorize` and
@@ -29,7 +27,7 @@ set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
 HOME_ARG=""
-SERVER="${FM_MCP_SERVER:-py}"
+SERVER="${FM_MCP_SERVER:-ts}"
 RUNTIME="${FM_MCP_RUNTIME:-bun}"
 AUDIT_LOG="${FM_AUDIT_LOG:-}"
 ACTOR="${FM_ACTOR:-local}"
@@ -77,7 +75,7 @@ esac
   || fail "FM_HOME/bin lacks fm-fleet-snapshot.sh: $FM_HOME_PINNED/bin" 2
 
 case "$SERVER" in
-  py) SERVER_CMD=(python3 "$ROOT/fm_mcp_server.py") ;;
+  py) fail "Python server retired; firstmate_mcp uses TypeScript server (ts)" 2 ;;
   ts)
     [ -f "$ROOT/ts/dist/server.js" ] \
       || fail "ts/dist/server.js missing: run (cd ts && bun install && bun run build) first" 2
@@ -89,7 +87,7 @@ case "$SERVER" in
       || fail "runtime unavailable: $RUNTIME" 2
     SERVER_CMD=("$RUNTIME" "$ROOT/ts/dist/server.js")
     ;;
-  *) fail "--server must be py or ts, got: $SERVER" 2 ;;
+  *) fail "--server must be ts, got: $SERVER" 2 ;;
 esac
 
 if [ -z "$AUDIT_LOG" ]; then

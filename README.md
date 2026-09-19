@@ -108,42 +108,41 @@ Refused by the adapter deny-list (no tool, answered unknown):
   `drift/shift.py` diffs the pin against upstream main and reports
   which depended-on surfaces moved, so TS/Python ports start from
   that report.
-- Subprocess envelope — `fm_mcp_server.py` returns every tool call within
+- Subprocess envelope — TypeScript server returns every tool call within
   `SUBPROCESS_TIMEOUT_S=30` with `MAX_OUTPUT_BYTES=1048576`,
   process-group kill on timeout so timed-out reads leave no orphans.
 - Async receipts — `receipt_submit` detaches one call past the 30s
   budget and returns a pending receipt; `receipt_status` reports
   running/done/failed with the result attached, TTL expiry, and
   per-home confinement so receipts never leak across homes.
-- Auth tiers in code — `auth/tiers.py` assigns every tool a tier,
-  `auth/audit.py` writes the JSON-lines audit log; every
-  authority-bearing tool refuses without an `I authorize` string.
+- Auth tiers in code — `ts/src/auth.ts` assigns every tool a tier,
+  writes the JSON-lines audit log; every authority-bearing tool
+  refuses without an `I authorize` string.
 - Contract map — `schema/contracts.yaml` declares the depended-on
   subset with stability tiers; `schema/validate.py` fails naming the
   stale pin; `schema/matrix.md` is the human view.
-- Conformance fixtures — `tests/conformance/` proves adapter output
-  equals the owning scripts' output via stub homes (skips cleanly
+- Conformance fixtures — `ts/tests/conformance.test.ts` proves TS server
+  output equals the owning scripts' output via stub homes (skips cleanly
   without a firstmate checkout).
 - Upstream preservation — `tests/upstream/` runs upstream firstmate
-  tests unchanged against both py and ts paths via thin adapters
+  tests unchanged against the TypeScript server via thin adapters
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` independently implements the same 57-tool
-  contract over stdio (no dependencies); `tests/conformance/ts-parity.sh`
-  diffs py/ts payloads field-for-field plus the TS equivalence fixtures.
+- TypeScript sibling — `ts/` implements the 57-tool
+  contract over stdio as the sole server (zero runtime dependencies beyond Effect);
+  `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Proof suites in this tree (all run in gates below):
-  - `test_client.py`
   - `tests/mcp-adapter.test.sh`
   - `tests/mcp-schema.test.sh`
   - `tests/drift-check.test.sh`
   - `tests/fm-mcp-authz.test.sh`
   - `tests/fm-coverage.test.sh`
+  - `tests/fm-manifest.test.sh`
   - `tests/conformance/conformance.sh`
   - `tests/conformance/ts-parity.sh`
   - `tests/upstream/run_upstream.sh`
   - `tests/test_drift.py`
-  - `auth/test_authz.py`
   - `ts/tests/server.test.ts`
   - `ts/tests/conformance.test.ts`
   - `ts/tests/auth.test.ts`
@@ -220,8 +219,7 @@ the trillium/firstmate commit the adapter was proven against. Everything runs
 against the fork; a shift report showing Kun fixed something becomes a
 deliberate port decision, never an automatic merge.
 
-**Runtime resolution order** (server, both implementations:
-`fm_mcp_server.py:30-31`, `ts/src/constants.ts`):
+**Runtime resolution order** (server: `ts/src/constants.ts`):
 
 1. `CHECKOUT_BIN` — repo-root `bin/` if present. Absent by design (never
    add one; it would shadow the live binding), so this always falls through.
@@ -230,15 +228,14 @@ deliberate port decision, never an automatic merge.
    `bin/fm-fleet-snapshot.sh`). With no checkout behind it, tool calls fail
    closed with `executable not found`.
 
-Test/conformance reference lookup only (never the server:
-`tests/conformance/test_conformance.py`, `tests/upstream/run_upstream.py`):
+Test/conformance reference lookup only:
 `FIRSTMATE_HOME` > `FM_REAL_HOME` > `FM_CHECKOUT` > well-known sibling
 checkout; the suite skips cleanly when none resolves.
 
 Example — point the server at a checkout:
 
 ```sh
-FM_HOME=/path/to/firstmate python3 fm_mcp_server.py
+FM_HOME=/path/to/firstmate bun ts/dist/server.js
 ```
 
 `fleet_snapshot` then dispatches `$FM_HOME/bin/fm-fleet-snapshot.sh`.
@@ -251,32 +248,38 @@ procedure ownership and cadence live on bead `task-8d0ah.2`.
 
 ## Quickstart
 
-Requirements: Python 3, stdlib only, no dependencies.
+Requirements: Bun (primary runtime) or Node 20+, Effect.
+
+Build the server:
+
+```sh
+cd ts && bun install && bun run build
+```
 
 Run the server (newline-delimited JSON-RPC on stdio, logs on stderr):
 
 ```sh
-python3 fm_mcp_server.py
+bun ts/dist/server.js
 ```
 
 Point it at a firstmate checkout to wire the live tools:
 
 ```sh
-FM_HOME=/path/to/firstmate python3 fm_mcp_server.py
+FM_HOME=/path/to/firstmate bun ts/dist/server.js
 ```
 
 Without a firstmate checkout beside it, the server resolves its tool scripts
 from `$FM_HOME/bin` and tool calls fail closed with `executable not found`.
 
-Run the end-to-end proof (72 checks, self-contained — no checkout needed):
+Run the end-to-end proof (335 checks, self-contained — no checkout needed):
 
 ```sh
-python3 test_client.py
+cd ts && bun run test:bun
 ```
 
 The suite handshakes, lists tools, exercises every read, proves traversal and
 validation refusals, proves approval gating on every authority-bearing tool,
-and proves every removed code-writing surface answers unknown-tool.
+proves audit duration_ms timing, and proves every removed code-writing surface answers unknown-tool.
 
 ## Cutover
 
@@ -288,13 +291,12 @@ scripts/fm-mcp-launch.sh --home /path/to/firstmate
 
 The launcher pins one `FM_HOME` (required: flag or env, absolute, carrying
 `bin/fm-fleet-snapshot.sh`), stays on stdio JSON-RPC (no TCP/SSE/network
-listeners — network flags are refused), and execs the proven Python server
-by default (`--server ts --runtime bun|node` selects the TypeScript sibling
-where `tests/conformance/ts-parity.sh` proves parity). Every allow and every
+listeners — network flags are refused), and execs the TypeScript server
+(`--runtime bun|node` selects the runtime). Every allow and every
 refuse appends one JSON line to the audit log (default
 `$FM_HOME/state/mcp-audit.jsonl`, override `FM_AUDIT_LOG`, actor via
-`FM_ACTOR`); approval tokens are stored as hashes only. See `AUTH.md` for
-the tiers and `CUTOVER-PROOF.md` for the live scratch-home proof (repro:
+`FM_ACTOR`; approval tokens stored as hashes, execution timing in `duration_ms`).
+See `AUTH.md` for the tiers and `CUTOVER-PROOF.md` for the live scratch-home proof (repro:
 `python3 scripts/cutover_prove.py` — scratch homes only, never the live
 fleet).
 
@@ -344,12 +346,10 @@ stay open because they change nothing.
   script.
 
 See `AUTH.md` for the tier list and the code-forbidden list. The
-`auth/` module enforces the same model in code: per-tool tier assignments,
-the explicit per-call approval check, and the JSON-lines audit format.
+`ts/src/auth.ts` module enforces the same model in code: per-tool tier assignments,
+the explicit per-call approval check, and the JSON-lines audit format with `duration_ms` timing.
 Trillium grants approval per call by writing that sentence for the exact
 tool and target, such as `I authorize lifecycle_interrupt on fm-task1`.
-See `auth/AUTH.md` for the mechanics and `auth/test_authz.py` for the
-allow/refuse proof.
 
 ## Contract map
 
@@ -473,10 +473,9 @@ ready-vs-not-ready ledger live in the notes of epic `task-5x79b`.
 
 ## Layout
 
-- `fm_mcp_server.py` — stdio MCP server, stdlib only.
-- `test_client.py` — 72-check end-to-end proof with a stub-home harness.
+- `ts/` — TypeScript MCP server (Effect composition, stdio transport, sole server).
 - `scripts/fm-mcp-launch.sh` — cutover launcher: pins one FM_HOME, local-only
-  stdio transport, execs the proven server (Python default, TS on request).
+  stdio transport, execs the TypeScript server.
 - `scripts/cutover_prove.py` — cutover proof driver against scratch homes
   only; writes `CUTOVER-PROOF.md`.
 - `CUTOVER-PROOF.md` — live scratch-home proof: read sweep, approval
@@ -484,12 +483,10 @@ ready-vs-not-ready ledger live in the notes of epic `task-5x79b`.
 - `INVENTORY.md` — capability inventory and typed mapping.
 - `FINDINGS.md` — smarts-only results and residual risks.
 - `AUTH.md` — authorization tiers and the code-forbidden list.
-- `auth/` — enforced tier assignments, approval check, and audit log,
-  with `auth/test_authz.py` covering every tier.
 - `schema/` — depended-on contract map, matrix view, and validator.
-- `adapter/` — compatibility boundary (dispatcher, validators, typed envelope, deny-list); spec in `docs/mcp-adapter.md`.
+- `manifest/` — durable feature manifest, coverage view, and validator.
 - `drift/` — firstmate drift detection (observed-inventory snapshots, diff engine, report emitters, `check` CLI, seeded baseline).
-- `tests/` — contract-map and adapter behavior tests.
+- `tests/` — contract-map, conformance, auth, and upstream preservation tests.
 - `LICENSE` — MIT.
 
 ## History

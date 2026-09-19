@@ -196,12 +196,13 @@ function auditAppend(
   reason: string,
   approval: unknown,
   target: string | null,
+  durationMs: number | null = null,
 ): void {
   try {
     const actor = process.env.FM_ACTOR ?? "local";
     appendAudit(
       auditPath(ctx),
-      buildLine(actor, tool, decision, reason, { approval, target }),
+      buildLine(actor, tool, decision, reason, { approval, target, duration_ms: durationMs }),
     );
   } catch {
     /* audit is best-effort; never break a tool call */
@@ -219,11 +220,12 @@ export function auditAppendEffect(
   reason: string,
   approval: unknown,
   target: string | null,
+  durationMs: number | null = null,
 ): Effect.Effect<void, never, AuditService> {
   return Effect.gen(function* () {
     const audit = yield* AuditService;
     const actor = process.env.FM_ACTOR ?? "local";
-    const line = buildLine(actor, tool, decision, reason, { approval, target });
+    const line = buildLine(actor, tool, decision, reason, { approval, target, duration_ms: durationMs });
     yield* audit.append(auditPath(ctx), line).pipe(Effect.ignore);
   });
 }
@@ -234,15 +236,18 @@ export async function handleToolsCall(
   ctx: ToolContext,
   send: (value: unknown) => void = writeLine,
 ): Promise<void> {
+  const start = performance.now();
   const name = params?.["name"] as string | undefined;
   const args = (params?.["arguments"] as Record<string, unknown> | undefined) ?? {};
   const toolLabel = typeof name === "string" ? name : "unknown";
   if (typeof name !== "string" || !(name in TOOLS)) {
+    const duration_ms = Math.max(0, Math.round(performance.now() - start));
     auditAppend(ctx, toolLabel, "refuse", "unknown-tool",
       typeof args === "object" && args !== null && !Array.isArray(args)
         ? (args as Record<string, unknown>)["approval"]
         : undefined,
-      auditTarget(args));
+      auditTarget(args),
+      duration_ms);
     send({
       jsonrpc: "2.0",
       id: msgId ?? null,
@@ -251,7 +256,8 @@ export async function handleToolsCall(
     return;
   }
   if (typeof args !== "object" || args === null || Array.isArray(args)) {
-    auditAppend(ctx, toolLabel, "refuse", "validation-failed", undefined, null);
+    const duration_ms = Math.max(0, Math.round(performance.now() - start));
+    auditAppend(ctx, toolLabel, "refuse", "validation-failed", undefined, null, duration_ms);
     send({
       jsonrpc: "2.0",
       id: msgId ?? null,
@@ -267,6 +273,7 @@ export async function handleToolsCall(
     payload = { error: "tool crashed", detail: String(exc) };
     isError = true;
   }
+  const duration_ms = Math.max(0, Math.round(performance.now() - start));
   {
     const [decision, reason] = auditDecision(args, payload, isError);
     let approval = (args as Record<string, unknown>)["approval"];
@@ -276,7 +283,7 @@ export async function handleToolsCall(
         approval = (nested as Record<string, unknown>)["approval"];
       }
     }
-    auditAppend(ctx, toolLabel, decision, reason, approval, auditTarget(args));
+    auditAppend(ctx, toolLabel, decision, reason, approval, auditTarget(args), duration_ms);
   }
   const result: Record<string, unknown> = {
     content: [{ type: "text", text: JSON.stringify(payload) }],
@@ -298,6 +305,7 @@ export function handleToolsCallEffect(
   send: (value: unknown) => void = writeLine,
 ): Effect.Effect<void, never, AuditService> {
   return Effect.gen(function* () {
+    const start = performance.now();
     const name = params?.["name"] as string | undefined;
     const args = (params?.["arguments"] as Record<string, unknown> | undefined) ?? {};
     const toolLabel = typeof name === "string" ? name : "unknown";
@@ -306,8 +314,10 @@ export function handleToolsCallEffect(
       reason: string,
       approval: unknown,
       target: string | null,
-    ) => auditAppendEffect(ctx, toolLabel, decision, reason, approval, target);
+      durationMs: number | null,
+    ) => auditAppendEffect(ctx, toolLabel, decision, reason, approval, target, durationMs);
     if (typeof name !== "string" || !(name in TOOLS)) {
+      const duration_ms = Math.max(0, Math.round(performance.now() - start));
       yield* append(
         "refuse",
         "unknown-tool",
@@ -315,6 +325,7 @@ export function handleToolsCallEffect(
           ? (args as Record<string, unknown>)["approval"]
           : undefined,
         auditTarget(args),
+        duration_ms,
       );
       send({
         jsonrpc: "2.0",
@@ -324,7 +335,8 @@ export function handleToolsCallEffect(
       return;
     }
     if (typeof args !== "object" || args === null || Array.isArray(args)) {
-      yield* append("refuse", "validation-failed", undefined, null);
+      const duration_ms = Math.max(0, Math.round(performance.now() - start));
+      yield* append("refuse", "validation-failed", undefined, null, duration_ms);
       send({
         jsonrpc: "2.0",
         id: msgId ?? null,
@@ -346,6 +358,7 @@ export function handleToolsCallEffect(
       payload = { error: "tool crashed", detail: String(outcome.error) };
       isError = true;
     }
+    const duration_ms = Math.max(0, Math.round(performance.now() - start));
     {
       const [decision, reason] = auditDecision(args, payload, isError);
       let approval = (args as Record<string, unknown>)["approval"];
@@ -355,7 +368,7 @@ export function handleToolsCallEffect(
           approval = (nested as Record<string, unknown>)["approval"];
         }
       }
-      yield* append(decision, reason, approval, auditTarget(args));
+      yield* append(decision, reason, approval, auditTarget(args), duration_ms);
     }
     const result: Record<string, unknown> = {
       content: [{ type: "text", text: JSON.stringify(payload) }],
