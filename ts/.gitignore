@@ -2,3 +2,4 @@ node_modules/
 dist/
 testbuild/
 *.log
+.test-failures.json

@@ -132,6 +132,9 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - TypeScript sibling — `ts/` implements the 57-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
+- Customizable follow-on actions — `ts/src/followon.ts` provides configurable
+  chained follow-on actions for any MCP tool with condition evaluation,
+  context forwarding, strict anti-laundering auth gates, and loop termination.
 - Proof suites in this tree (all run in gates below):
   - `tests/mcp-adapter.test.sh`
   - `tests/mcp-schema.test.sh`
@@ -146,6 +149,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   - `ts/tests/server.test.ts`
   - `ts/tests/conformance.test.ts`
   - `ts/tests/auth.test.ts`
+  - `ts/tests/followon.test.ts`
 
 ### Support-coverage view (per upstream command area)
 

@@ -958,6 +958,16 @@ features:
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/server.ts:server", "ts/src/tools.ts:fleet_snapshot"]}
     divergence: {status: not-applicable, reason: ""}
+  - id: followon_actions
+    kind: local
+    summary: Generalized customizable follow-on actions and action chains for MCP tool executions with condition evaluation, context forwarding, auth tier enforcement, and loop prevention.
+    local_path: ts/src/followon.ts
+    contract: docs/FOLLOWON_DESIGN.md (trigger model, condition predicates, context forwarding, anti-laundering auth gates, and loop termination proof)
+    upstream_test: "n/a (local) — proof: ts/tests/followon.test.ts (24-check suite) via bun run test:bun and npm test"
+    readme_anchor: Customizable follow-on actions
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/followon.ts:FollowOnService", "ts/src/followon.ts:executeFollowOnsEffect", "ts/tests/followon.test.ts:describe"]}
+    divergence: {status: not-applicable, reason: ""}
   # ---- FORK DELTAS: trillium/firstmate behavior changes vs upstream kunchenguid ----
   - id: brief_herdr_lab_safety
     kind: fork

@@ -17,6 +17,7 @@ import {
   SUPPORTED_PROTOCOL_VERSIONS,
 } from "./constants.js";
 import { AuditService, appendAudit, buildLine } from "./auth.js";
+import { FollowOnService, FollowOnLive } from "./followon.js";
 import { TOOLS, liveContext, type ToolContext } from "./tools.js";
 import { MainLive } from "./layers.js";
 
@@ -290,6 +291,23 @@ export async function handleToolsCall(
   };
   if (isError) result["isError"] = true;
   send({ jsonrpc: "2.0", id: msgId ?? null, result });
+
+  // Execute configured follow-on actions with complete failure isolation
+  try {
+    const followOnProgram = Effect.gen(function* () {
+      const followOn = yield* FollowOnService;
+      yield* followOn.executeFollowOns(
+        { tool: name, args, payload, isError },
+        ctx,
+      );
+    }).pipe(
+      Effect.provide(MainLive),
+      Effect.catchAll(() => Effect.void),
+    );
+    await Effect.runPromise(followOnProgram);
+  } catch {
+    /* follow-ons are isolated; never throw */
+  }
 }
 
 /**
@@ -375,6 +393,14 @@ export function handleToolsCallEffect(
     };
     if (isError) result["isError"] = true;
     send({ jsonrpc: "2.0", id: msgId ?? null, result });
+
+    // Execute configured follow-on actions with complete failure isolation
+    const followOnOpt = yield* Effect.serviceOption(FollowOnService);
+    if (followOnOpt._tag === "Some") {
+      yield* followOnOpt.value
+        .executeFollowOns({ tool: name, args, payload, isError }, ctx)
+        .pipe(Effect.catchAll(() => Effect.void));
+    }
   });
 }
 

@@ -12,16 +12,24 @@ import { Layer } from "effect";
 import { AuditLive, AuditService } from "./auth.js";
 import { ConfigService, makeConfigLive } from "./config.js";
 import { EnvelopeLive, EnvelopeService } from "./envelope.js";
+import { FollowOnLive, FollowOnService } from "./followon.js";
 import { RunnerLive, RunnerService } from "./runner.js";
 
-export type AppServices = ConfigService | RunnerService | AuditService | EnvelopeService;
+export type AppServices =
+  | ConfigService
+  | RunnerService
+  | AuditService
+  | EnvelopeService
+  | FollowOnService;
 
 export const MainLive: Layer.Layer<AppServices, never, never> = Layer.mergeAll(
   makeConfigLive(),
   RunnerLive,
   AuditLive,
   EnvelopeLive,
+  FollowOnLive,
 );
 
 /** Narrower graph for dispatch (config is read eagerly into ToolContext). */
-export const DispatchLive: Layer.Layer<AuditService, never, never> = AuditLive;
+export const DispatchLive: Layer.Layer<AuditService | FollowOnService, never, never> =
+  Layer.mergeAll(AuditLive, FollowOnLive);
