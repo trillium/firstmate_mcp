@@ -58,6 +58,12 @@ When updating this file, preserve this bar for all agents and keep entries conci
   `scripts/mcp-shift-schedule.sh`, daily job
   `.github/workflows/mcp-shift-schedule.yml`, fake-feed proof
   `tests/mcp-shift-atom.test.sh` (plus `tests/mcp-shift-schedule.test.sh`).
+- Dual provenance: the Kun fingerprint (submodule gitlink + drift baseline,
+  radar watched by drift/shift.py) and the trillium/firstmate working-copy pin
+  (proven commit + date) live together in manifest/FEATURES.yaml
+  (`upstream` + `fork` blocks) and schema/contracts.yaml (`provenance`);
+  both validators fail loudly on missing/stale pins. A Kun shift report is a
+  deliberate port decision, never an automatic merge.
 - Coverage provenance outside `bin/fm-*.sh` (e.g. `bin/fm_voice_records.py`)
   needs a `bin/` key in `scripts/gen_coverage.py` COMMAND_AREAS; it renders
   via the special-rows path, never the upstream `.sh` enumeration.

@@ -2,7 +2,26 @@
 # This file declares which firstmate surfaces the MCP superset depends on and how strictly.
 # Behavior owners stay the script headers; this file is the dependency declaration only.
 # Tiers and the observed-vs-depended-on rule are explained in README.md and schema/matrix.md.
+# Dual provenance: `provenance.upstream` is the kunchenguid fingerprint (early-warning
+# radar watched by drift/shift.py); `provenance.fork` is the trillium/firstmate working
+# copy everything runs against. Values must match manifest/FEATURES.yaml (checked by
+# schema/validate.py); a Kun shift report is a deliberate port decision, never a merge.
 version: v1
+provenance:
+  upstream:
+    repo: https://github.com/kunchenguid/firstmate.git
+    submodule: sources/firstmate
+    gitlink: 3eb5b6334a80e06083e3837f0032a5cec39b8e52
+    baseline: drift/baseline.json
+    baseline_rev: aaf67489
+    baseline_surfaces: 163
+    role: radar
+  fork:
+    repo: https://github.com/trillium/firstmate.git
+    proven_commit: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    proven_date: "2026-09-17"
+    basis: UPSTREAM-RESULTS.md seed 2026-09-18 plus CUTOVER-PROOF.md basis 2026-09-17
+    role: working-copy
 contracts:
   - name: fleet_snapshot
     command: bin/fm-fleet-snapshot.sh

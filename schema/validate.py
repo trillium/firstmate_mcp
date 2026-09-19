@@ -2,10 +2,13 @@
 """Validate schema/contracts.yaml against schema/contracts.schema.json.
 
 Commodity validator: JSON Schema draft 2020-12 via the `jsonschema` package,
-plus two semantic checks the schema cannot express: the owning command must
-exist for bin/ paths, and the version pin must match the current pin table.
+plus semantic checks the schema cannot express: the owning command must
+exist for bin/ paths, the version pin must match the current pin table,
+and the dual provenance pins (upstream radar + fork working-copy) must be
+present and agree with manifest/FEATURES.yaml.
 Usage: python3 schema/validate.py [contracts.yaml]
-Exit 0 Valid. Exit 2 Schema violation. Exit 3 Stale pin or unknown command.
+Exit 0 Valid. Exit 2 Schema violation. Exit 3 Stale pin, unknown command,
+or missing/mismatched provenance pins.
 """
 import json
 import os
@@ -26,6 +29,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = ROOT / "schema" / "contracts.schema.json"
+FEATURES_PATH = ROOT / "manifest" / "FEATURES.yaml"
 
 CURRENT_PINS = {
     "fleet_snapshot": "fm-fleet-snapshot.v1",
@@ -108,6 +112,15 @@ def main():
         fail(2, f"contracts {target} is not valid YAML: {exc}")
 
     validator = Draft202012Validator(schema)
+    # YAML parses an unquoted date into a date object; normalize to ISO so a
+    # well-formed pin validates as the string the schema requires.
+    import datetime
+    try:
+        fork_date = data["provenance"]["fork"]["proven_date"]
+        if isinstance(fork_date, (datetime.date, datetime.datetime)):
+            data["provenance"]["fork"]["proven_date"] = fork_date.isoformat()
+    except (KeyError, TypeError):
+        pass
     errors = sorted(validator.iter_errors(data), key=lambda e: list(e.path))
     if errors:
         for err in errors[:5]:
@@ -127,7 +140,38 @@ def main():
                     f"does not match current '{current}' "
                     f"(see {entry.get('evidence', {}).get('header', '?')})")
 
-    print(f"validate: ok: {len(data.get('contracts', []))} contract(s) from {target}")
+    # Dual provenance: the upstream (radar) and fork (working-copy) pins must
+    # both be present and must agree with manifest/FEATURES.yaml. Shape is
+    # enforced by the JSON schema above; here the pins must match the manifest
+    # so the two files can never bless different commits. Fail loudly.
+    prov = data.get("provenance")
+    if not isinstance(prov, dict):
+        fail(3, f"{target} carries no provenance block: record both pins "
+                "(upstream radar + fork working-copy), never ship one silently")
+    try:
+        features = yaml.safe_load(FEATURES_PATH.read_text(encoding="utf-8"))
+    except OSError as exc:
+        fail(3, f"cannot read manifest pins {FEATURES_PATH}: {exc}")
+    except yaml.YAMLError as exc:
+        fail(3, f"manifest pins {FEATURES_PATH} are not valid YAML: {exc}")
+    fup, ffork = features.get("upstream") or {}, features.get("fork") or {}
+    cup, cfork = prov.get("upstream") or {}, prov.get("fork") or {}
+    def norm(value):
+        return value.isoformat() if isinstance(value, (datetime.date, datetime.datetime)) else value
+    pairs = [
+        (norm(cup.get("gitlink")), norm(fup.get("gitlink_at_seed")), "upstream gitlink"),
+        (norm(cup.get("baseline_rev")), norm(fup.get("baseline_rev_at_seed")), "upstream baseline_rev"),
+        (norm(cup.get("baseline_surfaces")), norm(fup.get("baseline_surfaces_at_seed")), "upstream baseline_surfaces"),
+        (norm(cfork.get("proven_commit")), norm(ffork.get("proven_commit")), "fork proven_commit"),
+        (norm(cfork.get("proven_date")), norm(ffork.get("proven_date")), "fork proven_date"),
+    ]
+    for got, want, label in pairs:
+        if got in (None, "") or want in (None, "") or got != want:
+            fail(3, f"provenance {label} is missing or stale: contracts {got!r} vs "
+                    f"manifest {want!r} — re-seed both pins together")
+
+    print(f"validate: ok: {len(data.get('contracts', []))} contract(s) from {target}; "
+          f"provenance pins agree (upstream radar + fork working-copy)")
 
 
 if __name__ == "__main__":

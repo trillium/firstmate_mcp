@@ -29,6 +29,13 @@ tool plus py/ts status, denied-by-design with reason, or unmirrored gap.
 - Behavior owners stay the script headers; `schema/contracts.yaml` owns the
   depended-on declaration. This manifest tracks identity and status only.
 
+Radar vs working copy: the pins above are the kunchenguid fingerprint —
+early-warning radar watched by `drift/shift.py` — while the `fork` block in
+`FEATURES.yaml` (trillium/firstmate proven commit, mirrored in
+`schema/contracts.yaml`) is the working copy everything runs against. A shift
+report showing Kun fixed something is a deliberate port decision, never an
+automatic merge.
+
 ## Mirrored capabilities (35)
 
 | Feature | Upstream surface | Contract | py | ts | Divergence |
