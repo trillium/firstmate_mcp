@@ -45,18 +45,18 @@ When updating this file, preserve this bar for all agents and keep entries conci
   go through `receipt_submit`/`receipt_status` (receipts under
   `state/mcp-receipts/`, `RECEIPT_TIMEOUT_S=180`, `RECEIPT_TTL_S=3600`,
   per-home confinement).
-- TypeScript server (`ts/`, stdio sole server, Effect composition): bun is the
-  primary runtime (`bun install`, `bun run test:bun` is the full TS proof);
-  node stays as fallback compat (`npm test` must stay green alongside).
-  `bash tests/conformance/ts-parity.sh` runs proof suites and conformance fixtures
-  under both runtimes.
+- TypeScript server (`ts/`, stdio sole server, Effect composition): pnpm is the
+  package manager (`pnpm install`), bun is the primary runtime (`bun run test:bun`
+  is the full TS proof); node stays as fallback compat (`pnpm test` / `npm test`
+  must stay green alongside). `bash tests/conformance/ts-parity.sh` runs proof suites
+  and conformance fixtures under both runtimes.
 - Follow-on actions (`ts/src/followon.ts`, design `docs/FOLLOWON_DESIGN.md`):
   generalized hook engine for MCP actions; auth tiers enforced per action
   (never launders authority from open reads to Tier 3/4 writes), bounded
   DAG loop termination (depth cap + cycle detection + action budget).
-- Test runner: `npm run test:dev` / `bun run test:dev` selectively reruns
+- Test runner: `pnpm run test:dev` / `bun run test:dev` selectively reruns
   recorded failing test files during local development, while CI and PR
-  always run the full suite (`npm test`, `bun run test:bun`).
+  always run the full suite (`pnpm test`, `bun run test:bun`).
 - Upstream-shift watch: `drift/shift.py` polls the upstream Atom feed
   first (`drift/atom.py`: feed SHA vs the pin as cached SHA, quiet when
   unchanged, loud `ATOM PARSE FAILURE` on malformed feeds, fail-open to

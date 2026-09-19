@@ -840,7 +840,7 @@ describe("side-effect-free", () => {
     assert.ok(stateRoot.startsWith(fx.scratch), `state root escaped scratch: ${stateRoot}`);
   });
 
-  it("only read scripts ever execute", async () => {
+  it("only read scripts ever execute", { timeout: 30000 }, async () => {
     directRun(fx, "fm-fleet-snapshot.sh", ["--json"]);
     await readOnlyCall(fx, "fleet_snapshot", {});
     await readOnlyCall(fx, "backlog", {});

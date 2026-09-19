@@ -12,19 +12,19 @@ No SSE / streamable HTTP (out of scope, same as the Python path).
 
 ## Run
 
-Primary runtime: Bun (faster, leaner). Node 20+ stays as fallback compat.
+Package manager: pnpm. Primary runtime: Bun (faster, leaner). Node 20+ stays as fallback compat.
 
 ```sh
-bun install   # one-time: effect runtime + TypeScript + @types/node (dev)
-bun run build # compile src/ -> dist/
+pnpm install   # one-time: effect runtime + TypeScript + @types/node (dev)
+pnpm run build # compile src/ -> dist/
 FM_HOME=/path/to/firstmate bun dist/server.js
 ```
 
 Node fallback (same wire, same behavior):
 
 ```sh
-npm install
-npm run build
+pnpm install
+pnpm run build
 FM_HOME=/path/to/firstmate node dist/server.js
 ```
 
@@ -34,20 +34,20 @@ checks) can point at either server unchanged.
 
 ## Test
 
-Bun first (primary), node as fallback — both must stay green:
+Bun first (primary runtime), node as fallback compat — both must stay green:
 
 ```sh
 bun run test:bun  # full proof under bun: 167 checks (validators, envelope, auth, server, runner, conformance)
-npm test          # same proof under node (fallback compat)
+pnpm test         # same proof under node (fallback compat)
 ```
 
 Focused suites:
 
 ```sh
-bun run test:fast:bun  # pure unit suites under bun (no subprocess, <1s)
-npm run test:fast      # pure unit suites under node
+bun run test:fast:bun   # pure unit suites under bun (no subprocess, <1s)
+pnpm run test:fast      # pure unit suites under node
 bun run conformance:bun # read-tool equivalence fixtures under bun
-npm run conformance     # read-tool equivalence fixtures under node
+pnpm run conformance    # read-tool equivalence fixtures under node
 ```
 
 `tests/server.test.ts` mirrors the upstream 103-check proof (stub homes via
@@ -62,7 +62,7 @@ lives in the shared suite: `bash tests/conformance/ts-parity.sh`.
 
 Pure contract modules keep their exact wire behavior; Effect Layers/Services
 compose them without throwing. Pinned dependency: `effect@3.22.2`
-(`bun add effect@3.22.2`, `npm install` keeps `package-lock.json` in sync).
+(`pnpm add effect@3.22.2`, `pnpm install` keeps `pnpm-lock.yaml` in sync).
 
 - `src/constants.ts` — server identity, protocol versions, envelope sizes, id/project shapes, modes, verdicts.
 - `src/errors.ts` — typed errors (`DeniedFlagError`, `ValidationError`, `ApprovalRequired/InvalidError`, `ExecutableNotFoundError`, `SubprocessTimeoutError`, `SubprocessFailedError`, `Unknown/ForbiddenToolError`, `AuditError`) with legacy payload mapping; no `throw` on the Effect path.
