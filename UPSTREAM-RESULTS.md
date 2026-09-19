@@ -1,6 +1,6 @@
 # UPSTREAM-RESULTS
 
-Seeded: 2026-09-19T17:05:29Z via `bash tests/upstream/run_upstream.sh` (`python3 tests/upstream/run_upstream.py --write-results`).
+Seeded: 2026-09-19T21:25:19Z via `bash tests/upstream/run_upstream.sh` (`python3 tests/upstream/run_upstream.py --write-results`).
 
 - upstream repo: `https://github.com/kunchenguid/firstmate.git`
 - gitlink pin: `65a3bac6031286b4058360859a9522a50a09bb14`
@@ -52,18 +52,6 @@ ok - wrong-id
 - ts (bun): **pass**
   - `crew_state:crew_state {'id': 'no-such-crew'}` — ts pass
   - `crew_state:crew_state {'id': '../escape'}` — ts pass
-  - `crew_state:crew_state {'id': '../escape'}` — py pass, ts pass
-=======
-- upstream ref: **pass** — exit 0; tail: ok - local work advanced past run head invalidates attribution
-ok - pipeline-owned active run binds without head equality and beats the failed row
-ok - a genuinely failed run with no later run is not hidden
-ok - coarse scan anchors the unresolvable active row instead of falling to an older one
-ok - coarse scan with a mismatched anchor stays unknown and lets the pane answer
-ok - the e
-- ts (bun): **pass**
-  - `crew_state:crew_state {'id': 'no-such-crew'}` — ts pass
-  - `crew_state:crew_state {'id': '../escape'}` — ts pass
->>>>>>> 7a9dd60 (feat(rewire): update generators, CI, test harnesses, and manifest for TS sole server)
 
 ### status_tail
 
