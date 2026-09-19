@@ -13,12 +13,19 @@ Checks, in order:
      a note explaining what is partial.
   4. Divergence: intentional requires a reason, none/not-applicable require
      an empty reason, and local entries must be not-applicable.
+  5. Provenance: both pins present and well-formed — the upstream (Kun)
+     fingerprint block and the fork (trillium/firstmate) working-copy block —
+     cross-checked against the tree (submodule gitlink, drift/baseline.json)
+     and against schema/contracts.yaml's provenance block. Missing, malformed,
+     or drifted pins fail loudly, never silently.
 
 Usage: python3 manifest/validate.py [FEATURES.yaml]
-Exit 0 Valid. Exit 2 Structural violation. Exit 3 Coverage, honesty, or
-divergence violation.
+Exit 0 Valid. Exit 2 Structural violation (including missing/malformed pins).
+Exit 3 Coverage, honesty, divergence, or stale-pin violation.
 """
+import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -33,6 +40,8 @@ DEFAULT_TARGET = ROOT / "manifest" / "FEATURES.yaml"
 CONTRACTS_PATH = ROOT / "schema" / "contracts.yaml"
 
 ID_RE = re.compile(r"^[a-z0-9_]+$")
+SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 KINDS = ("upstream-mirror", "local")
 STATUSES = ("implemented", "partial", "missing")
 DIVERGENCE = ("none", "intentional", "not-applicable")
@@ -92,6 +101,114 @@ def check_evidence(entry_id, side, impl):
     return errors
 
 
+def live_gitlink():
+    """The submodule gitlink recorded at HEAD (works even when the
+    submodule itself is not checked out in this worktree)."""
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-tree", "HEAD", "sources/firstmate"],
+            capture_output=True, text=True, timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return None, f"git ls-tree failed: {exc}"
+    if proc.returncode != 0:
+        return None, proc.stderr.strip() or "git ls-tree exited nonzero"
+    m = re.search(r"\b[0-9a-f]{40}\b", proc.stdout)
+    if not m:
+        return None, f"no gitlink in ls-tree output: {proc.stdout.strip()!r}"
+    return m.group(0), ""
+
+
+def check_provenance(data):
+    """Both pins present, well-formed, and agreeing with the tree.
+    Returns (structural_errors, stale_errors)."""
+    structural, stale = [], []
+    up = data.get("upstream")
+    fork = data.get("fork")
+    if not isinstance(up, dict):
+        structural.append("missing 'upstream' provenance block (Kun fingerprint pin)")
+    if not isinstance(fork, dict):
+        structural.append("missing 'fork' provenance block (working-copy pin)")
+    if structural:
+        return structural, stale
+    for field in ("repo", "submodule", "gitlink_at_seed", "baseline",
+                  "baseline_rev_at_seed", "baseline_surfaces_at_seed", "role"):
+        if up.get(field) in (None, ""):
+            structural.append(f"upstream provenance is missing '{field}'")
+    for field in ("repo", "proven_commit", "proven_date", "basis", "role"):
+        if fork.get(field) in (None, ""):
+            structural.append(f"fork provenance is missing '{field}'")
+    if structural:
+        return structural, stale
+    # YAML parses an unquoted date into a date object; accept it loudly by
+    # normalizing to ISO rather than failing a well-formed pin.
+    import datetime
+    if isinstance(fork.get("proven_date"), (datetime.date, datetime.datetime)):
+        fork["proven_date"] = fork["proven_date"].isoformat()
+    if not SHA40_RE.match(up["gitlink_at_seed"]):
+        structural.append("upstream gitlink_at_seed must be a 40-char hex commit")
+    if up.get("role") != "radar":
+        structural.append("upstream provenance role must be 'radar' (early-warning only)")
+    if not SHA40_RE.match(fork["proven_commit"]):
+        structural.append("fork proven_commit must be a 40-char hex commit")
+    if not DATE_RE.match(fork["proven_date"]):
+        structural.append("fork proven_date must be YYYY-MM-DD")
+    if fork.get("role") != "working-copy":
+        structural.append("fork provenance role must be 'working-copy'")
+    if structural:
+        return structural, stale
+
+    # Stale checks against the live tree — fail loudly, never silently.
+    gitlink, err = live_gitlink()
+    if gitlink is None:
+        stale.append(f"cannot verify upstream gitlink against HEAD: {err}")
+    elif gitlink != up["gitlink_at_seed"]:
+        stale.append(
+            f"upstream gitlink_at_seed {up['gitlink_at_seed'][:9]} is stale: "
+            f"HEAD records {gitlink[:9]} — re-seed the pin, never ignore the drift"
+        )
+    baseline_path = ROOT / "drift" / "baseline.json"
+    try:
+        baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        stale.append(f"cannot read {baseline_path}: {exc}")
+        baseline = {}
+    if isinstance(baseline, dict):
+        rev = baseline.get("firstmate_revision", "")
+        if rev and not rev.startswith(up["baseline_rev_at_seed"]):
+            stale.append(
+                f"upstream baseline_rev_at_seed {up['baseline_rev_at_seed']!r} is stale: "
+                f"drift/baseline.json records {rev!r} — re-seed the pin"
+            )
+        surfaces = baseline.get("surfaces", [])
+        if isinstance(surfaces, list) and len(surfaces) != up["baseline_surfaces_at_seed"]:
+            stale.append(
+                f"upstream baseline_surfaces_at_seed {up['baseline_surfaces_at_seed']} is stale: "
+                f"drift/baseline.json carries {len(surfaces)} surfaces — re-seed the pin"
+            )
+    contracts = load_yaml(CONTRACTS_PATH)
+    prov = contracts.get("provenance") if isinstance(contracts, dict) else None
+    if not isinstance(prov, dict):
+        stale.append(f"{CONTRACTS_PATH} carries no provenance block to match the manifest pins")
+    else:
+        cup = prov.get("upstream") or {}
+        cfork = prov.get("fork") or {}
+        pairs = [
+            (cup.get("gitlink"), up["gitlink_at_seed"], "upstream gitlink"),
+            (cup.get("baseline_rev"), up["baseline_rev_at_seed"], "upstream baseline_rev"),
+            (cup.get("baseline_surfaces"), up["baseline_surfaces_at_seed"], "upstream baseline_surfaces"),
+            (cfork.get("proven_commit"), fork["proven_commit"], "fork proven_commit"),
+            (cfork.get("proven_date"), fork["proven_date"], "fork proven_date"),
+        ]
+        for got, want, label in pairs:
+            if got != want:
+                stale.append(
+                    f"{CONTRACTS_PATH} provenance {label} {got!r} does not match "
+                    f"manifest/FEATURES.yaml {want!r} — pins must agree, re-seed both"
+                )
+    return structural, stale
+
+
 def main():
     target = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_TARGET
     data = load_yaml(target)
@@ -141,6 +258,16 @@ def main():
         elif div["status"] in ("none", "not-applicable") and reason:
             fail(3, f"feature '{fid}' divergence '{div['status']}' must carry an empty reason")
 
+    structural, stale = check_provenance(data)
+    if structural:
+        for err in structural[:10]:
+            print(f"validate: provenance {err}", file=sys.stderr)
+        fail(2, f"{len(structural)} provenance pin(s) missing or malformed in {target}")
+    if stale:
+        for err in stale[:10]:
+            print(f"validate: provenance {err}", file=sys.stderr)
+        fail(3, f"{len(stale)} stale provenance pin(s) in {target}")
+
     # Contract coverage: every schema contract name has a manifest entry.
     contracts = load_yaml(CONTRACTS_PATH)
     try:
@@ -173,7 +300,10 @@ def main():
     print(
         f"manifest ok: {len(features)} features "
         f"({n_mirror} mirrored, {n_local} local, {n_div} intentional divergences), "
-        f"{len(names)} schema contracts covered, evidence spot-checked"
+        f"{len(names)} schema contracts covered, evidence spot-checked, "
+        f"provenance pins verified "
+        f"(upstream {data['upstream']['gitlink_at_seed'][:9]} radar + "
+        f"fork {data['fork']['proven_commit'][:9]} working-copy)"
     )
     return 0
 

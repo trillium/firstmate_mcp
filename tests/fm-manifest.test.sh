@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Behavior tests for manifest/FEATURES.yaml: the durable feature manifest.
 # Exercises the public interface (manifest/validate.py plus the generator's
-# --check-manifest wiring) five ways: the seed validates, every schema
+# --check-manifest wiring) seven ways: the seed validates, every schema
 # contract has an entry, a divergence without a reason fails naming the
-# entry, a status claiming a nonexistent implementation fails, and the
-# generated README lists agree with the manifest.
+# entry, a status claiming a nonexistent implementation fails, the generated
+# README lists agree with the manifest, a missing fork pin fails naming it,
+# and a stale upstream gitlink fails naming the drift.
 # Self-contained: fixtures are tmp copies of the seed, no checkout needed.
 set -u
 
@@ -109,6 +110,40 @@ PYEOF
   assert_contains "$out" "backlog" "coverage failure did not name the contract"
 }
 
+test_missing_fork_pin_fails() {
+  local bad="$TMP_ROOT/nofork.yaml" out status
+  cp "$SEED" "$bad"
+  python3 - "$bad" <<'PYEOF'
+import sys
+text = open(sys.argv[1]).read()
+start = text.index("fork:")
+end = text.index("features:")
+open(sys.argv[1], "w").write(text[:start] + text[end:])
+PYEOF
+  out=$(python3 "$VALIDATOR" "$bad" 2>&1)
+  status=$?
+  expect_code 2 "$status" "a manifest missing the fork pin should exit 2" "$out"
+  assert_contains "$out" "fork" "missing-pin failure did not name the fork pin"
+}
+
+test_stale_gitlink_fails() {
+  local bad="$TMP_ROOT/stalelink.yaml" out status
+  cp "$SEED" "$bad"
+  python3 - "$bad" <<'PYEOF'
+import sys
+text = open(sys.argv[1]).read()
+needle = "gitlink_at_seed: 3eb5b6334a80e06083e3837f0032a5cec39b8e52"
+assert needle in text, "seed shape changed; update this fixture"
+open(sys.argv[1], "w").write(
+    text.replace(needle, "gitlink_at_seed: aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", 1)
+)
+PYEOF
+  out=$(python3 "$VALIDATOR" "$bad" 2>&1)
+  status=$?
+  expect_code 3 "$status" "a stale upstream gitlink should exit 3" "$out"
+  assert_contains "$out" "stale" "stale-pin failure did not say 'stale'"
+}
+
 test_generator_manifest_check() {
   local out status
   out=$(python3 "$GEN" --check-manifest 2>&1)
@@ -123,5 +158,7 @@ test_seed_validates
 test_divergence_without_reason_fails
 test_phantom_implementation_fails
 test_missing_contract_entry_fails
+test_missing_fork_pin_fails
+test_stale_gitlink_fails
 test_generator_manifest_check
 pass "feature manifest validates; coverage, honesty, divergence, and generator wiring behave"

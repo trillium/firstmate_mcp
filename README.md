@@ -213,6 +213,13 @@ confirm it with `git ls-tree HEAD sources/firstmate`.
 `bin/fm-*.sh` surfaces inventoried 2026-09-17) is the drift inventory the
 depended-on contracts are checked against. The two advance separately.
 
+Radar vs working copy: the gitlink and baseline above are the upstream
+fingerprint — early-warning radar via `drift/shift.py` — while the `fork`
+block in `manifest/FEATURES.yaml` (mirrored in `schema/contracts.yaml`) pins
+the trillium/firstmate commit the adapter was proven against. Everything runs
+against the fork; a shift report showing Kun fixed something becomes a
+deliberate port decision, never an automatic merge.
+
 **Runtime resolution order** (server, both implementations:
 `fm_mcp_server.py:30-31`, `ts/src/constants.ts`):
 
