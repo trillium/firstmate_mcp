@@ -78,7 +78,7 @@ case "$SERVER" in
   py) fail "Python server retired; firstmate_mcp uses TypeScript server (ts)" 2 ;;
   ts)
     [ -f "$ROOT/ts/dist/server.js" ] \
-      || fail "ts/dist/server.js missing: run (cd ts && bun install && bun run build) first" 2
+      || fail "ts/dist/server.js missing: run (cd ts && pnpm install && pnpm run build) first" 2
     case "$RUNTIME" in
       bun|node) : ;;
       *) fail "--runtime must be bun or node, got: $RUNTIME" 2 ;;
