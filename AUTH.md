@@ -22,6 +22,12 @@ No edit, commit, merge, or PR tools exist in this layer.
 No direct repo mutation paths exist in this layer.
 No teardown that discards work exists in this layer.
 No promote-to-ship paths exist in this layer.
+
+Audit log format:
+Every allow and every refuse appends exactly one JSON object per line.
+Each line carries these keys: `v` (format version, currently 1), `ts` (UTC `YYYY-MM-DDTHH:MM:SSZ`), `actor` (invoking identity), `tool` (requested tool name), `tier` (1, 2, 3, 4, `forbidden`, or null when unknown), `decision` (`allow` or `refuse`), `reason` (`ok`, `approval-required`, `approval-invalid`, `validation-failed`, `unknown-tool`, or `forbidden`), `approval_ref` (16 hex chars of the token hash, or null when no token was presented), `target` (primary id or null), and `duration_ms` (integer execution time in ms from call start to envelope close, or null).
+Example: `{"actor": "local", "approval_ref": null, "decision": "allow", "duration_ms": 142, "reason": "ok", "target": null, "tier": 1, "tool": "fleet_snapshot", "ts": "2026-09-19T10:00:00Z", "v": 1}`.
+
 Safety notes that survive the smarts-only trim.
 The MCP layer never reimplements policy: every tool shells to the owning `bin/` script and the script still fails closed.
 Relay sends still require relay consent (`FMX_PAIRING_TOKEN`) and follow-up budgets inside the owning scripts.

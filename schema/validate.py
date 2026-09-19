@@ -95,7 +95,12 @@ def owning_command_exists(command):
     if (ROOT / rel).exists():
         return True
     fm_home = os.environ.get("FM_HOME")
-    return bool(fm_home) and (Path(fm_home) / rel).exists()
+    if fm_home and (Path(fm_home) / rel).exists():
+        return True
+    sub = ROOT / "sources" / "firstmate"
+    if (sub / rel).exists():
+        return True
+    return False
 
 
 def main():

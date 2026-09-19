@@ -23,6 +23,7 @@ import {
   buildLine,
   check,
   formatLine,
+  makeTestAuditLayer,
   readAuditLines,
   requiresApproval,
   tierOf,
@@ -167,6 +168,15 @@ describe("audit lines", () => {
     assert.equal(line.reason, "ok");
     assert.equal(line.approval_ref, approvalRef(APPROVAL));
     assert.equal(line.target, "fm-task1");
+    assert.equal(line.duration_ms, null);
+  });
+  it("allow line records duration_ms when provided", () => {
+    const line = buildLine("trillium", "lifecycle_interrupt", "allow", "ok", {
+      approval: APPROVAL,
+      target: "fm-task1",
+      duration_ms: 42.4,
+    });
+    assert.equal(line.duration_ms, 42);
   });
   it("refuse line works without a token", () => {
     const line = buildLine("trillium", "relay_reply", "refuse", "approval-required");
@@ -206,5 +216,21 @@ describe("audit lines", () => {
     assert.equal(rows.length, 2);
     assert.deepEqual(readAuditLines(file), [first, second]);
     fs.rmSync(tmp, { recursive: true, force: true });
+  });
+  it("makeTestAuditLayer records duration_ms in memory", async () => {
+    const { Effect } = await import("effect");
+    const { AuditService } = await import("../src/auth.js");
+    const lines: any[] = [];
+    const layer = makeTestAuditLayer(lines);
+    const testLine = buildLine("trillium", "fleet_snapshot", "allow", "ok", { duration_ms: 15 });
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const audit = yield* AuditService;
+        yield* audit.append("/tmp/ignored.jsonl", testLine);
+      }).pipe(Effect.provide(layer)),
+    );
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0].duration_ms, 15);
+    assert.equal(lines[0].tool, "fleet_snapshot");
   });
 });

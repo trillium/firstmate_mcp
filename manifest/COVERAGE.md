@@ -33,12 +33,12 @@ Whole-fleet reads and fleet hygiene: snapshot, views, and reconciliation.
 | Command | Mirror status | Notes |
 | --- | --- | --- |
 | `fm-agent-axi.sh` (removed upstream) | gap | read-only reap-triage; removed upstream since pin |
-| `fm-fleet-snapshot.sh` | mirrored — `fleet_snapshot` (py✔ ts✔), `fleet_poll` (py✔ ts✔), `backlog` (derived, py✔ ts✔) | canonical read; backlog counts derive from it |
+| `fm-fleet-snapshot.sh` | mirrored — `fleet_snapshot` (ts✔), `fleet_poll` (ts✔), `backlog` (derived, ts✔) | canonical read; backlog counts derive from it |
 | `fm-fleet-sync.sh` | gap | project sync across the fleet |
-| `fm-fleet-view.sh` | mirrored — `fleet_view` (py✔ ts✔) | human render of the snapshot |
+| `fm-fleet-view.sh` | mirrored — `fleet_view` (ts✔) | human render of the snapshot |
 | `fm-inactive-reconcile.sh` | gap | bounded reconciliation of inactive outcomes |
 | `fm-mini1-healthcheck.sh` (removed upstream) | gap | mini1 dev-space health read; removed upstream since pin |
-| `fm-peek.sh` | mirrored — `peek` (py✔ ts✔) | bounded endpoint tail for cheap diagnosis |
+| `fm-peek.sh` | mirrored — `peek` (ts✔) | bounded endpoint tail for cheap diagnosis |
 | `fm-pool-reclaim.sh` (removed upstream) | gap | treehouse pool-slot reclaim; removed upstream since pin |
 
 ## Supervision
@@ -47,7 +47,7 @@ Control and data planes for live crews: daemon, lifecycle verbs, steer, wakes, g
 
 | Command | Mirror status | Notes |
 | --- | --- | --- |
-| `file: state/<id>.status` | mirrored — `status_tail` (py✔ ts✔) | Wake-event history tail for one task; history only, never current state. |
+| `file: state/<id>.status` | mirrored — `status_tail` (ts✔) | Wake-event history tail for one task; history only, never current state. |
 | `fm-afk-contract.sh` | gap | away-posture record owner |
 | `fm-afk-launch.sh` | gap | non-visible terminal launch for the daemon |
 | `fm-afk-return.sh` | gap | away-mode return catch-up gate |
@@ -58,12 +58,12 @@ Control and data planes for live crews: daemon, lifecycle verbs, steer, wakes, g
 | `fm-branch-prompt.sh` | gap | supervision-branch system prompt emitter |
 | `fm-busy-event.sh` | gap | sole writer of the busy-state contract |
 | `fm-cd-pretool-check.sh` | gap | cwd-change policy hook |
-| `fm-control.sh` | mirrored — `lifecycle_interrupt` (py✔ ts✔), `lifecycle_exit` (py✔ ts✔), `lifecycle_relaunch` (py✔ ts✔), `lifecycle_suspend` (py✔ ts✔), `lifecycle_resume` (py✔ ts✔) | lifecycle verbs behind approval |
-| `fm-crew-state.sh` | mirrored — `crew_state` (py✔ ts✔) | deterministic current-state read |
-| `fm-guard.sh` | mirrored — `guard_check` (py✔ ts✔) | watcher liveness / worktree-tangle guard |
+| `fm-control.sh` | mirrored — `lifecycle_interrupt` (ts✔), `lifecycle_exit` (ts✔), `lifecycle_relaunch` (ts✔), `lifecycle_suspend` (ts✔), `lifecycle_resume` (ts✔) | lifecycle verbs behind approval |
+| `fm-crew-state.sh` | mirrored — `crew_state` (ts✔) | deterministic current-state read |
+| `fm-guard.sh` | mirrored — `guard_check` (ts✔) | watcher liveness / worktree-tangle guard |
 | `fm-kimi-turnend-hook.sh` | gap | kimi turn-end hook |
-| `fm-lease.sh` | mirrored — `lease_check` (py✔ ts✔) | per-task supervision leases |
-| `fm-lock.sh` | mirrored — `lock_status` (py✔ ts✔) | per-home session lock |
+| `fm-lease.sh` | mirrored — `lease_check` (ts✔) | per-task supervision leases |
+| `fm-lock.sh` | mirrored — `lock_status` (ts✔) | per-home session lock |
 | `fm-nm-run-is-live.sh` (removed upstream) | gap | single-run liveness probe; removed upstream since pin |
 | `fm-no-mistakes-liveness.sh` (removed upstream) | gap | shared-daemon liveness match; removed upstream since pin |
 | `fm-operational-input.sh` | gap | cross-language operational-input protocol |
@@ -73,7 +73,7 @@ Control and data planes for live crews: daemon, lifecycle verbs, steer, wakes, g
 | `fm-procevent-when.sh` | gap | condition->action adapter |
 | `fm-procevent.sh` | gap | process-to-event runner |
 | `fm-quota-choose.sh` | gap | quota-eligible candidate choice for dispatch |
-| `fm-send.sh` | mirrored — `send_message` (py✔ ts✔) | data plane: prose steer for one crew |
+| `fm-send.sh` | mirrored — `send_message` (ts✔) | data plane: prose steer for one crew |
 | `fm-subagent-pretool-check.sh` | gap | subagent policy hook |
 | `fm-supervise-daemon.sh` | denied-by-design — `daemon_start`, `daemon_stop`, `daemon_restart` | the shared daemon binary. shared daemon serves every lane; only firstmate manages it |
 | `fm-supervision-instructions.sh` | gap | supervisor prompt surface |
@@ -81,7 +81,7 @@ Control and data planes for live crews: daemon, lifecycle verbs, steer, wakes, g
 | `fm-turnend-guard-cursor.sh` | gap | cursor turn-end guard |
 | `fm-turnend-guard-grok.sh` | gap | grok turn-end guard |
 | `fm-turnend-guard.sh` | gap | turn-end guard |
-| `fm-wake-drain.sh` | mirrored — `wake_drain` (py✔ ts✔) | durable wake-queue drain |
+| `fm-wake-drain.sh` | mirrored — `wake_drain` (ts✔) | durable wake-queue drain |
 | `fm-wake-grant.sh` | gap | wake-grant mechanics |
 | `fm-wake-memo.sh` (removed upstream) | gap | wake memo record/consult/prune; removed upstream since pin |
 | `fm-watch-arm.sh` | denied-by-design — `watch_start`, `watch_stop` | watcher arm path. watcher control would fork shared supervision state |
@@ -103,22 +103,22 @@ Launching and owning agent sessions: start, harness, backends, spawn, briefs.
 | `backends/zellij.sh` | gap | zellij session backend |
 | `fm-agy-trust.sh` | gap | Antigravity workspace-trust preregistration |
 | `fm-backend.sh` | gap | session-provider selection and dispatch |
-| `fm-brief.sh` | mirrored — `scaffold_brief` (py✔ ts✔) | scaffold one crewmate brief; launches nothing |
+| `fm-brief.sh` | mirrored — `scaffold_brief` (ts✔) | scaffold one crewmate brief; launches nothing |
 | `fm-claude-stop-autoarm.sh` | gap | disable auto-arm in claude sessions |
 | `fm-claude-trust.sh` | gap | workspace-trust preregistration for spawns |
 | `fm-dispatch-resolve.sh` | gap | resolve one concrete dispatch |
-| `fm-harness.sh` | mirrored — `harness_detect` (py✔ ts✔) | harness detection for the process tree |
+| `fm-harness.sh` | mirrored — `harness_detect` (ts✔) | harness detection for the process tree |
 | `fm-herdr-ci-cleanup.sh` | gap | CI session cleanup |
 | `fm-herdr-lab.sh` | gap | isolated Herdr lab sessions |
 | `fm-herdr-session-cleanup.sh` | gap | session cleanup |
 | `fm-herdr-spur.sh` (removed upstream) | gap | agent watch spur; removed upstream since pin |
 | `fm-isolated-launch.sh` (removed upstream) | gap | isolated CLI launch; removed upstream since pin |
-| `fm-project-mode.sh` | mirrored — `project_mode` (py✔ ts✔) | registered delivery posture (mode + yolo) |
+| `fm-project-mode.sh` | mirrored — `project_mode` (ts✔) | registered delivery posture (mode + yolo) |
 | `fm-session-start.sh` | gap | session bootstrap |
 | `fm-sessionstart-cursor.sh` | gap | cursor session-start path |
 | `fm-sessionstart-nudge.sh` | gap | session-start nudge |
 | `fm-sessionstart-run.sh` | gap | session-start runner |
-| `fm-spawn.sh` | mirrored — `spawn_crew` (py✔ ts✔) | spawn one direct report under contract |
+| `fm-spawn.sh` | mirrored — `spawn_crew` (ts✔) | spawn one direct report under contract |
 
 ## Backlog / decisions
 
@@ -126,13 +126,13 @@ Queue mechanics and durable captain decisions: backlog moves, holds, verdicts.
 
 | Command | Mirror status | Notes |
 | --- | --- | --- |
-| `file: data/handoff/<id>.outbox.md` | mirrored — `handoff_status` (py✔ ts✔) | Staged handoff outbox read; list staged moves or read one outbox tail. |
-| `fm-backlog-handoff.sh` | mirrored — `handoff_move` (py✔ ts✔) | secondmate handoff moves |
+| `file: data/handoff/<id>.outbox.md` | mirrored — `handoff_status` (ts✔) | Staged handoff outbox read; list staged moves or read one outbox tail. |
+| `fm-backlog-handoff.sh` | mirrored — `handoff_move` (ts✔) | secondmate handoff moves |
 | `fm-backlog-import-beads.sh` (removed upstream) | gap | one-time backlog.md importer; removed upstream since pin |
 | `fm-backlog-receive.sh` | gap | remote outbox receipt |
 | `fm-bead-stamp.sh` (removed upstream) | gap | bead stamp helper; removed upstream since pin |
-| `fm-captain-hold.sh` | mirrored — `review_decision` (py✔ ts✔) | unified held-for-captain mechanics; supersedes review-decision upstream |
-| `fm-decision-hold.sh` | mirrored — `decision_hold` (py✔ ts✔), `decision_resolve` (py✔ ts✔) | durable captain holds behind approval |
+| `fm-captain-hold.sh` | mirrored — `review_decision` (ts✔) | unified held-for-captain mechanics; supersedes review-decision upstream |
+| `fm-decision-hold.sh` | mirrored — `decision_hold` (ts✔), `decision_resolve` (ts✔) | durable captain holds behind approval |
 | `fm-groom-json-field.sh` (removed upstream) | gap | groom field helper; removed upstream since pin |
 | `fm-groom.sh` (removed upstream) | gap | idea->brief->dispatch generator; removed upstream since pin |
 | `fm-ledger.sh` (removed upstream) | gap | landed-but-open bead surface; removed upstream since pin |
@@ -150,10 +150,10 @@ Persistent secondmates and remote homes: launch, control, reconcile, inherit.
 | `fm-config-push.sh` | gap | push inherited local material to live homes |
 | `fm-extension.sh` | gap | tracked entrypoint for fm-on extension bindings |
 | `fm-on.sh` | gap | run one tracked command in a remote home |
-| `fm-remote-delta-read.sh` | mirrored — `remote_delta` (py✔ ts✔) | bounded remote delta reads |
-| `fm-remote-doctor.sh` | mirrored — `remote_doctor` (py✔ ts✔) | remote home diagnostics |
+| `fm-remote-delta-read.sh` | mirrored — `remote_delta` (ts✔) | bounded remote delta reads |
+| `fm-remote-doctor.sh` | mirrored — `remote_doctor` (ts✔) | remote home diagnostics |
 | `fm-remote-entrypoint.sh` | gap | remote-end launch entrypoint |
-| `fm-remote-file.sh` | mirrored — `remote_file` (py✔ ts✔) | remote file reads |
+| `fm-remote-file.sh` | mirrored — `remote_file` (ts✔) | remote file reads |
 | `fm-remote-herdr-guard.sh` | gap | fm-remote Herdr server login-session guard |
 | `fm-remote-home-provision.sh` | gap | remote home provisioning |
 | `fm-remote-home-seed.sh` | gap | remote home seeding |
@@ -162,10 +162,10 @@ Persistent secondmates and remote homes: launch, control, reconcile, inherit.
 | `fm-remote-job-reap-orphans.sh` | gap | reap orphaned remote jobs |
 | `fm-remote-job-worker.sh` | gap | remote job worker |
 | `fm-remote-launch.sh` (removed upstream) | gap | remote mini launch/reclaim; removed upstream since pin |
-| `fm-remote-secondmate-control.sh` | mirrored — `remote_control` (py✔ ts✔) | remote secondmate lifecycle |
-| `fm-secondmate-reconcile.sh` | mirrored — `secondmate_nudge` (py✔ ts✔) | ask a secondmate to reconcile its books |
-| `fm-secondmate-report.sh` | mirrored — `secondmate_report` (py✔ ts✔) | secondmate report read |
-| `fm-secondmate-restart.sh` | mirrored — `secondmate_restart` (py✔ ts✔) | restart secondmates onto current wiring |
+| `fm-remote-secondmate-control.sh` | mirrored — `remote_control` (ts✔) | remote secondmate lifecycle |
+| `fm-secondmate-reconcile.sh` | mirrored — `secondmate_nudge` (ts✔) | ask a secondmate to reconcile its books |
+| `fm-secondmate-report.sh` | mirrored — `secondmate_report` (ts✔) | secondmate report read |
+| `fm-secondmate-restart.sh` | mirrored — `secondmate_restart` (ts✔) | restart secondmates onto current wiring |
 
 ## PR pipeline
 
@@ -180,9 +180,9 @@ Check arming, polls, reviews, and landing: the code-adjacent surface that stays 
 | `fm-pr-merge.sh` | denied-by-design — `merge_pr` | landing merge; merge authority owns this, never MCP. landing merges belong to the configured merge authority |
 | `fm-pr-poll.sh` | gap | merge-poll check source; unmirrored read |
 | `fm-pr-reviewers.sh` | gap | reviewer assignment; unmirrored |
-| `fm-pr-state.sh` | mirrored — `pr_state` (py✔ ts✔) | PR state read; unmirrored |
+| `fm-pr-state.sh` | mirrored — `pr_state` (ts✔) | PR state read; unmirrored |
 | `fm-promote.sh` | denied-by-design — `promote_scout` | promote scout to ship; code-writing path stays out. code-writing path: scouts report, ships launch separately |
-| `fm-review-diff.sh` | mirrored — `review_diff` (py✔ ts✔) | branch-vs-base review diff; unmirrored read |
+| `fm-review-diff.sh` | mirrored — `review_diff` (ts✔) | branch-vs-base review diff; unmirrored read |
 | `policy: repo-mutation` | denied-by-design — `repo_edit`, `repo_commit`, `repo_push`, `repo_merge` | project changes belong to workers behind merge authority |
 
 ## Relay
@@ -194,11 +194,11 @@ Public X surface: replies, dismissals, followups, polls, and links.
 | `fm-public-followup-collect.sh` | gap | retire terminal events staged for an owning home |
 | `fm-public-followup-emit.sh` | gap | emit staged public followups |
 | `fm-public-followup.sh` | gap | public followup surface |
-| `fm-x-dismiss.sh` | mirrored — `relay_dismiss` (py✔ ts✔) | dismiss one public item; same consent gate |
-| `fm-x-followup.sh` | mirrored — `relay_followup` (py✔ ts✔) | one public followup; same consent gate |
+| `fm-x-dismiss.sh` | mirrored — `relay_dismiss` (ts✔) | dismiss one public item; same consent gate |
+| `fm-x-followup.sh` | mirrored — `relay_followup` (ts✔) | one public followup; same consent gate |
 | `fm-x-link.sh` | gap | link a task to the mention that triggered it |
-| `fm-x-poll.sh` | mirrored — `relay_poll` (py✔ ts✔) | short-poll the relay connector; inert unless configured |
-| `fm-x-reply.sh` | mirrored — `relay_reply` (py✔ ts✔) | one public reply; inert without relay consent |
+| `fm-x-poll.sh` | mirrored — `relay_poll` (ts✔) | short-poll the relay connector; inert unless configured |
+| `fm-x-reply.sh` | mirrored — `relay_reply` (ts✔) | one public reply; inert without relay consent |
 
 ## Voice / mail
 
@@ -206,10 +206,10 @@ Out-of-band planes: mail reads/sends; voice helpers are non-command modules.
 
 | Command | Mirror status | Notes |
 | --- | --- | --- |
-| `bin/fm_voice_records.py` | mirrored — `voice_status` (py✔ ts✔) | Voice-agent status answer from durable records; no mic, no Bedrock, no audio. |
-| `bin/fm_voice_records.py` | mirrored — `voice_queue` (py✔ ts✔) | Hand one request to firstmate through the voice handover queue. |
+| `bin/fm_voice_records.py` | mirrored — `voice_status` (ts✔) | Voice-agent status answer from durable records; no mic, no Bedrock, no audio. |
+| `bin/fm_voice_records.py` | mirrored — `voice_queue` (ts✔) | Hand one request to firstmate through the voice handover queue. |
 | `fm-mail-check.sh` | gap | inbound mail check |
-| `fm-mail.sh` | mirrored — `mail_status` (py✔ ts✔), `mail_read` (py✔ ts✔), `mail_send` (py✔ ts✔) | IMAP read / SMTP send plane |
+| `fm-mail.sh` | mirrored — `mail_status` (ts✔), `mail_read` (ts✔), `mail_send` (ts✔) | IMAP read / SMTP send plane |
 
 ## Digests
 
@@ -217,12 +217,12 @@ Composed captain views: bearings, inbox, home summary, contributions.
 
 | Command | Mirror status | Notes |
 | --- | --- | --- |
-| `file: state/home-summary.json` | mirrored — `home_summary` (py✔ ts✔) | Published home-summary ledger; the refresh stays firstmate-owned. |
-| `fm-bearings-board.sh` | mirrored — `bearings_board_path` (py✔ ts✔) | bearings board render |
-| `fm-bearings-snapshot.sh` | mirrored — `bearings_snapshot` (py✔ ts✔) | compact bearings projection over the snapshot |
-| `fm-contributions.sh` | mirrored — `contributions_snapshot` (py✔ ts✔), `contributions_pending` (py✔ ts✔) | published contributions observer |
+| `file: state/home-summary.json` | mirrored — `home_summary` (ts✔) | Published home-summary ledger; the refresh stays firstmate-owned. |
+| `fm-bearings-board.sh` | mirrored — `bearings_board_path` (ts✔) | bearings board render |
+| `fm-bearings-snapshot.sh` | mirrored — `bearings_snapshot` (ts✔) | compact bearings projection over the snapshot |
+| `fm-contributions.sh` | mirrored — `contributions_snapshot` (ts✔), `contributions_pending` (ts✔) | published contributions observer |
 | `fm-home-summary-refresh.sh` | gap | published home-summary refresh |
-| `fm-inbox.sh` | mirrored — `inbox_status` (py✔ ts✔), `inbox_list` (py✔ ts✔) | captain's out-of-band capture surface |
+| `fm-inbox.sh` | mirrored — `inbox_status` (ts✔), `inbox_list` (ts✔) | captain's out-of-band capture surface |
 
 ## Installs
 
@@ -243,16 +243,16 @@ Setup and hygiene: installers, seeds, linters, tests, probes, registry checks.
 | `fm-install-shellcheck.sh` | gap | shellcheck installer |
 | `fm-install-treehouse.sh` | gap | treehouse installer |
 | `fm-lint-workflows.sh` | gap | workflow lint run (probe served via lint_versions; run stays out) |
-| `fm-lint.sh` | mirrored — `lint_versions` (py✔ ts✔) | repo lint (required-version probe mirrored; runs stay out) |
-| `fm-startup-memory-budget.sh` | mirrored — `startup_memory` (py✔ ts✔) | startup memory budget |
+| `fm-lint.sh` | mirrored — `lint_versions` (ts✔) | repo lint (required-version probe mirrored; runs stay out) |
+| `fm-startup-memory-budget.sh` | mirrored — `startup_memory` (ts✔) | startup memory budget |
 | `fm-startup-network.sh` | gap | startup network probe |
 | `fm-stow-cascade.sh` | gap | stow cascade |
 | `fm-test-affected.sh` (removed upstream) | gap | test-impact selector; removed upstream since pin |
 | `fm-test-isolation-proof.sh` | gap | isolation proof |
 | `fm-test-run.sh` | gap | test runner |
-| `fm-tool-update-check.sh` | mirrored — `tool_update_check` (py✔ ts✔) | tool update check |
+| `fm-tool-update-check.sh` | mirrored — `tool_update_check` (ts✔) | tool update check |
 | `fm-update.sh` | gap | firstmate update |
-| `fm-vendor-auth-probe.sh` | mirrored — `vendor_auth_probe` (py✔ ts✔) | vendor auth probe |
+| `fm-vendor-auth-probe.sh` | mirrored — `vendor_auth_probe` (ts✔) | vendor auth probe |
 
 ## Definitions
 

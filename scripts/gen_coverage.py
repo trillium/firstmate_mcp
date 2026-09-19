@@ -40,8 +40,6 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from adapter.dispatch import DENY_LIST, TOOLS
-
 UPSTREAM_BIN = os.path.join(ROOT, "sources", "firstmate", "bin")
 UPSTREAM_BACKENDS = os.path.join(UPSTREAM_BIN, "backends")
 BASELINE_PATH = os.path.join(ROOT, "drift", "baseline.json")
@@ -274,6 +272,8 @@ DENY_REASONS = {
     "repo_merge": ("policy: repo-mutation", "project changes belong to workers behind merge authority"),
 }
 
+DENY_LIST = frozenset(DENY_REASONS.keys())
+
 
 # Extra commands refused under an existing DENY_LIST name (same policy, more
 # than one owning script). Reasons are shared with DENY_REASONS.
@@ -435,11 +435,18 @@ def fmt_tools(tools, note=""):
     for tool, py, ts in tools:
         mark = lambda s: TICK if s == "implemented" else CROSS  # noqa: E731
         extra = " (derived)" if tool == "backlog" else ""
-        bits.append("`%s`%s (py%s ts%s)" % (tool, extra, mark(py), mark(ts)))
+        if py == "retired":
+            bits.append("`%s`%s (ts%s)" % (tool, extra, mark(ts)))
+        else:
+            bits.append("`%s`%s (py%s ts%s)" % (tool, extra, mark(py), mark(ts)))
     # backlog derives from the snapshot read: name it on the owning row so
     # the manifest entry visibly appears in the view.
     if any(t == "fleet_snapshot" for t, _, _ in tools):
-        bits.append("`backlog` (derived, py\u2714 ts\u2714)")
+        has_retired = any(t == "fleet_snapshot" and py == "retired" for t, py, _ in tools)
+        if has_retired:
+            bits.append("`backlog` (derived, ts\u2714)")
+        else:
+            bits.append("`backlog` (derived, py\u2714 ts\u2714)")
     s = ", ".join(bits)
     if note and tools:
         s += " — " + note

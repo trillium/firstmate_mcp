@@ -1,7 +1,7 @@
 # Conformance fixtures
 
-Prove the adapter behaves like firstmate: the same read inputs through the
-adapter and through firstmate's real `bin/fm-*.sh` scripts agree.
+Prove the TypeScript MCP server behaves like firstmate: the same read inputs through the
+server and through firstmate's real `bin/fm-*.sh` scripts agree.
 
 ## Run
 
@@ -18,28 +18,18 @@ FIRSTMATE_HOME=/path/to/firstmate bash tests/conformance/conformance.sh
 Or run the suite directly:
 
 ```sh
-python3 tests/conformance/test_conformance.py
+(cd ts && bun run conformance:bun)
 ```
 
-Without a checkout carrying `bin/fm-fleet-snapshot.sh` the suite skips
-cleanly (exit 0) so this repo stays standalone in CI. The hermetic adapter
-unit suite in `tests/mcp-adapter.test.py` always runs with no checkout.
+## TypeScript server multi-runtime proof
 
-## TypeScript sibling parity
-
-The TS implementation in `ts/` is proved against the same contract two ways:
+The TS implementation in `ts/` is proved across both Bun (primary) and Node (fallback compat):
 
 ```sh
 bash tests/conformance/ts-parity.sh
 ```
 
-`parity-py-ts.mjs` replays one stub-home call sequence against both
-`python3 fm_mcp_server.py` and `node ts/dist/server.js` and diffs every
-payload field-for-field (reads, validation refusals, fail-closed stub
-errors, `tools/list`, `ping`). `npm run conformance` in `ts/` runs the TS
-read-tool equivalence fixtures, which mirror `test_conformance.py`
-hermetically with no live checkout. Both halves are side-effect-free by
-construction (stub homes only, read boundary plus validation refusals).
+`ts/tests/conformance.test.ts` runs the TS read-tool equivalence fixtures hermetically with no live checkout. All tests are side-effect-free by construction (stub homes only, read boundary plus validation refusals).
 
 ## What equivalence means here
 

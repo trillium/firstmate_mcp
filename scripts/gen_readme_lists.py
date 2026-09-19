@@ -41,15 +41,121 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from adapter.dispatch import DENY_LIST, TOOLS
-from auth.tiers import FORBIDDEN_TOOLS, TOOL_TIERS
 from scripts.gen_coverage import summary_rows as coverage_summary_rows
 
 TIER_LABEL = {1: "Tier 1 open", 2: "Tier 2 steer", 3: "Tier 3 approval", 4: "Tier 4 approval+relay"}
 
+DENY_LIST = frozenset(
+    {
+        "promote_scout",
+        "teardown_crew",
+        "arm_pr_check",
+        "merge_pr",
+        "merge_local",
+        "daemon_start",
+        "daemon_stop",
+        "daemon_restart",
+        "watch_start",
+        "watch_stop",
+        "repo_edit",
+        "repo_commit",
+        "repo_push",
+        "repo_merge",
+    }
+)
+
+FORBIDDEN_TOOLS = (
+    "promote_scout",
+    "teardown_crew",
+    "arm_pr_check",
+    "merge_pr",
+    "merge_local",
+)
+
+TOOLS = {
+    "fleet_snapshot": ("fm-fleet-snapshot.sh", None, False),
+    "backlog": ("fm-fleet-snapshot.sh", None, False),
+    "crew_state": ("fm-crew-state.sh", None, False),
+    "status_tail": (None, None, False),
+    "send_message": ("fm-send.sh", None, False),
+    "fleet_poll": ("fm-fleet-snapshot.sh", None, False),
+    "peek": ("fm-peek.sh", None, False),
+    "fleet_view": ("fm-fleet-view.sh", None, False),
+    "review_diff": ("fm-review-diff.sh", None, False),
+    "bearings_snapshot": ("fm-bearings-snapshot.sh", None, False),
+    "wake_drain": ("fm-wake-drain.sh", None, False),
+    "guard_check": ("fm-guard.sh", None, False),
+    "remote_doctor": ("fm-remote-doctor.sh", None, False),
+    "remote_file": ("fm-remote-file.sh", None, False),
+    "remote_delta": ("fm-remote-delta-read.sh", None, False),
+    "handoff_status": (None, None, False),
+    "secondmate_nudge": ("fm-secondmate-reconcile.sh", None, True),
+    "secondmate_restart": ("fm-secondmate-restart.sh", None, True),
+    "secondmate_report": ("fm-secondmate-report.sh", None, True),
+    "remote_control": ("fm-remote-secondmate-control.sh", None, True),
+    "handoff_move": ("fm-backlog-handoff.sh", None, True),
+    "harness_detect": ("fm-harness.sh", None, False),
+    "project_mode": ("fm-project-mode.sh", None, False),
+    "lock_status": ("fm-lock.sh", None, False),
+    "lease_check": ("fm-lease.sh", None, False),
+    "bearings_board_path": ("fm-bearings-board.sh", None, False),
+    "inbox_status": ("fm-inbox.sh", None, False),
+    "inbox_list": ("fm-inbox.sh", None, False),
+    "home_summary": (None, None, False),
+    "contributions_snapshot": ("fm-contributions.sh", None, False),
+    "contributions_pending": ("fm-contributions.sh", None, False),
+    "lifecycle_interrupt": ("fm-control.sh", None, True),
+    "lifecycle_exit": ("fm-control.sh", None, True),
+    "lifecycle_relaunch": ("fm-control.sh", None, True),
+    "lifecycle_suspend": ("fm-control.sh", None, True),
+    "lifecycle_resume": ("fm-control.sh", None, True),
+    "spawn_crew": ("fm-spawn.sh", None, True),
+    "scaffold_brief": ("fm-brief.sh", None, True),
+    "decision_hold": ("fm-decision-hold.sh", None, True),
+    "decision_resolve": ("fm-decision-hold.sh", None, True),
+    "review_decision": ("fm-captain-hold.sh", None, True),
+    "relay_reply": ("fm-x-reply.sh", None, True),
+    "relay_dismiss": ("fm-x-dismiss.sh", None, True),
+    "relay_followup": ("fm-x-followup.sh", None, True),
+    "mail_status": ("fm-mail.sh", None, False),
+    "mail_read": ("fm-mail.sh", None, False),
+    "mail_send": ("fm-mail.sh", None, True),
+    "voice_status": ("fm_voice_records.py", None, False),
+    "voice_queue": ("fm_voice_records.py", None, True),
+    "lint_versions": ("fm-lint.sh", None, False),
+    "tool_update_check": ("fm-tool-update-check.sh", None, False),
+    "vendor_auth_probe": ("fm-vendor-auth-probe.sh", None, False),
+    "startup_memory": ("fm-startup-memory-budget.sh", None, False),
+    "pr_state": ("fm-pr-state.sh", None, False),
+    "relay_poll": ("fm-x-poll.sh", None, False),
+}
+
+TOOL_TIERS = {
+    "fleet_snapshot": 1, "backlog": 1, "crew_state": 1, "status_tail": 1,
+    "fleet_poll": 1, "peek": 1, "fleet_view": 1, "review_diff": 1,
+    "bearings_snapshot": 1, "wake_drain": 1, "guard_check": 1,
+    "remote_doctor": 1, "remote_file": 1, "remote_delta": 1,
+    "handoff_status": 1, "harness_detect": 1, "project_mode": 1,
+    "lock_status": 1, "lease_check": 1, "bearings_board_path": 1,
+    "inbox_status": 1, "inbox_list": 1, "home_summary": 1,
+    "contributions_snapshot": 1, "contributions_pending": 1,
+    "mail_status": 1, "mail_read": 1, "voice_status": 1,
+    "lint_versions": 1, "tool_update_check": 1, "vendor_auth_probe": 1,
+    "startup_memory": 1, "pr_state": 1, "relay_poll": 1,
+    "receipt_submit": 1, "receipt_status": 1,
+    "send_message": 2,
+    "lifecycle_interrupt": 3, "lifecycle_exit": 3, "lifecycle_relaunch": 3,
+    "lifecycle_suspend": 3, "lifecycle_resume": 3, "spawn_crew": 3,
+    "scaffold_brief": 3, "decision_hold": 3, "decision_resolve": 3,
+    "review_decision": 3, "secondmate_nudge": 3, "secondmate_restart": 3,
+    "secondmate_report": 3, "remote_control": 3, "handoff_move": 3,
+    "voice_queue": 3,
+    "mail_send": 4, "relay_reply": 4, "relay_dismiss": 4, "relay_followup": 4,
+}
+
 
 def read_server_envelope():
-    src = open(os.path.join(ROOT, "fm_mcp_server.py")).read()
+    src = open(os.path.join(ROOT, "ts", "src", "constants.ts")).read()
     timeout = re.search(r"SUBPROCESS_TIMEOUT_S\s*=\s*(\d+)", src).group(1)
     maxbytes = re.search(r"MAX_OUTPUT_BYTES\s*=\s*(\d+)", src).group(1)
     return timeout, maxbytes
@@ -71,17 +177,16 @@ def read_baseline():
 
 def existing_suites():
     candidates = [
-        "test_client.py",
         "tests/mcp-adapter.test.sh",
         "tests/mcp-schema.test.sh",
         "tests/drift-check.test.sh",
         "tests/fm-mcp-authz.test.sh",
         "tests/fm-coverage.test.sh",
+        "tests/fm-manifest.test.sh",
         "tests/conformance/conformance.sh",
         "tests/conformance/ts-parity.sh",
         "tests/upstream/run_upstream.sh",
         "tests/test_drift.py",
-        "auth/test_authz.py",
         "ts/tests/server.test.ts",
         "ts/tests/conformance.test.ts",
         "ts/tests/auth.test.ts",
@@ -133,33 +238,32 @@ def generate():
     lines.append("  `drift/shift.py` diffs the pin against upstream main and reports")
     lines.append("  which depended-on surfaces moved, so TS/Python ports start from")
     lines.append("  that report.")
-    lines.append(f"- Subprocess envelope — `fm_mcp_server.py` returns every tool call within")
+    lines.append(f"- Subprocess envelope — TypeScript server returns every tool call within")
     lines.append(f"  `SUBPROCESS_TIMEOUT_S={timeout}` with `MAX_OUTPUT_BYTES={maxbytes}`,")
     lines.append("  process-group kill on timeout so timed-out reads leave no orphans.")
     lines.append("- Async receipts — `receipt_submit` detaches one call past the 30s")
     lines.append("  budget and returns a pending receipt; `receipt_status` reports")
     lines.append("  running/done/failed with the result attached, TTL expiry, and")
     lines.append("  per-home confinement so receipts never leak across homes.")
-    lines.append("- Auth tiers in code — `auth/tiers.py` assigns every tool a tier,")
-    lines.append("  `auth/audit.py` writes the JSON-lines audit log; every")
-    lines.append("  authority-bearing tool refuses without an `I authorize` string.")
+    lines.append("- Auth tiers in code — `ts/src/auth.ts` assigns every tool a tier,")
+    lines.append("  writes the JSON-lines audit log; every authority-bearing tool")
+    lines.append("  refuses without an `I authorize` string.")
     lines.append("- Contract map — `schema/contracts.yaml` declares the depended-on")
     lines.append("  subset with stability tiers; `schema/validate.py` fails naming the")
     lines.append("  stale pin; `schema/matrix.md` is the human view.")
-    lines.append("- Conformance fixtures — `tests/conformance/` proves adapter output")
-    lines.append("  equals the owning scripts' output via stub homes (skips cleanly")
+    lines.append("- Conformance fixtures — `ts/tests/conformance.test.ts` proves TS server")
+    lines.append("  output equals the owning scripts' output via stub homes (skips cleanly")
     lines.append("  without a firstmate checkout).")
     lines.append("- Upstream preservation — `tests/upstream/` runs upstream firstmate")
-    lines.append("  tests unchanged against both py and ts paths via thin adapters")
+    lines.append("  tests unchanged against the TypeScript server via thin adapters")
     lines.append("  (upstream reference skips cleanly without a checkout); verdicts")
     lines.append("  seeded in `UPSTREAM-RESULTS.md`, divergences explicit in")
     lines.append("  `tests/upstream/divergences.json`.")
     # Server tool count is the adapter registry plus the two server-native
-    # receipt tools (receipt_submit/receipt_status live in fm_mcp_server.py
-    # and ts/src/tools.ts, not in adapter/dispatch.py).
-    lines.append(f"- TypeScript sibling — `ts/` independently implements the same {len(TOOLS) + 2}-tool")
-    lines.append("  contract over stdio (no dependencies); `tests/conformance/ts-parity.sh`")
-    lines.append("  diffs py/ts payloads field-for-field plus the TS equivalence fixtures.")
+    # receipt tools (receipt_submit/receipt_status live in ts/src/tools.ts).
+    lines.append(f"- TypeScript sibling — `ts/` implements the {len(TOOLS) + 2}-tool")
+    lines.append("  contract over stdio as the sole server (zero runtime dependencies beyond Effect);")
+    lines.append("  `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.")
     lines.append("- Proof suites in this tree (all run in gates below):")
     for s in suites:
         lines.append(f"  - `{s}`")
