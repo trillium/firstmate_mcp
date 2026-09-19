@@ -17,7 +17,7 @@ Support coverage across every upstream command area lives in
 `tests/fm-coverage.test.sh`): each area with its mirror status — mirrored
 tool plus py/ts status, denied-by-design with reason, or unmirrored gap.
 
-## Upstream provenance (seed)
+## Provenance (seed)
 
 - Upstream repo: `https://github.com/kunchenguid/firstmate.git`
   (submodule at `sources/firstmate`).
@@ -26,6 +26,9 @@ tool plus py/ts status, denied-by-design with reason, or unmirrored gap.
   `bin/fm-*.sh` surfaces. Both pins rot — `drift/shift.py` owns the live
   pin-vs-main signal and re-seeding updates the header, never the entries'
   shape.
+- Fork repo: `https://github.com/trillium/firstmate.git`
+  (working-copy pin: proven commit `86c035336bf9e136dd44d76e7d46e16d260fac8f`,
+  merge base `53ecbc7961ac066461ea3104c713d81d40fb32d6`, ~204 ahead).
 - Behavior owners stay the script headers; `schema/contracts.yaml` owns the
   depended-on declaration. This manifest tracks identity and status only.
 
@@ -74,13 +77,29 @@ the approval gate (`tests/fm-mcp-authz.test.sh`). Both implementations face
 the same referee: `tests/conformance/ts-parity.sh` diffs py/ts payloads
 field-for-field.
 
-## Local-only Trillium extensions (7)
+## Trillium fork behavior deltas (7)
+
+Tracked behavior deltas in `trillium/firstmate` against upstream `kunchenguid/firstmate`:
+
+| Feature | Fork surface | Contract / Proof | py | ts | Fork delta / Divergence |
+| --- | --- | --- | --- | --- | --- |
+| `brief_herdr_lab_safety` | `bin/fm-brief.sh` (`86c0353`) | `schema/contracts.yaml#scaffold_brief` / `fm-brief.test.sh` | ✅ | ✅ | intentional: explicit `--herdr-lab` safety gate injected for agent briefs |
+| `spawn_batch_delivery` | `bin/fm-spawn.sh` (`86c0353`) | `schema/contracts.yaml#spawn_crew` / `fm-spawn-batch.test.sh` | ✅ | ✅ | intentional: batch dispatch with shared delivery contract & repo scoping |
+| `remote_fleet_management` | `bin/fm-remote-doctor.sh` (`86c0353`) | `schema/contracts.yaml#remote_doctor` / conformance | ✅ | ✅ | intentional: multi-machine fleet management & persistent secondmates |
+| `backlog_handoff_protocol` | `bin/fm-backlog-handoff.sh` (`86c0353`) | `schema/contracts.yaml#handoff_status` / conformance | ✅ | ✅ | intentional: async crew-to-crew handoff via structured markdown outboxes |
+| `captain_decision_holds` | `bin/fm-decision-hold.sh` (`86c0353`) | `schema/contracts.yaml#review_decision` / `test_client.py` | ✅ | ✅ | intentional: structured decision hold lifecycle with answer files & verdicts |
+| `fork_origin_check` | `bin/fm-fork-origin-check.sh` (`86c0353`) | `drift/baseline.json` | ✅ | ❌ | intentional: advisory scan for unswapped fork-contribution clone remotes |
+| `afk_daemon_launch` | `bin/fm-afk-launch.sh` (`86c0353`) | `drift/baseline.json` | ✅ | ❌ | intentional: non-visible terminal creation & PAI config isolation |
+
+## Local-only Trillium extensions (9)
 
 | Feature | Lives in | py | ts | Proof |
 | --- | --- | --- | --- | --- |
 | `drift_detection` | `drift/` | ✅ | ❌ | `tests/drift-check.test.sh`, `tests/test_drift.py` |
 | `upstream_shift_signal` | `drift/shift.py` | ✅ | ❌ | `drift/shift.py` CLI (no dedicated suite) |
 | `subprocess_envelope` | `fm_mcp_server.py` (+ `ts/src/runner.ts`) | ✅ | ✅ | `test_client.py` envelope fixture |
+| `receipt_submit` | `fm_mcp_server.py` (+ `ts/src/tools.ts`) | ✅ | ✅ | `test_client.py` receipt lifecycle + TS mirror |
+| `receipt_status` | `fm_mcp_server.py` (+ `ts/src/tools.ts`) | ✅ | ✅ | `test_client.py` receipt lifecycle + TS mirror |
 | `auth_tiers` | `auth/` (+ `ts/src/auth.ts`) | ✅ | ✅ | `tests/fm-mcp-authz.test.sh`, `auth/test_authz.py`, `ts/tests/auth.test.ts` |
 | `contract_map` | `schema/` | ✅ | ❌ | `tests/mcp-schema.test.sh` |
 | `conformance_fixtures` | `tests/conformance/` (+ `ts/tests/`) | ✅ | ✅ | `conformance.sh`, `ts-parity.sh` |
