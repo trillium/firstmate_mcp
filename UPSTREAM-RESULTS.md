@@ -1,9 +1,9 @@
 # UPSTREAM-RESULTS
 
-Seeded: 2026-09-18T06:29:06Z via `bash tests/upstream/run_upstream.sh` (`python3 tests/upstream/run_upstream.py --write-results`).
+Seeded: 2026-09-19T17:05:29Z via `bash tests/upstream/run_upstream.sh` (`python3 tests/upstream/run_upstream.py --write-results`).
 
 - upstream repo: `https://github.com/kunchenguid/firstmate.git`
-- gitlink pin: `3eb5b6334a80e06083e3837f0032a5cec39b8e52`
+- gitlink pin: `65a3bac6031286b4058360859a9522a50a09bb14`
 - upstream root at seed time: `sources/firstmate`
 - ts runtime at seed time: `bun` (bun-primary, node-fallback; harness spawns the TS server via the proving runtime)
 - contracts source: `schema/contracts.yaml`
@@ -42,12 +42,13 @@ ok - snapshot event hints
 ### crew_state
 
 - upstream file: `fm-crew-state.test.sh`
-- upstream ref: **pass** — exit 0; tail: ok - local work advanced past run head invalidates attribution
-ok - pipeline-owned active run binds without head equality and beats the failed row
-ok - a genuinely failed run with no later run is not hidden
-ok - coarse scan anchors the unresolvable active row instead of falling to an older one
-ok - coarse scan with a mismatched anchor stays unknown and lets the pane answer
-ok - the e
+- upstream ref: **pass** — exit 0; tail: ok - R3 historical inventory yields to the current busy pane
+ok - R3 historical inventory yields to current worker status
+ok - superseded cancelled run preserves the replacement review gate
+ok - competing live runs report unknown with both run ids
+ok - newer failed run remains failed beside an older live run
+ok - missing run selection reports unknown with candidate ids
+ok - wrong-id 
 - py: **pass**, ts (bun): **pass**
   - `crew_state:crew_state {'id': 'no-such-crew'}` — py pass, ts pass
   - `crew_state:crew_state {'id': '../escape'}` — py pass, ts pass

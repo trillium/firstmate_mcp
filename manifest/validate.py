@@ -102,21 +102,25 @@ def check_evidence(entry_id, side, impl):
 
 
 def live_gitlink():
-    """The submodule gitlink recorded at HEAD (works even when the
-    submodule itself is not checked out in this worktree)."""
-    try:
-        proc = subprocess.run(
-            ["git", "-C", str(ROOT), "ls-tree", "HEAD", "sources/firstmate"],
-            capture_output=True, text=True, timeout=30,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        return None, f"git ls-tree failed: {exc}"
-    if proc.returncode != 0:
-        return None, proc.stderr.strip() or "git ls-tree exited nonzero"
-    m = re.search(r"\b[0-9a-f]{40}\b", proc.stdout)
-    if not m:
-        return None, f"no gitlink in ls-tree output: {proc.stdout.strip()!r}"
-    return m.group(0), ""
+    """The submodule gitlink recorded in the index or at HEAD (works even
+    when the submodule itself is not checked out in this worktree)."""
+    for args in (
+        ("git", "-C", str(ROOT), "ls-files", "--stage", "sources/firstmate"),
+        ("git", "-C", str(ROOT), "ls-tree", "HEAD", "sources/firstmate"),
+    ):
+        try:
+            proc = subprocess.run(
+                list(args),
+                capture_output=True, text=True, timeout=30,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            continue
+        if proc.returncode != 0:
+            continue
+        m = re.search(r"\b[0-9a-f]{40}\b", proc.stdout)
+        if m:
+            return m.group(0), ""
+    return None, "no gitlink found"
 
 
 def check_provenance(data):

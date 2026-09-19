@@ -132,7 +132,7 @@ test_stale_gitlink_fails() {
   python3 - "$bad" <<'PYEOF'
 import sys
 text = open(sys.argv[1]).read()
-needle = "gitlink_at_seed: 3eb5b6334a80e06083e3837f0032a5cec39b8e52"
+needle = "gitlink_at_seed: 65a3bac6031286b4058360859a9522a50a09bb14"
 assert needle in text, "seed shape changed; update this fixture"
 open(sys.argv[1], "w").write(
     text.replace(needle, "gitlink_at_seed: aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", 1)
