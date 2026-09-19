@@ -26,12 +26,29 @@ upstream:
   baseline: drift/baseline.json
   baseline_rev_at_seed: aaf67489
   baseline_surfaces_at_seed: 163
+  role: radar
   note: >-
-    Upstream provenance for mirrored entries is the owning bin/fm-*.sh path at
-    the tracked firstmate revision (drift/baseline.json is the quantitative
-    pin; drift/shift.py diffs the submodule pin against upstream main).
-    The submodule is not checked out in every worktree, so per-entry
-    provenance names the owning command path rather than a vendored line.
+    Upstream fingerprint for early-warning radar only: the kunchenguid pin
+    (submodule gitlink) plus the drift baseline revision/surface count.
+    drift/shift.py watches this pin against upstream main; a shift report
+    is a deliberate port decision, never an automatic merge. Nothing runs
+    against this copy — see `fork` below for the working line.
+fork:
+  repo: https://github.com/trillium/firstmate.git
+  proven_commit: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+  proven_date: "2026-09-17"
+  proven_subject: "feat(wake): fold inbox-supervision delivery into one PR (task-z8sn4) (#160)"
+  merge_base_with_upstream: 53ecbc7961ac066461ea3104c713d81d40fb32d6
+  merge_base_date: 2026-08-10
+  commits_ahead_at_seed: 204
+  basis: UPSTREAM-RESULTS.md seed 2026-09-18 plus CUTOVER-PROOF.md basis 2026-09-17
+  role: working-copy
+  note: >-
+    Working-copy pin: the trillium/firstmate line the adapter was proven
+    against (fork HEAD at both proofs, ~204 commits ahead of the Aug-10
+    merge base with upstream, carrying the beads-substrate migration).
+    Everything runs against this line; re-pin here whenever the adapter is
+    re-proven against a newer fork commit.
 features:
   # ---- SUPPORTED: behavior-identical reads + safe steer (no approval) ----
   - id: fleet_snapshot
