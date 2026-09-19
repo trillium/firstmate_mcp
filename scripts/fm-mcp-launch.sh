@@ -16,9 +16,8 @@
 #     so the launcher pins it rather than passing it per call (AUTH.md).
 #     Default audit log is $FM_HOME/state/mcp-audit.jsonl; every allow and
 #     every refuse appends one JSON line (auth/AUTH.md format).
-#   --server py (default) runs the proven Python server; --server ts runs
-#     the TypeScript sibling where it already proves parity
-#     (tests/conformance/ts-parity.sh).
+#   --server ts (default) runs the TypeScript server; --server py runs
+#     the legacy Python server fallback.
 #
 # Approval flow: every authority-bearing or externally visible tool takes
 # an explicit per-call `approval` string starting with `I authorize` and
@@ -29,7 +28,7 @@ set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
 HOME_ARG=""
-SERVER="${FM_MCP_SERVER:-py}"
+SERVER="${FM_MCP_SERVER:-ts}"
 RUNTIME="${FM_MCP_RUNTIME:-bun}"
 AUDIT_LOG="${FM_AUDIT_LOG:-}"
 ACTOR="${FM_ACTOR:-local}"

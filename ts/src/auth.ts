@@ -179,6 +179,7 @@ export const AUDIT_KEYS = [
   "reason",
   "approval_ref",
   "target",
+  "duration_ms",
 ] as const;
 
 export interface AuditLine {
@@ -191,6 +192,7 @@ export interface AuditLine {
   reason: string;
   approval_ref: string | null;
   target: string | null;
+  duration_ms: number | null;
 }
 
 function utcStamp(date: Date = new Date()): string {
@@ -203,7 +205,12 @@ export function buildLine(
   tool: string,
   decision: string,
   reason: string,
-  opts: { approval?: unknown; target?: string | null; ts?: string } = {},
+  opts: {
+    approval?: unknown;
+    target?: string | null;
+    ts?: string;
+    duration_ms?: number | null;
+  } = {},
 ): AuditLine {
   return {
     v: AUDIT_VERSION,
@@ -215,6 +222,10 @@ export function buildLine(
     reason,
     approval_ref: approvalRef(opts.approval),
     target: opts.target ?? null,
+    duration_ms:
+      typeof opts.duration_ms === "number"
+        ? Math.max(0, Math.round(opts.duration_ms))
+        : (opts.duration_ms ?? null),
   };
 }
 
