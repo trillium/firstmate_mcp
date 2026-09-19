@@ -190,6 +190,7 @@ def existing_suites():
         "ts/tests/server.test.ts",
         "ts/tests/conformance.test.ts",
         "ts/tests/auth.test.ts",
+        "ts/tests/followon.test.ts",
     ]
     return [c for c in candidates if os.path.exists(os.path.join(ROOT, c))]
 
@@ -264,6 +265,9 @@ def generate():
     lines.append(f"- TypeScript sibling — `ts/` implements the {len(TOOLS) + 2}-tool")
     lines.append("  contract over stdio as the sole server (zero runtime dependencies beyond Effect);")
     lines.append("  `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.")
+    lines.append("- Customizable follow-on actions — `ts/src/followon.ts` provides configurable")
+    lines.append("  chained follow-on actions for any MCP tool with condition evaluation,")
+    lines.append("  context forwarding, strict anti-laundering auth gates, and loop termination.")
     lines.append("- Proof suites in this tree (all run in gates below):")
     for s in suites:
         lines.append(f"  - `{s}`")
