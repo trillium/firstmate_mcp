@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Behavior tests for schema/contracts.yaml: the MCP depended-on contract map.
 # Exercises the public interface (schema/validate.py, a commodity JSON Schema
-# draft 2020-12 validator plus pin freshness) three ways: the seed validates,
-# a deliberately stale pin fails naming the contract and the current pin, and
-# a tier outside the enum fails naming the offending location.
+# draft 2020-12 validator plus pin freshness) five ways: the seed validates,
+# a deliberately stale pin fails naming the contract and the current pin,
+# a tier outside the enum fails naming the offending location, a missing
+# provenance block fails naming it, and a fork pin disagreeing with the
+# manifest fails naming the pin.
 #
 # Self-contained: this repo ships the MCP layer only, so the suite builds a
 # stub FM_HOME/bin carrying the pinned owning-script names (the same stub-home
@@ -95,7 +97,41 @@ PYEOF
   assert_contains "$out" "contract invalid" "tier failure did not say 'contract invalid'"
 }
 
+test_missing_provenance_fails_with_clear_message() {
+  local bad="$TMP_ROOT/no-prov.yaml" out status
+  python3 - "$SEED" "$bad" <<'PYEOF'
+import sys
+import yaml
+src, dst = sys.argv[1], sys.argv[2]
+data = yaml.safe_load(open(src, encoding="utf-8"))
+del data["provenance"]
+open(dst, "w", encoding="utf-8").write(yaml.safe_dump(data))
+PYEOF
+  out=$(python3 "$VALIDATOR" "$bad" 2>&1)
+  status=$?
+  [ "$status" -ne 0 ] || fail "contracts without a provenance block should fail"
+  assert_contains "$out" "provenance" "provenance failure did not say 'provenance'"
+}
+
+test_fork_pin_mismatch_fails_with_clear_message() {
+  local bad="$TMP_ROOT/fork-mismatch.yaml" out status
+  python3 - "$SEED" "$bad" <<'PYEOF'
+import sys
+import yaml
+src, dst = sys.argv[1], sys.argv[2]
+data = yaml.safe_load(open(src, encoding="utf-8"))
+data["provenance"]["fork"]["proven_commit"] = "0" * 40
+open(dst, "w", encoding="utf-8").write(yaml.safe_dump(data))
+PYEOF
+  out=$(python3 "$VALIDATOR" "$bad" 2>&1)
+  status=$?
+  expect_code 3 "$status" "a fork pin disagreeing with the manifest should exit 3" "$out"
+  assert_contains "$out" "fork proven_commit" "mismatch failure did not name the fork pin"
+}
+
 test_seed_validates
 test_stale_pin_fails_with_clear_message
 test_unknown_tier_fails_with_clear_message
+test_missing_provenance_fails_with_clear_message
+test_fork_pin_mismatch_fails_with_clear_message
 pass "mcp-schema contract map validates; stale and invalid entries fail clearly"
