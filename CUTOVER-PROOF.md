@@ -1,23 +1,21 @@
 # CUTOVER-PROOF — live fleet through firstmate_mcp
 
-Generated 2026-09-17T19:14:48Z by `python3 scripts/cutover_prove.py` against a
+Generated 2026-09-19T18:07:39Z by `python3 scripts/cutover_prove.py` against a
 scratch home only (`/tmp/fm-mcp-cutover-proof`). The live fleet
 was never touched.
 
-Launcher: `scripts/fm-mcp-launch.sh --home $SCRATCH --server py|ts`
+Launcher: `scripts/fm-mcp-launch.sh --home $SCRATCH`
 pins one `FM_HOME`, stays local-only (stdio JSON-RPC, no TCP/SSE),
-and execs the proven server with the `I authorize` approval flow
+and execs the TypeScript server with the `I authorize` approval flow
 and the JSON-lines audit log (`$FM_HOME/state/mcp-audit.jsonl`).
 
-Python banner: `fm-mcp-launch: home=/tmp/fm-mcp-cutover-proof server=py audit=/tmp/fm-mcp-cutover-proof/state/mcp-audit-py.jsonl actor=cutover-proof transport=stdio-local-only`
+TS banner: `fm-mcp-launch: home=/tmp/fm-mcp-cutover-proof server=ts audit=/tmp/fm-mcp-cutover-proof/state/mcp-audit.jsonl actor=cutover-proof transport=stdio-local-only`
 
-TS banner: `fm-mcp-launch: home=/tmp/fm-mcp-cutover-proof server=ts audit=/tmp/fm-mcp-cutover-proof/state/mcp-audit-ts.jsonl actor=cutover-proof-ts transport=stdio-local-only`
-
-## Read sweep + steers (Python server, scratch home)
+## Read sweep + steers (TypeScript server, scratch home)
 
 | tool | approval | result | detail |
 |---|---|---|---|
-| `initialize/tools/list` | n/a | **ok** | 21 tools, server firstmate-mcp-poc 0.3.0 |
+| `initialize/tools/list` | n/a | **ok** | 57 tools, server firstmate-mcp-poc 0.3.0 |
 | `fleet_snapshot` | none (Tier 1) | **ok** | schema=fm-fleet-snapshot.v1 tasks=2 |
 | `backlog` | none (Tier 1) | **ok** | total=2 |
 | `crew_state` | none (Tier 1) | **ok** | state=running |
@@ -28,12 +26,6 @@ TS banner: `fm-mcp-launch: home=/tmp/fm-mcp-cutover-proof server=ts audit=/tmp/f
 | `lifecycle_interrupt` | missing (Tier 3) | **refused** | error='approval required' |
 | `relay_reply` | `I authorize` (Tier 4) | **inert** | exit=3 (no FMX_PAIRING_TOKEN) |
 | `promote_scout` | n/a (code-forbidden) | **unknown-tool** | unknown tool: promote_scout |
-
-## TS parity spot-check (same scratch home, separate audit log)
-
-- `fleet_snapshot`: **ok**
-- `lifecycle_interrupt+approval`: **ok**
-- `lifecycle_interrupt-approval`: **refused**
 
 ## Approval flow
 
@@ -56,23 +48,23 @@ TS banner: `fm-mcp-launch: home=/tmp/fm-mcp-cutover-proof server=ts audit=/tmp/f
   `refuse/unknown-tool` at tier `forbidden`: no merge authority lives
   in this layer.
 
-## Audit log (Python server, 10 tools/call lines)
+## Audit log (TypeScript server, 10 tools/call lines)
 
 Decisions in order: allow/ok, allow/ok, allow/ok, allow/ok, allow/ok, allow/ok, allow/ok, refuse/approval-required, allow/ok, refuse/unknown-tool.
 `approval_ref` is set only on the two calls that presented approval;
 the token text never appears in the log (hash only). Full lines:
 
 ```json
-{"actor": "cutover-proof", "approval_ref": null, "decision": "allow", "reason": "ok", "target": null, "tier": 1, "tool": "fleet_snapshot", "ts": "2026-09-17T19:14:47Z", "v": 1}
-{"actor": "cutover-proof", "approval_ref": null, "decision": "allow", "reason": "ok", "target": null, "tier": 1, "tool": "backlog", "ts": "2026-09-17T19:14:47Z", "v": 1}
-{"actor": "cutover-proof", "approval_ref": null, "decision": "allow", "reason": "ok", "target": "demo-1", "tier": 1, "tool": "crew_state", "ts": "2026-09-17T19:14:48Z", "v": 1}
-{"actor": "cutover-proof", "approval_ref": null, "decision": "allow", "reason": "ok", "target": "demo-1", "tier": 1, "tool": "status_tail", "ts": "2026-09-17T19:14:48Z", "v": 1}
-{"actor": "cutover-proof", "approval_ref": null, "decision": "allow", "reason": "ok", "target": null, "tier": 1, "tool": "fleet_poll", "ts": "2026-09-17T19:14:48Z", "v": 1}
-{"actor": "cutover-proof", "approval_ref": null, "decision": "allow", "reason": "ok", "target": "demo-1", "tier": 2, "tool": "send_message", "ts": "2026-09-17T19:14:48Z", "v": 1}
-{"actor": "cutover-proof", "approval_ref": "f036c0f72b3af1ea", "decision": "allow", "reason": "ok", "target": "demo-1", "tier": 3, "tool": "lifecycle_interrupt", "ts": "2026-09-17T19:14:48Z", "v": 1}
-{"actor": "cutover-proof", "approval_ref": null, "decision": "refuse", "reason": "approval-required", "target": "demo-1", "tier": 3, "tool": "lifecycle_interrupt", "ts": "2026-09-17T19:14:48Z", "v": 1}
-{"actor": "cutover-proof", "approval_ref": "2cd3c30d309da9d6", "decision": "allow", "reason": "ok", "target": "req-1", "tier": 4, "tool": "relay_reply", "ts": "2026-09-17T19:14:48Z", "v": 1}
-{"actor": "cutover-proof", "approval_ref": null, "decision": "refuse", "reason": "unknown-tool", "target": null, "tier": "forbidden", "tool": "promote_scout", "ts": "2026-09-17T19:14:48Z", "v": 1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":244,"reason":"ok","target":null,"tier":1,"tool":"fleet_snapshot","ts":"2026-09-19T18:07:38Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":8,"reason":"ok","target":null,"tier":1,"tool":"backlog","ts":"2026-09-19T18:07:38Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":219,"reason":"ok","target":"demo-1","tier":1,"tool":"crew_state","ts":"2026-09-19T18:07:38Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":0,"reason":"ok","target":"demo-1","tier":1,"tool":"status_tail","ts":"2026-09-19T18:07:38Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":9,"reason":"ok","target":null,"tier":1,"tool":"fleet_poll","ts":"2026-09-19T18:07:38Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":212,"reason":"ok","target":"demo-1","tier":2,"tool":"send_message","ts":"2026-09-19T18:07:39Z","v":1}
+{"actor":"cutover-proof","approval_ref":"f036c0f72b3af1ea","decision":"allow","duration_ms":208,"reason":"ok","target":"demo-1","tier":3,"tool":"lifecycle_interrupt","ts":"2026-09-19T18:07:39Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"refuse","duration_ms":0,"reason":"approval-required","target":"demo-1","tier":3,"tool":"lifecycle_interrupt","ts":"2026-09-19T18:07:39Z","v":1}
+{"actor":"cutover-proof","approval_ref":"2cd3c30d309da9d6","decision":"allow","duration_ms":232,"reason":"ok","target":"req-1","tier":4,"tool":"relay_reply","ts":"2026-09-19T18:07:39Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"refuse","duration_ms":0,"reason":"unknown-tool","target":null,"tier":"forbidden","tool":"promote_scout","ts":"2026-09-19T18:07:39Z","v":1}
 ```
 
 ## Residual risks

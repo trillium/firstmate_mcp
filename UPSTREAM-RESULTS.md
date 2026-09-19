@@ -9,15 +9,15 @@ Seeded: 2026-09-19T17:05:29Z via `bash tests/upstream/run_upstream.sh` (`python3
 - contracts source: `schema/contracts.yaml`
 - overall: **pass**
 
-| test | contracts | upstream file | upstream ref | py | ts |
-|---|---|---|---|---|---|
-| fleet_snapshot | fleet_snapshot | fm-fleet-snapshot-view.test.sh | pass | pass | pass |
-| backlog | backlog | (adapter-native) | skip | pass | pass |
-| crew_state | crew_state | fm-crew-state.test.sh | pass | pass | pass |
-| status_tail | status_tail | (adapter-native) | skip | pass | pass |
-| send_message | send_message | fm-send-strict.test.sh | pass | pass | pass |
-| spawn_crew | spawn_crew | fm-spawn-batch.test.sh | pass | pass | pass |
-| scaffold_brief | scaffold_brief | fm-brief.test.sh | pass | pass | pass |
+| test | contracts | upstream file | upstream ref | ts |
+|---|---|---|---|---|
+| fleet_snapshot | fleet_snapshot | fm-fleet-snapshot-view.test.sh | pass | pass |
+| backlog | backlog | (native) | skip | pass |
+| crew_state | crew_state | fm-crew-state.test.sh | pass | pass |
+| status_tail | status_tail | (native) | skip | pass |
+| send_message | send_message | fm-send-strict.test.sh | pass | pass |
+| spawn_crew | spawn_crew | fm-spawn-batch.test.sh | pass | pass |
+| scaffold_brief | scaffold_brief | fm-brief.test.sh | pass | pass |
 
 ## Per-test detail
 
@@ -29,19 +29,20 @@ ok - captain-hold buckets are total, mutually exclusive, and never decided by pr
 ok - main_inventory discloses orphan/unstructured and clears when inventory is consistent
 ok - backlog normalization preserves strict roles and resolves every blocker compatibly
 ok - snapshot event hints
-- py: **pass**, ts (bun): **pass**
-  - `fleet_snapshot:fleet_snapshot {}` — py pass, ts pass
+- ts (bun): **pass**
+  - `fleet_snapshot:fleet_snapshot {}` — ts pass
 
 ### backlog
 
-- upstream file: `(adapter-native file-tail reference)`
+- upstream file: `(native file-tail reference)`
 - upstream ref: **skip** — no owning upstream test (adapter-native surface)
-- py: **pass**, ts (bun): **pass**
-  - `backlog:backlog {}` — py pass, ts pass
+- ts (bun): **pass**
+  - `backlog:backlog {}` — ts pass
 
 ### crew_state
 
 - upstream file: `fm-crew-state.test.sh`
+<<<<<<< HEAD
 - upstream ref: **pass** — exit 0; tail: ok - R3 historical inventory yields to the current busy pane
 ok - R3 historical inventory yields to current worker status
 ok - superseded cancelled run preserves the replacement review gate
@@ -52,15 +53,36 @@ ok - wrong-id
 - py: **pass**, ts (bun): **pass**
   - `crew_state:crew_state {'id': 'no-such-crew'}` — py pass, ts pass
   - `crew_state:crew_state {'id': '../escape'}` — py pass, ts pass
+||||||| parent of 7a9dd60 (feat(rewire): update generators, CI, test harnesses, and manifest for TS sole server)
+- upstream ref: **pass** — exit 0; tail: ok - local work advanced past run head invalidates attribution
+ok - pipeline-owned active run binds without head equality and beats the failed row
+ok - a genuinely failed run with no later run is not hidden
+ok - coarse scan anchors the unresolvable active row instead of falling to an older one
+ok - coarse scan with a mismatched anchor stays unknown and lets the pane answer
+ok - the e
+- py: **pass**, ts (bun): **pass**
+  - `crew_state:crew_state {'id': 'no-such-crew'}` — py pass, ts pass
+  - `crew_state:crew_state {'id': '../escape'}` — py pass, ts pass
+=======
+- upstream ref: **pass** — exit 0; tail: ok - local work advanced past run head invalidates attribution
+ok - pipeline-owned active run binds without head equality and beats the failed row
+ok - a genuinely failed run with no later run is not hidden
+ok - coarse scan anchors the unresolvable active row instead of falling to an older one
+ok - coarse scan with a mismatched anchor stays unknown and lets the pane answer
+ok - the e
+- ts (bun): **pass**
+  - `crew_state:crew_state {'id': 'no-such-crew'}` — ts pass
+  - `crew_state:crew_state {'id': '../escape'}` — ts pass
+>>>>>>> 7a9dd60 (feat(rewire): update generators, CI, test harnesses, and manifest for TS sole server)
 
 ### status_tail
 
-- upstream file: `(adapter-native file-tail reference)`
+- upstream file: `(native file-tail reference)`
 - upstream ref: **skip** — no owning upstream test (adapter-native surface)
-- py: **pass**, ts (bun): **pass**
-  - `status_tail:status_tail {'id': 't1', 'lines': 3}` — py pass, ts pass
-  - `status_tail:status_tail {'id': 'ghost-crew'}` — py pass, ts pass
-  - `status_tail:status_tail {'id': '../escape'}` — py pass, ts pass
+- ts (bun): **pass**
+  - `status_tail:status_tail {'id': 't1', 'lines': 3}` — ts pass
+  - `status_tail:status_tail {'id': 'ghost-crew'}` — ts pass
+  - `status_tail:status_tail {'id': '../escape'}` — ts pass
 
 ### send_message
 
@@ -71,10 +93,10 @@ ok - fm-send strict: unset FM_HOME fails before target resolution
 ok - fm-send strict: unresolvable selectors do not fall back to tmux
 ok - fm-send strict: prefixless herdr pane ids are rejected before tmux fallback
 ok -
-- py: **pass**, ts (bun): **pass**
-  - `send_message:send_message {'target': 't1', 'text': '/bad slash'}` — py pass, ts pass
-  - `send_message:send_message {'target': '../escape', 'text': 'hi'}` — py pass, ts pass
-  - `send_message:send_message {'target': 't1', 'text': 'hello from upstream harness'}` — py pass, ts pass
+- ts (bun): **pass**
+  - `send_message:send_message {'target': 't1', 'text': '/bad slash'}` — ts pass
+  - `send_message:send_message {'target': '../escape', 'text': 'hi'}` — ts pass
+  - `send_message:send_message {'target': 't1', 'text': 'hello from upstream harness'}` — ts pass
 
 ### spawn_crew
 
@@ -84,9 +106,9 @@ ok - batch detection: single pair batches, non-pair rejected, single-task and sl
 ok - batch dispatch requires the shared ship delivery contract before any pair runs
 ok - scout batch refuses ship delivery flags instead of ignoring them
 ok - projects/ paths are scoped through the firstmate home for single-tas
-- py: **pass**, ts (bun): **pass**
-  - `spawn_crew:spawn_crew {'task_id': 'no-such-id', 'project': 'no-such-project', 'mode': 'local-only', 'yolo': 'off'}` — py pass, ts pass
-  - `spawn_crew:spawn_crew {'task_id': 'no-such-id', 'project': 'no-such-project', 'mode': 'local-only', 'yolo': 'off', 'approval': 'I authorize upstream preservation proof'}` — py pass, ts pass
+- ts (bun): **pass**
+  - `spawn_crew:spawn_crew {'task_id': 'no-such-id', 'project': 'no-such-project', 'mode': 'local-only', 'yolo': 'off'}` — ts pass
+  - `spawn_crew:spawn_crew {'task_id': 'no-such-id', 'project': 'no-such-project', 'mode': 'local-only', 'yolo': 'off', 'approval': 'I authorize upstream preservation proof'}` — ts pass
 
 ### scaffold_brief
 
@@ -96,9 +118,9 @@ ok - fm-brief.sh: --herdr-lab uses its quoted Firstmate-owned helper path
 ok - fm-brief.sh: ship and scout scaffolds make omitted Herdr intent fail-visible
 ok - fm-brief.sh: the documented {TASK} and {FIRSTMATE_SPEC} fills cannot corrupt the Herdr safety gate
 ok - fm-brief.sh: Herdr lab contract covers scouts and r
-- py: **pass**, ts (bun): **pass**
-  - `scaffold_brief:scaffold_brief {'task_id': 'no-such-id', 'project': 'no-such-project', 'mode': 'scout'}` — py pass, ts pass
-  - `scaffold_brief:scaffold_brief {'task_id': 'no-such-id', 'project': 'no-such-project', 'mode': 'bogus', 'approval': 'I authorize upstream preservation proof'}` — py pass, ts pass
+- ts (bun): **pass**
+  - `scaffold_brief:scaffold_brief {'task_id': 'no-such-id', 'project': 'no-such-project', 'mode': 'scout'}` — ts pass
+  - `scaffold_brief:scaffold_brief {'task_id': 'no-such-id', 'project': 'no-such-project', 'mode': 'bogus', 'approval': 'I authorize upstream preservation proof'}` — ts pass
 
 ## Divergences (explicit only)
 

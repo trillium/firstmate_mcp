@@ -32,32 +32,20 @@ jobs:
         run: bash tests/mcp-schema.test.sh
 
   unit:
-    name: unit / adapter / auth
+    name: unit / validators / auth
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: oven-sh/setup-bun@v2
         with:
-          python-version: "3.13"
-      - run: pip install pyyaml jsonschema
-      - name: adapter boundary behavior tests
+          bun-version: latest
+      - name: boundary behavior tests
         run: bash tests/mcp-adapter.test.sh
-      - name: authz tier tests
+      - name: authz tier and timing tests
         run: bash tests/fm-mcp-authz.test.sh
 
-  conformance:
-    name: conformance suite
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - name: end-to-end MCP proof (stdlib only, stub home)
-        run: python3 test_client.py
-
-  ts-sibling:
-    name: typescript sibling parity
+  ts-server:
+    name: typescript server proof
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -67,9 +55,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
       - name: ts proof suites under bun (primary runtime)
         run: |
           cd ts
@@ -80,8 +65,24 @@ jobs:
           cd ts
           npm install --no-audit --no-fund
           npm test
-      - name: py/ts wire parity plus ts fixtures (both runtimes)
+      - name: ts multi-runtime proof plus conformance fixtures
         run: bash tests/conformance/ts-parity.sh
+      - name: ts conformance fixtures
+        run: bash tests/conformance/conformance.sh
+
+  manifest:
+    name: manifest and coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pyyaml
+      - name: feature manifest validation
+        run: bash tests/fm-manifest.test.sh
+      - name: support coverage validation
+        run: bash tests/fm-coverage.test.sh
 
   upstream:
     name: upstream preservation

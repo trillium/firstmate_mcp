@@ -108,42 +108,41 @@ Refused by the adapter deny-list (no tool, answered unknown):
   `drift/shift.py` diffs the pin against upstream main and reports
   which depended-on surfaces moved, so TS/Python ports start from
   that report.
-- Subprocess envelope — `fm_mcp_server.py` returns every tool call within
+- Subprocess envelope — TypeScript server returns every tool call within
   `SUBPROCESS_TIMEOUT_S=30` with `MAX_OUTPUT_BYTES=1048576`,
   process-group kill on timeout so timed-out reads leave no orphans.
 - Async receipts — `receipt_submit` detaches one call past the 30s
   budget and returns a pending receipt; `receipt_status` reports
   running/done/failed with the result attached, TTL expiry, and
   per-home confinement so receipts never leak across homes.
-- Auth tiers in code — `auth/tiers.py` assigns every tool a tier,
-  `auth/audit.py` writes the JSON-lines audit log; every
-  authority-bearing tool refuses without an `I authorize` string.
+- Auth tiers in code — `ts/src/auth.ts` assigns every tool a tier,
+  writes the JSON-lines audit log; every authority-bearing tool
+  refuses without an `I authorize` string.
 - Contract map — `schema/contracts.yaml` declares the depended-on
   subset with stability tiers; `schema/validate.py` fails naming the
   stale pin; `schema/matrix.md` is the human view.
-- Conformance fixtures — `tests/conformance/` proves adapter output
-  equals the owning scripts' output via stub homes (skips cleanly
+- Conformance fixtures — `ts/tests/conformance.test.ts` proves TS server
+  output equals the owning scripts' output via stub homes (skips cleanly
   without a firstmate checkout).
 - Upstream preservation — `tests/upstream/` runs upstream firstmate
-  tests unchanged against both py and ts paths via thin adapters
+  tests unchanged against the TypeScript server via thin adapters
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` independently implements the same 57-tool
-  contract over stdio (no dependencies); `tests/conformance/ts-parity.sh`
-  diffs py/ts payloads field-for-field plus the TS equivalence fixtures.
+- TypeScript sibling — `ts/` implements the 57-tool
+  contract over stdio as the sole server (zero runtime dependencies beyond Effect);
+  `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Proof suites in this tree (all run in gates below):
-  - `test_client.py`
   - `tests/mcp-adapter.test.sh`
   - `tests/mcp-schema.test.sh`
   - `tests/drift-check.test.sh`
   - `tests/fm-mcp-authz.test.sh`
   - `tests/fm-coverage.test.sh`
+  - `tests/fm-manifest.test.sh`
   - `tests/conformance/conformance.sh`
   - `tests/conformance/ts-parity.sh`
   - `tests/upstream/run_upstream.sh`
   - `tests/test_drift.py`
-  - `auth/test_authz.py`
   - `ts/tests/server.test.ts`
   - `ts/tests/conformance.test.ts`
   - `ts/tests/auth.test.ts`

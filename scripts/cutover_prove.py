@@ -113,120 +113,97 @@ class Client:
 
 def main():
     build_scratch()
-    audit_py = SCRATCH / "state" / "mcp-audit-py.jsonl"
-    audit_ts = SCRATCH / "state" / "mcp-audit-ts.jsonl"
+    audit_ts = SCRATCH / "state" / "mcp-audit.jsonl"
     rows = []
 
     def row(tool, approval, outcome, detail):
         rows.append((tool, approval, outcome, detail))
 
-    py = Client("py", audit_py, "cutover-proof")
-    init = py.rpc("initialize", {"protocolVersion": "2024-11-05"})
+    ts = Client("ts", audit_ts, "cutover-proof")
+    init = ts.rpc("initialize", {"protocolVersion": "2024-11-05"})
     server_info = init["result"]["serverInfo"]
-    listed = py.rpc("tools/list")
+    listed = ts.rpc("tools/list")
     names = [t["name"] for t in listed["result"]["tools"]]
     row("initialize/tools/list", "n/a",
         "ok" if len(names) == 57 else "MISMATCH",
         "%d tools, server %s %s" % (
             len(names), server_info["name"], server_info["version"]))
 
-    body, _ = py.call("fleet_snapshot", {})
+    body, _ = ts.call("fleet_snapshot", {})
     row("fleet_snapshot", "none (Tier 1)",
         "ok" if body.get("schema") == "fm-fleet-snapshot.v1"
         and len(body.get("tasks", [])) == 2 else "MISMATCH",
         "schema=%s tasks=%d" % (body.get("schema"), len(body.get("tasks", []))))
-    body, _ = py.call("backlog", {})
+    body, _ = ts.call("backlog", {})
     row("backlog", "none (Tier 1)",
         "ok" if body.get("task_counts", {}).get("total") == 2 else "MISMATCH",
         "total=%s" % body.get("task_counts", {}).get("total"))
-    body, _ = py.call("crew_state", {"id": "demo-1"})
+    body, _ = ts.call("crew_state", {"id": "demo-1"})
     row("crew_state", "none (Tier 1)",
         "ok" if body.get("current", {}).get("state") == "running" else "MISMATCH",
         "state=%s" % body.get("current", {}).get("state"))
-    body, _ = py.call("status_tail", {"id": "demo-1", "lines": 10})
+    body, _ = ts.call("status_tail", {"id": "demo-1", "lines": 10})
     row("status_tail", "none (Tier 1)",
         "ok" if body.get("events") == STATUS_LINES else "MISMATCH",
         "events=%d" % len(body.get("events", [])))
-    body, _ = py.call("fleet_poll", {"count": 1})
+    body, _ = ts.call("fleet_poll", {"count": 1})
     row("fleet_poll", "none (Tier 1)",
         "ok" if len(body.get("polls", [])) == 1 else "MISMATCH",
         "polls=%d" % len(body.get("polls", [])))
-    body, err = py.call("send_message",
+    body, err = ts.call("send_message",
                         {"target": "demo-1", "text": "cutover proof steer"})
     row("send_message", "none (Tier 2)",
         "ok" if not err and body.get("delivered") else "MISMATCH",
         "delivered=%s" % body.get("delivered"))
-    body, err = py.call("lifecycle_interrupt",
+    body, err = ts.call("lifecycle_interrupt",
                         {"id": "demo-1", "approval": APPROVAL_INT})
     row("lifecycle_interrupt", "`I authorize` (Tier 3)",
         "ok" if not err and "cutover-proof" in body.get("stdout", "")
         else "MISMATCH",
         "stdout=%r" % body.get("stdout", ""))
-    body, err = py.call("lifecycle_interrupt", {"id": "demo-1"})
+    body, err = ts.call("lifecycle_interrupt", {"id": "demo-1"})
     row("lifecycle_interrupt", "missing (Tier 3)",
         "refused" if err and body.get("error") == "approval required"
         else "MISMATCH",
         "error=%r" % body.get("error"))
-    body, err = py.call("relay_reply",
+    body, err = ts.call("relay_reply",
                         {"request_id": "req-1", "text": "hello",
                          "approval": APPROVAL_RELAY})
     row("relay_reply", "`I authorize` (Tier 4)",
         "inert" if err and body.get("exit") == 3 else "MISMATCH",
         "exit=%s (no FMX_PAIRING_TOKEN)" % body.get("exit"))
-    resp = py.rpc("tools/call",
+    resp = ts.rpc("tools/call",
                   {"name": "promote_scout", "arguments": {}})
     row("promote_scout", "n/a (code-forbidden)",
         "unknown-tool" if resp.get("error", {}).get("message", "").startswith(
             "unknown tool:") else "MISMATCH",
         resp.get("error", {}).get("message", ""))
-    py_banner = py.banner
-    py.close()
-
-    # TS parity spot-check: reads plus the approval allow/refuse pair.
-    ts_rows = []
-    ts = Client("ts", audit_ts, "cutover-proof-ts")
-    body, _ = ts.call("fleet_snapshot", {})
-    ts_rows.append(("fleet_snapshot",
-                    "ok" if body.get("schema") == "fm-fleet-snapshot.v1"
-                    else "MISMATCH"))
-    body, err = ts.call("lifecycle_interrupt",
-                        {"id": "demo-1", "approval": APPROVAL_INT})
-    ts_rows.append(("lifecycle_interrupt+approval",
-                    "ok" if not err else "MISMATCH"))
-    body, err = ts.call("lifecycle_interrupt", {"id": "demo-1"})
-    ts_rows.append(("lifecycle_interrupt-approval",
-                    "refused" if err else "MISMATCH"))
     ts_banner = ts.banner
     ts.close()
 
-    py_log = audit_py.read_text(encoding="utf-8")
-    py_lines = [json.loads(line) for line in py_log.splitlines()]
     ts_log = audit_ts.read_text(encoding="utf-8")
     ts_lines = [json.loads(line) for line in ts_log.splitlines()]
 
     failures = [r for r in rows if r[2] in ("MISMATCH",)]
-    failures += [(t, "", s, "") for t, s in ts_rows if s == "MISMATCH"]
     audit_failures = []
-    if len(py_lines) != 10:
-        audit_failures.append("py audit lines=%d, want 10" % len(py_lines))
-    if len(ts_lines) != 3:
-        audit_failures.append("ts audit lines=%d, want 3" % len(ts_lines))
-    want_py = [("allow", "ok"), ("allow", "ok"), ("allow", "ok"),
+    if len(ts_lines) != 10:
+        audit_failures.append("ts audit lines=%d, want 10" % len(ts_lines))
+    want_ts = [("allow", "ok"), ("allow", "ok"), ("allow", "ok"),
                ("allow", "ok"), ("allow", "ok"), ("allow", "ok"),
                ("allow", "ok"), ("refuse", "approval-required"),
                ("allow", "ok"), ("refuse", "unknown-tool")]
-    got_py = [(ln["decision"], ln["reason"]) for ln in py_lines]
-    if got_py != want_py:
-        audit_failures.append("py audit decisions=%r" % (got_py,))
-    if "I authorize" in py_log or "I authorize" in ts_log:
+    got_ts = [(ln["decision"], ln["reason"]) for ln in ts_lines]
+    if got_ts != want_ts:
+        audit_failures.append("ts audit decisions=%r" % (got_ts,))
+    if "I authorize" in ts_log:
         audit_failures.append("approval plaintext leaked into audit log")
-    refs = [ln["approval_ref"] for ln in py_lines]
+    refs = [ln["approval_ref"] for ln in ts_lines]
     if refs[6] is None or refs[7] is not None or refs[8] is None:
         audit_failures.append("approval_ref present only where approval given")
     if any(set(ln.keys()) != {"v", "ts", "actor", "tool", "tier",
-                              "decision", "reason", "approval_ref", "target"}
-           for ln in py_lines + ts_lines):
-        audit_failures.append("audit line keys mismatch auth/AUTH.md")
+                              "decision", "reason", "approval_ref", "target", "duration_ms"}
+           for ln in ts_lines):
+        audit_failures.append("audit line keys mismatch AUTH.md")
 
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     md = []
@@ -236,26 +213,19 @@ def main():
     md.append("scratch home only (`/tmp/fm-mcp-cutover-proof`). The live fleet")
     md.append("was never touched.")
     md.append("")
-    md.append("Launcher: `scripts/fm-mcp-launch.sh --home $SCRATCH --server py|ts`")
+    md.append("Launcher: `scripts/fm-mcp-launch.sh --home $SCRATCH`")
     md.append("pins one `FM_HOME`, stays local-only (stdio JSON-RPC, no TCP/SSE),")
-    md.append("and execs the proven server with the `I authorize` approval flow")
+    md.append("and execs the TypeScript server with the `I authorize` approval flow")
     md.append("and the JSON-lines audit log (`$FM_HOME/state/mcp-audit.jsonl`).")
-    md.append("")
-    md.append("Python banner: `%s`" % py_banner)
     md.append("")
     md.append("TS banner: `%s`" % ts_banner)
     md.append("")
-    md.append("## Read sweep + steers (Python server, scratch home)")
+    md.append("## Read sweep + steers (TypeScript server, scratch home)")
     md.append("")
     md.append("| tool | approval | result | detail |")
     md.append("|---|---|---|---|")
     for tool, approval, outcome, detail in rows:
         md.append("| `%s` | %s | **%s** | %s |" % (tool, approval, outcome, detail))
-    md.append("")
-    md.append("## TS parity spot-check (same scratch home, separate audit log)")
-    md.append("")
-    for tool, outcome in ts_rows:
-        md.append("- `%s`: **%s**" % (tool, outcome))
     md.append("")
     md.append("## Approval flow")
     md.append("")
@@ -278,15 +248,15 @@ def main():
     md.append("  `refuse/unknown-tool` at tier `forbidden`: no merge authority lives")
     md.append("  in this layer.")
     md.append("")
-    md.append("## Audit log (Python server, 10 tools/call lines)")
+    md.append("## Audit log (TypeScript server, 10 tools/call lines)")
     md.append("")
     md.append("Decisions in order: " +
-              ", ".join("%s/%s" % (d, r) for d, r in got_py) + ".")
+              ", ".join("%s/%s" % (d, r) for d, r in got_ts) + ".")
     md.append("`approval_ref` is set only on the two calls that presented approval;")
     md.append("the token text never appears in the log (hash only). Full lines:")
     md.append("")
     md.append("```json")
-    md.append(py_log.strip())
+    md.append(ts_log.strip())
     md.append("```")
     md.append("")
     md.append("## Residual risks")
@@ -298,8 +268,8 @@ def main():
     md.append("")
     REPORT.write_text("\n".join(md), encoding="utf-8")
 
-    print("sweep rows: %d, ts rows: %d" % (len(rows), len(ts_rows)))
-    print("audit: py=%d lines ts=%d lines" % (len(py_lines), len(ts_lines)))
+    print("sweep rows: %d" % (len(rows),))
+    print("audit: ts=%d lines" % (len(ts_lines),))
     if failures or audit_failures:
         for item in failures + audit_failures:
             print("FAIL:", item)
