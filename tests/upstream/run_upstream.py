@@ -86,18 +86,19 @@ def resolve_upstream_root():
 
 def upstream_pin():
     """Authoritative gitlink pin for sources/firstmate, else manifest pointer."""
-    try:
-        proc = subprocess.run(
-            ["git", "rev-parse", "HEAD:sources/firstmate"],
-            cwd=str(ROOT),
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        if proc.returncode == 0 and proc.stdout.strip():
-            return proc.stdout.strip()
-    except Exception:
-        pass
+    for spec in (":sources/firstmate", "HEAD:sources/firstmate"):
+        try:
+            proc = subprocess.run(
+                ["git", "rev-parse", spec],
+                cwd=str(ROOT),
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if proc.returncode == 0 and proc.stdout.strip():
+                return proc.stdout.strip()
+        except Exception:
+            pass
     try:
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
         return manifest.get("upstream", {}).get("gitlink", "unknown")
