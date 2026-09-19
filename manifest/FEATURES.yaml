@@ -958,3 +958,103 @@ features:
     py: {status: missing}
     ts: {status: implemented, evidence: ["ts/src/server.ts:server", "ts/src/tools.ts:fleet_snapshot"]}
     divergence: {status: not-applicable, reason: ""}
+  # ---- FORK DELTAS: trillium/firstmate behavior changes vs upstream kunchenguid ----
+  - id: brief_herdr_lab_safety
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-brief.sh
+    summary: Hard safety lifecycle declaration gate in brief generation (--herdr-lab) preventing unprompted Herdr lifecycle commands.
+    contract: schema/contracts.yaml#scaffold_brief
+    upstream_test: "proof: tests/upstream/run_upstream.py::scaffold_brief (fm-brief.test.sh: --herdr-lab safety contract)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_scaffold_brief", "adapter/dispatch.py:\"scaffold_brief\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:scaffold_brief"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Trillium fork requires explicit --herdr-lab and strict lifecycle safety
+        gate injection for agent briefs; upstream brief generation has no
+        Herdr lab contract.
+  - id: spawn_batch_delivery
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-spawn.sh
+    summary: Batch crew dispatch with shared delivery contract verification across id=repo pairs and project-scoping.
+    contract: schema/contracts.yaml#spawn_crew
+    upstream_test: "proof: tests/upstream/run_upstream.py::spawn_crew (fm-spawn-batch.test.sh: batch dispatch & delivery contract)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_spawn_crew", "adapter/dispatch.py:\"spawn_crew\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:spawn_crew"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Trillium fork adds batch dispatching, project path scoping through
+        firstmate home, and delivery contract validation.
+  - id: remote_fleet_management
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-remote-doctor.sh
+    summary: Persistent secondmate control and remote home coordination across Tailscale minis with state reconciliation.
+    contract: schema/contracts.yaml#remote_doctor
+    upstream_test: "proof: tests/conformance/test_conformance.py (scratch FM_HOME remote and secondmate suites)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_remote_doctor", "adapter/dispatch.py:\"remote_doctor\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:remote_doctor"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Multi-machine fleet management and secondmate persistence across remote
+        nodes specific to Trillium's infrastructure.
+  - id: backlog_handoff_protocol
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-backlog-handoff.sh
+    summary: Structured task handoff outboxes (data/handoff/<id>.outbox.md) and atomic move protocol between crews.
+    contract: schema/contracts.yaml#handoff_status
+    upstream_test: "proof: tests/conformance/test_conformance.py (handoff status & move tests)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_handoff_status", "adapter/dispatch.py:\"handoff_status\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:handoff_status"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Asynchronous crew-to-crew handoff protocol via structured markdown
+        outboxes.
+  - id: captain_decision_holds
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-decision-hold.sh
+    summary: Structured captain hold buckets, age-based triage, and closed-verdict recording (fm-decision-hold.sh, fm-captain-hold.sh).
+    contract: schema/contracts.yaml#review_decision
+    upstream_test: "proof: test_client.py (decision hold & review decision verification)"
+    py: {status: implemented, evidence: ["fm_mcp_server.py:tool_review_decision", "adapter/dispatch.py:\"review_decision\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:review_decision"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Structured decision hold lifecycle with answer files and explicit
+        verdict transitions.
+  - id: fork_origin_check
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-fork-origin-check.sh
+    summary: Advisory scan for registered project clones whose remotes look like an unswapped fork-contribution setup.
+    contract: drift/baseline.json
+    upstream_test: "proof: drift/baseline.json:\"fm-fork-origin-check.sh\""
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-fork-origin-check.sh\""]}
+    ts: {status: missing}
+    divergence:
+      status: intentional
+      reason: >-
+        Trillium fork-origin convention for fork-contribution clones; upstream
+        firstmate does not enforce or scan fork remote setup.
+  - id: afk_daemon_launch
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-afk-launch.sh
+    summary: Away-mode daemon terminal lifecycle in non-visible tracked terminal with supervisor targeting and clean persona isolation without PAI config bleed.
+    contract: drift/baseline.json
+    upstream_test: "proof: drift/baseline.json:\"fm-afk-launch.sh\""
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-afk-launch.sh\""]}
+    ts: {status: missing}
+    divergence:
+      status: intentional
+      reason: >-
+        Non-visible terminal creation and PAI isolation fix; upstream uses
+        foreground or visible pane splits.

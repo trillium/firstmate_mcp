@@ -144,6 +144,45 @@ PYEOF
   assert_contains "$out" "stale" "stale-pin failure did not say 'stale'"
 }
 
+test_fork_missing_rev_fails() {
+  local bad="$TMP_ROOT/noforkrev.yaml" out status
+  cp "$SEED" "$bad"
+  python3 - "$bad" <<'PYEOF'
+import sys
+text = open(sys.argv[1]).read()
+needle = "fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f"
+assert needle in text, "seed shape changed; update this fixture"
+# remove the first fork_rev line
+open(sys.argv[1], "w").write(text.replace(needle, "", 1))
+PYEOF
+  out=$(python3 "$VALIDATOR" "$bad" 2>&1)
+  status=$?
+  expect_code 2 "$status" "a fork entry without fork_rev should exit 2" "$out"
+  assert_contains "$out" "brief_herdr_lab_safety" "fork_rev failure did not name the entry"
+}
+
+test_fork_divergence_without_reason_fails() {
+  local bad="$TMP_ROOT/noforkreason.yaml" out status
+  cp "$SEED" "$bad"
+  python3 - "$bad" <<'PYEOF'
+import sys
+text = open(sys.argv[1]).read()
+target = (
+    "      reason: >-\n"
+    "        Trillium fork requires explicit --herdr-lab and strict lifecycle safety\n"
+    "        gate injection for agent briefs; upstream brief generation has no\n"
+    "        Herdr lab contract."
+)
+assert target in text, "seed shape changed; update this fixture"
+text = text.replace(target, '      reason: ""', 1)
+open(sys.argv[1], "w").write(text)
+PYEOF
+  out=$(python3 "$VALIDATOR" "$bad" 2>&1)
+  status=$?
+  expect_code 3 "$status" "a fork entry with empty divergence reason should exit 3" "$out"
+  assert_contains "$out" "brief_herdr_lab_safety" "fork divergence failure did not name the entry"
+}
+
 test_generator_manifest_check() {
   local out status
   out=$(python3 "$GEN" --check-manifest 2>&1)
@@ -160,5 +199,7 @@ test_phantom_implementation_fails
 test_missing_contract_entry_fails
 test_missing_fork_pin_fails
 test_stale_gitlink_fails
+test_fork_missing_rev_fails
+test_fork_divergence_without_reason_fails
 test_generator_manifest_check
 pass "feature manifest validates; coverage, honesty, divergence, and generator wiring behave"

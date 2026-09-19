@@ -42,7 +42,7 @@ CONTRACTS_PATH = ROOT / "schema" / "contracts.yaml"
 ID_RE = re.compile(r"^[a-z0-9_]+$")
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-KINDS = ("upstream-mirror", "local")
+KINDS = ("upstream-mirror", "local", "fork")
 STATUSES = ("implemented", "partial", "missing")
 DIVERGENCE = ("none", "intentional", "not-applicable")
 REQUIRED = ("summary", "contract", "upstream_test", "py", "ts", "divergence")
@@ -216,6 +216,12 @@ def main():
         fail(2, f"{target} root must be a mapping")
     if data.get("version") != "v1":
         fail(2, f"{target} version must be 'v1'")
+    if "fork" in data:
+        fork_info = data["fork"]
+        if not isinstance(fork_info, dict):
+            fail(2, f"{target} 'fork' must be a mapping")
+        if not fork_info.get("repo") or not fork_info.get("proven_commit"):
+            fail(2, f"{target} 'fork' mapping must include 'repo' and 'proven_commit'")
     features = data.get("features")
     if not isinstance(features, list) or not features:
         fail(2, f"{target} must carry a non-empty 'features' list")
@@ -240,6 +246,11 @@ def main():
             fail(2, f"mirror feature '{fid}' must name 'upstream_command' provenance")
         if entry["kind"] == "local" and not entry.get("local_path"):
             fail(2, f"local feature '{fid}' must name 'local_path' provenance")
+        if entry["kind"] == "fork":
+            if not entry.get("fork_rev"):
+                fail(2, f"fork feature '{fid}' must name 'fork_rev' commit provenance")
+            if not (entry.get("fork_command") or entry.get("fork_path")):
+                fail(2, f"fork feature '{fid}' must name 'fork_command' or 'fork_path' provenance")
         for side in ("py", "ts"):
             impl = entry[side]
             if not isinstance(impl, dict) or "status" not in impl:
@@ -253,6 +264,11 @@ def main():
                 fail(3, f"local feature '{fid}' divergence must be 'not-applicable' (nothing upstream to diverge from)")
             if reason:
                 fail(3, f"local feature '{fid}' divergence carries a reason but is not-applicable")
+        elif entry["kind"] == "fork":
+            if div["status"] != "intentional":
+                fail(3, f"fork feature '{fid}' divergence must be 'intentional' (tracking delta against upstream)")
+            if not reason:
+                fail(3, f"fork feature '{fid}' is an intentional divergence with no reason; record why upstream behavior differs")
         elif div["status"] == "intentional" and not reason:
             fail(3, f"feature '{fid}' is an intentional divergence with no reason; record why upstream behavior is no longer authoritative")
         elif div["status"] in ("none", "not-applicable") and reason:
@@ -296,10 +312,11 @@ def main():
 
     n_mirror = sum(1 for e in features if e["kind"] == "upstream-mirror")
     n_local = sum(1 for e in features if e["kind"] == "local")
+    n_fork = sum(1 for e in features if e["kind"] == "fork")
     n_div = sum(1 for e in features if e["divergence"]["status"] == "intentional")
     print(
         f"manifest ok: {len(features)} features "
-        f"({n_mirror} mirrored, {n_local} local, {n_div} intentional divergences), "
+        f"({n_mirror} mirrored, {n_local} local, {n_fork} fork deltas, {n_div} intentional divergences), "
         f"{len(names)} schema contracts covered, evidence spot-checked, "
         f"provenance pins verified "
         f"(upstream {data['upstream']['gitlink_at_seed'][:9]} radar + "
