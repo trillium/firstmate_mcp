@@ -18,7 +18,9 @@ When updating this file, preserve this bar for all agents and keep entries conci
   includes a fixture that fakes a >30s, >128KB snapshot so the envelope stays
   covered without the live fleet. Other suites: `bash tests/mcp-adapter.test.sh`,
   `tests/fm-mcp-authz.test.sh`, `tests/mcp-schema.test.sh`, `tests/drift-check.test.sh`,
-  `tests/fm-manifest.test.sh`, `tests/fm-coverage.test.sh` (support-coverage view:
+  `tests/fm-manifest.test.sh` (`manifest/validate.py` validates dual provenance,
+  honesty, contract coverage, and kinds `upstream-mirror`, `local`, and `fork`),
+  `tests/fm-coverage.test.sh` (support-coverage view:
   `scripts/gen_coverage.py` renders every upstream command area with its mirror
   status into `manifest/COVERAGE.md`; the gate fails on any unclassified command).
   Coverage/manifest gates need `sources/firstmate` checked out
