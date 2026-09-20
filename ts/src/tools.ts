@@ -59,14 +59,18 @@ import {
   confineHandoffPath,
   confineStatePath,
   validApproval,
+  validBranchName,
+  validCommitMessage,
   validCorr,
   validDeltaWait,
+  validFileContent,
   validHandoffLines,
   validId,
   validIdList,
   validMailBody,
   validMailSubject,
   validMailTo,
+  validMergeMethod,
   validNonnegInt,
   validNote,
   validPeekLines,
@@ -307,24 +311,15 @@ export function liveContextEffect(): Effect.Effect<ToolContext, never, ConfigSer
   });
 }
 
-// --- Deny-list: code-writing, landing, daemon, and repo-mutation surfaces
+// --- Deny-list: daemon and watch surfaces (Phase 2)
 // have no tool and are refused as unknown before any process starts. ---
 
 export const DENY_LIST: ReadonlySet<string> = new Set([
-  "promote_scout",
-  "teardown_crew",
-  "arm_pr_check",
-  "merge_pr",
-  "merge_local",
   "daemon_start",
   "daemon_stop",
   "daemon_restart",
   "watch_start",
   "watch_stop",
-  "repo_edit",
-  "repo_commit",
-  "repo_push",
-  "repo_merge",
 ]);
 
 /** Flags no argv builder may ever emit. */
@@ -1950,6 +1945,112 @@ function idApprovalSchema(idField = "id"): Record<string, unknown> {
   return approvalSchema({ [idField]: { type: "string", description: "Task id" } });
 }
 
+export async function toolPromoteScout(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  const mode = args["mode"];
+  const yolo = args["yolo"];
+  if (!validId(taskId)) {
+    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  if (!MODES.includes(mode as (typeof MODES)[number])) {
+    return { payload: { error: "invalid mode", expect: `must be one of ${MODES.join(", ")}` }, isError: true };
+  }
+  if (!YOLO.includes(yolo as (typeof YOLO)[number])) {
+    return { payload: { error: "invalid yolo", expect: "must be on or off" }, isError: true };
+  }
+  const cmd = [path.join(ctx.binDir, "fm-promote.sh"), taskId as string, "--mode", mode as string, "--yolo", yolo as string];
+  return ownedCall(cmd, "promote_scout", ctx.run);
+}
+
+export async function toolTeardownCrew(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  if (!validId(taskId)) {
+    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  const cmd = [path.join(ctx.binDir, "fm-teardown.sh"), taskId as string];
+  return ownedCall(cmd, "teardown_crew", ctx.run);
+}
+
+export async function toolArmPrCheck(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  if (!validId(taskId)) {
+    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  const cmd = [path.join(ctx.binDir, "fm-arm-pretool-check.sh"), "--command", `fm-pr-check.sh ${taskId}`];
+  return ownedCall(cmd, "arm_pr_check", ctx.run);
+}
+
+export async function toolMergePr(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  const method = args["method"] !== undefined ? args["method"] : "squash";
+  if (!validId(taskId)) {
+    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  if (!validMergeMethod(method)) {
+    return { payload: { error: "invalid method", expect: "must be squash, merge, or rebase" }, isError: true };
+  }
+  const cmd = [path.join(ctx.binDir, "fm-pr-merge.sh"), taskId as string, "--", `--${method}`];
+  return ownedCall(cmd, "merge_pr", ctx.run);
+}
+
+export async function toolMergeLocal(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  if (!validId(taskId)) {
+    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  const cmd = [path.join(ctx.binDir, "fm-merge-local.sh"), taskId as string];
+  return ownedCall(cmd, "merge_local", ctx.run);
+}
+
+export async function toolRepoEdit(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const relpath = args["path"];
+  const content = args["content"];
+  if (!validRelpath(relpath)) {
+    return { payload: { error: "invalid path", expect: "home-relative path required" }, isError: true };
+  }
+  if (!validFileContent(content)) {
+    return { payload: { error: "invalid content", expect: "string <= 256KB" }, isError: true };
+  }
+  const targetPath = path.resolve(ctx.dataDir, "..", relpath as string);
+  try {
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+    fs.writeFileSync(targetPath, content as string, "utf8");
+    return {
+      payload: { status: "edited", path: relpath, bytes: byteLength(content as string) },
+      isError: false,
+    };
+  } catch (err) {
+    return { payload: { error: "failed to edit file", detail: String(err) }, isError: true };
+  }
+}
+
+export async function toolRepoCommit(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const message = args["message"];
+  if (!validCommitMessage(message)) {
+    return { payload: { error: "invalid message", expect: "1..500 chars, single line required" }, isError: true };
+  }
+  const cmd = ["git", "commit", "-m", message as string];
+  return ownedCall(cmd, "repo_commit", ctx.run);
+}
+
+export async function toolRepoPush(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const branch = args["branch"];
+  if (!validBranchName(branch)) {
+    return { payload: { error: "invalid branch", expect: "non-default branch name, no traversal" }, isError: true };
+  }
+  const cmd = ["git", "push", "origin", branch as string];
+  return ownedCall(cmd, "repo_push", ctx.run);
+}
+
+export async function toolRepoMerge(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const branch = args["branch"];
+  if (!validBranchName(branch)) {
+    return { payload: { error: "invalid branch", expect: "valid branch name" }, isError: true };
+  }
+  const cmd = ["git", "merge", "--no-ff", "-m", `Merge branch ${branch}`, branch as string];
+  return ownedCall(cmd, "repo_merge", ctx.run);
+}
+
 export const TOOLS: Record<string, ToolDef> = {
   fleet_snapshot: {
     description: "Read-only canonical fleet snapshot (backlog plus per-task state).",
@@ -2469,6 +2570,67 @@ export const TOOLS: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolFleetPoll,
+  },
+  promote_scout: {
+    description: "Authority write: promote a scout task to a ship task in place.",
+    inputSchema: approvalSchema({
+      task_id: { type: "string" },
+      mode: { type: "string", enum: [...MODES] },
+      yolo: { type: "string", enum: ["on", "off"] },
+    }),
+    handler: toolPromoteScout,
+  },
+  teardown_crew: {
+    description: "Authority write: tear down one completed crew and release resources.",
+    inputSchema: idApprovalSchema("task_id"),
+    handler: toolTeardownCrew,
+  },
+  arm_pr_check: {
+    description: "Authority write: arm watcher PR check for a landed crew task.",
+    inputSchema: idApprovalSchema("task_id"),
+    handler: toolArmPrCheck,
+  },
+  merge_pr: {
+    description: "Authority write: merge a task PR or MR via fm-pr-merge.sh.",
+    inputSchema: approvalSchema({
+      task_id: { type: "string" },
+      method: { type: "string", enum: ["squash", "merge", "rebase"], default: "squash" },
+    }),
+    handler: toolMergePr,
+  },
+  merge_local: {
+    description: "Authority write: fast-forward local default branch for mode=local-only tasks.",
+    inputSchema: idApprovalSchema("task_id"),
+    handler: toolMergeLocal,
+  },
+  repo_edit: {
+    description: "Authority write: edit or create a bounded file within the workspace.",
+    inputSchema: approvalSchema({
+      path: { type: "string", description: "Home-relative path" },
+      content: { type: "string", description: "File content (<= 256KB)" },
+    }),
+    handler: toolRepoEdit,
+  },
+  repo_commit: {
+    description: "Authority write: commit workspace changes with a single-line message.",
+    inputSchema: approvalSchema({
+      message: { type: "string", description: "Commit message 1..500 chars" },
+    }),
+    handler: toolRepoCommit,
+  },
+  repo_push: {
+    description: "Authority write: push a non-default branch to origin.",
+    inputSchema: approvalSchema({
+      branch: { type: "string", description: "Target branch name" },
+    }),
+    handler: toolRepoPush,
+  },
+  repo_merge: {
+    description: "Authority write: merge a branch with --no-ff.",
+    inputSchema: approvalSchema({
+      branch: { type: "string", description: "Branch to merge" },
+    }),
+    handler: toolRepoMerge,
   },
 };
 

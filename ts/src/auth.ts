@@ -102,18 +102,22 @@ export const TOOL_TIERS: Record<string, Tier> = {
   remote_control: TIER_AUTHORITY,
   handoff_move: TIER_AUTHORITY,
   voice_queue: TIER_AUTHORITY,
+  promote_scout: TIER_AUTHORITY,
+  teardown_crew: TIER_AUTHORITY,
+  arm_pr_check: TIER_AUTHORITY,
+  merge_pr: TIER_AUTHORITY,
+  merge_local: TIER_AUTHORITY,
+  repo_edit: TIER_AUTHORITY,
+  repo_commit: TIER_AUTHORITY,
+  repo_push: TIER_AUTHORITY,
+  repo_merge: TIER_AUTHORITY,
   mail_send: TIER_EXTERNAL,
   relay_reply: TIER_EXTERNAL,
   relay_dismiss: TIER_EXTERNAL,
   relay_followup: TIER_EXTERNAL,
 };
 
-export const FORBIDDEN_TOOLS = [
-  "promote_scout",
-  "teardown_crew",
-  "arm_pr_check",
-  "merge_pr",
-  "merge_local",
+export const FORBIDDEN_TOOLS: readonly string[] = [
 ] as const;
 
 export const TIER_NAMES: Record<string, string> = {

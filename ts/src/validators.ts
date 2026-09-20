@@ -251,6 +251,31 @@ export function validPrUrl(value: unknown): value is string {
   return true;
 }
 
+export function validMergeMethod(value: unknown): value is "squash" | "merge" | "rebase" {
+  return value === "squash" || value === "merge" || value === "rebase";
+}
+
+export function validCommitMessage(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 1 || value.length > 500) return false;
+  if (/[\r\n]/.test(value)) return false;
+  return true;
+}
+
+export function validBranchName(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 1 || value.length > 100) return false;
+  if (value === "main" || value === "master") return false;
+  if (!/^[a-zA-Z0-9._/-]+$/.test(value)) return false;
+  if (value.includes("..") || value.startsWith("/") || value.endsWith("/")) return false;
+  return true;
+}
+
+export function validFileContent(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  return byteLength(value) <= 256 * 1024;
+}
+
 /**
  * Resolve state/<taskId>.status confined under stateDir.
  * Returns the resolved path, or null when the id is invalid or the resolved
@@ -290,6 +315,7 @@ import {
   ApprovalRequiredError,
   ValidationError,
 } from "./errors.js";
+import { byteLength } from "./runner.js";
 
 /** Require a valid task/id slug, else a typed invalid-id error. */
 export function requireId(
