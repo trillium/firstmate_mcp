@@ -195,7 +195,10 @@ export const AUDIT_KEYS = [
   "approval_ref",
   "target",
   "duration_ms",
+  "transport",
 ] as const;
+
+export type TransportType = "stdio" | "http";
 
 export interface AuditLine {
   v: number;
@@ -208,6 +211,7 @@ export interface AuditLine {
   approval_ref: string | null;
   target: string | null;
   duration_ms: number | null;
+  transport: TransportType;
 }
 
 function utcStamp(date: Date = new Date()): string {
@@ -225,6 +229,7 @@ export function buildLine(
     target?: string | null;
     ts?: string;
     duration_ms?: number | null;
+    transport?: TransportType;
   } = {},
 ): AuditLine {
   return {
@@ -241,6 +246,7 @@ export function buildLine(
       typeof opts.duration_ms === "number"
         ? Math.max(0, Math.round(opts.duration_ms))
         : (opts.duration_ms ?? null),
+    transport: opts.transport ?? "stdio",
   };
 }
 

@@ -16,10 +16,11 @@ import {
   SERVER_VERSION,
   SUPPORTED_PROTOCOL_VERSIONS,
 } from "./constants.js";
-import { AuditService, appendAudit, buildLine } from "./auth.js";
+import { AuditService, appendAudit, buildLine, type TransportType } from "./auth.js";
 import { FollowOnService, FollowOnLive } from "./followon.js";
 import { TOOLS, liveContext, type ToolContext } from "./tools.js";
 import { MainLive } from "./layers.js";
+import type { HttpServerHandle } from "./http.js";
 
 export { MainLive };
 
@@ -198,12 +199,14 @@ function auditAppend(
   approval: unknown,
   target: string | null,
   durationMs: number | null = null,
+  transport: TransportType = "stdio",
+  actorOverride?: string,
 ): void {
   try {
-    const actor = process.env.FM_ACTOR ?? "local";
+    const actor = actorOverride ?? process.env.FM_ACTOR ?? (transport === "http" ? "http-audit" : "local");
     appendAudit(
       auditPath(ctx),
-      buildLine(actor, tool, decision, reason, { approval, target, duration_ms: durationMs }),
+      buildLine(actor, tool, decision, reason, { approval, target, duration_ms: durationMs, transport }),
     );
   } catch {
     /* audit is best-effort; never break a tool call */
@@ -222,11 +225,13 @@ export function auditAppendEffect(
   approval: unknown,
   target: string | null,
   durationMs: number | null = null,
+  transport: TransportType = "stdio",
+  actorOverride?: string,
 ): Effect.Effect<void, never, AuditService> {
   return Effect.gen(function* () {
     const audit = yield* AuditService;
-    const actor = process.env.FM_ACTOR ?? "local";
-    const line = buildLine(actor, tool, decision, reason, { approval, target, duration_ms: durationMs });
+    const actor = actorOverride ?? process.env.FM_ACTOR ?? (transport === "http" ? "http-audit" : "local");
+    const line = buildLine(actor, tool, decision, reason, { approval, target, duration_ms: durationMs, transport });
     yield* audit.append(auditPath(ctx), line).pipe(Effect.ignore);
   });
 }
@@ -236,6 +241,8 @@ export async function handleToolsCall(
   params: Record<string, unknown>,
   ctx: ToolContext,
   send: (value: unknown) => void = writeLine,
+  transport: TransportType = "stdio",
+  actorOverride?: string,
 ): Promise<void> {
   const start = performance.now();
   const name = params?.["name"] as string | undefined;
@@ -248,7 +255,9 @@ export async function handleToolsCall(
         ? (args as Record<string, unknown>)["approval"]
         : undefined,
       auditTarget(args),
-      duration_ms);
+      duration_ms,
+      transport,
+      actorOverride);
     send({
       jsonrpc: "2.0",
       id: msgId ?? null,
@@ -258,7 +267,7 @@ export async function handleToolsCall(
   }
   if (typeof args !== "object" || args === null || Array.isArray(args)) {
     const duration_ms = Math.max(0, Math.round(performance.now() - start));
-    auditAppend(ctx, toolLabel, "refuse", "validation-failed", undefined, null, duration_ms);
+    auditAppend(ctx, toolLabel, "refuse", "validation-failed", undefined, null, duration_ms, transport, actorOverride);
     send({
       jsonrpc: "2.0",
       id: msgId ?? null,
@@ -284,7 +293,7 @@ export async function handleToolsCall(
         approval = (nested as Record<string, unknown>)["approval"];
       }
     }
-    auditAppend(ctx, toolLabel, decision, reason, approval, auditTarget(args), duration_ms);
+    auditAppend(ctx, toolLabel, decision, reason, approval, auditTarget(args), duration_ms, transport, actorOverride);
   }
   const result: Record<string, unknown> = {
     content: [{ type: "text", text: JSON.stringify(payload) }],
@@ -321,6 +330,8 @@ export function handleToolsCallEffect(
   params: Record<string, unknown>,
   ctx: ToolContext,
   send: (value: unknown) => void = writeLine,
+  transport: TransportType = "stdio",
+  actorOverride?: string,
 ): Effect.Effect<void, never, AuditService> {
   return Effect.gen(function* () {
     const start = performance.now();
@@ -333,7 +344,7 @@ export function handleToolsCallEffect(
       approval: unknown,
       target: string | null,
       durationMs: number | null,
-    ) => auditAppendEffect(ctx, toolLabel, decision, reason, approval, target, durationMs);
+    ) => auditAppendEffect(ctx, toolLabel, decision, reason, approval, target, durationMs, transport, actorOverride);
     if (typeof name !== "string" || !(name in TOOLS)) {
       const duration_ms = Math.max(0, Math.round(performance.now() - start));
       yield* append(
@@ -412,6 +423,8 @@ export function dispatchMessageEffect(
   msg: RpcMessage,
   ctx: ToolContext,
   send: (value: unknown) => void = writeLine,
+  transport: TransportType = "stdio",
+  actorOverride?: string,
 ): Effect.Effect<boolean, never, AuditService> {
   const method = msg?.method;
   const msgId = msg?.id;
@@ -427,7 +440,7 @@ export function dispatchMessageEffect(
       handleToolsList(msgId, send);
     }).pipe(Effect.as(true));
   } else if (method === "tools/call") {
-    return handleToolsCallEffect(msgId, params, ctx, send).pipe(Effect.as(true));
+    return handleToolsCallEffect(msgId, params, ctx, send, transport, actorOverride).pipe(Effect.as(true));
   } else if (method === "ping") {
     return Effect.sync(() => {
       send({ jsonrpc: "2.0", id: msgId ?? null, result: {} });
@@ -451,6 +464,8 @@ export async function dispatchMessage(
   msg: RpcMessage,
   ctx: ToolContext,
   send: (value: unknown) => void = writeLine,
+  transport: TransportType = "stdio",
+  actorOverride?: string,
 ): Promise<boolean> {
   const method = msg?.method;
   const msgId = msg?.id;
@@ -462,7 +477,7 @@ export async function dispatchMessage(
   } else if (method === "tools/list") {
     handleToolsList(msgId, send);
   } else if (method === "tools/call") {
-    await handleToolsCall(msgId, params, ctx, send);
+    await handleToolsCall(msgId, params, ctx, send, transport, actorOverride);
   } else if (method === "ping") {
     send({ jsonrpc: "2.0", id: msgId ?? null, result: {} });
   } else if (typeof method === "string" && method.startsWith("notifications/")) {
@@ -478,7 +493,68 @@ export async function dispatchMessage(
 }
 
 export async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  let isHttp = false;
+  let isHttpOnly = false;
+  let httpPort: number | undefined;
+  let httpHost: string | undefined;
+  let authToken: string | undefined;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === "--http") {
+      isHttp = true;
+    } else if (arg === "--http-only") {
+      isHttp = true;
+      isHttpOnly = true;
+    } else if (arg === "--port" && i + 1 < args.length) {
+      httpPort = parseInt(args[++i], 10);
+    } else if (arg.startsWith("--port=")) {
+      httpPort = parseInt(arg.slice(7), 10);
+    } else if (arg === "--host" && i + 1 < args.length) {
+      httpHost = args[++i];
+    } else if (arg.startsWith("--host=")) {
+      httpHost = arg.slice(7);
+    } else if (arg === "--auth-token" && i + 1 < args.length) {
+      authToken = args[++i];
+    } else if (arg.startsWith("--auth-token=")) {
+      authToken = arg.slice(13);
+    }
+  }
+
+  if (process.env.FM_MCP_HTTP === "1" || process.env.FM_MCP_HTTP_ENABLED === "1") {
+    isHttp = true;
+  }
+  if (process.env.FM_MCP_HTTP_ONLY === "1") {
+    isHttp = true;
+    isHttpOnly = true;
+  }
+
   const ctx = liveContext();
+
+  let httpHandle: HttpServerHandle | undefined;
+  if (isHttp) {
+    const { startHttpServer } = await import("./http.js");
+    httpHandle = await startHttpServer({
+      host: httpHost,
+      port: httpPort,
+      authToken,
+      toolContext: ctx,
+    });
+    process.stderr.write(
+      `fm-mcp-http: listening on http://${httpHandle.host}:${httpHandle.port}/mcp auth=bearer\n`,
+    );
+  }
+
+  if (isHttpOnly) {
+    await new Promise<void>((resolve) => {
+      process.on("SIGINT", () => resolve());
+      process.on("SIGTERM", () => resolve());
+    });
+    if (httpHandle) await httpHandle.close();
+    return;
+  }
+
   const rl = readline.createInterface({ input: process.stdin, terminal: false });
   for await (const raw of rl) {
     const line = raw.trim();
@@ -491,6 +567,10 @@ export async function main(): Promise<void> {
       continue;
     }
     await dispatchMessage(msg, ctx);
+  }
+
+  if (httpHandle) {
+    await httpHandle.close();
   }
 }
 
