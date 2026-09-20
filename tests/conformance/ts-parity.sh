@@ -39,7 +39,7 @@ echo "--- ts proof under bun (primary) ---"
 (cd "$ROOT/ts" && bun run test:bun) || fail "ts proof under bun failed"
 
 echo "--- ts proof under node (fallback compat) ---"
-(cd "$ROOT/ts" && (command -v pnpm >/dev/null 2>&1 && pnpm test || npm test)) || fail "ts proof under node failed"
+(cd "$ROOT/ts" && pnpm test) || fail "ts proof under bun failed"
 
 echo "--- ts conformance fixtures (bun) ---"
 (cd "$ROOT/ts" && bun run conformance:bun) || fail "ts conformance fixtures (bun) failed"
