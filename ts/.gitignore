@@ -3,3 +3,4 @@ dist/
 testbuild/
 *.log
 .test-failures.json
+.cache/

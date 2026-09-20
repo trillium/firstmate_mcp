@@ -51,6 +51,15 @@ When updating this file, preserve this bar for all agents and keep entries conci
   is the full TS proof); node stays as fallback compat (`pnpm test` / `npm test`
   must stay green alongside). `bash tests/conformance/ts-parity.sh` runs proof suites
   and conformance fixtures under both runtimes.
+- Test optimization (split-then-hash hybrid):
+  Targets split into fast hermetic unit/smarts (`test:fast` / `test:fast:bun`, <3s)
+  vs slow timing/envelope/receipt proofs (`test:slow` / `test:slow:bun`, `timeout.test.ts`,
+  `receipt.test.ts`, NEVER-cached). Conformance fixtures are sharded across 3 files
+  (`conformance-read`, `conformance-remote`, `conformance-system`) and run via
+  `ts/scripts/conformance-runner.mjs` with per-runtime input hashing (`ts/.cache/conformance/`)
+  and hash-skipping on byte-identical inputs. CI parallelizes shards across matrix jobs
+  (`ts-conformance`), while `.github/workflows/mcp-nightly.yml` runs scheduled full uncached
+  proofs across both runtimes.
 - Follow-on actions (`ts/src/followon.ts`, design `docs/FOLLOWON_DESIGN.md`):
   generalized hook engine for MCP actions; auth tiers enforced per action
   (never launders authority from open reads to Tier 3/4 writes), bounded

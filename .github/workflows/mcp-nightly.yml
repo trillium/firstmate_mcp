@@ -1,83 +1,19 @@
-name: mcp-ci
+name: mcp-nightly
+
+# Scheduled full CI run: exercises every test leg, both runtimes (Bun + Node),
+# and all slow/conformance proofs without cache/hash-skip to detect environment
+# drift (bun bumps, runner images, timing flakes, dependency updates).
 
 on:
-  push:
-    branches: ["**"]
-  pull_request:
+  schedule:
+    - cron: "17 4 * * *" # daily ~04:17 UTC
+  workflow_dispatch:
+
+env:
+  NO_CACHE: "1"
+  NIGHTLY_FULL_RUN: "1"
 
 jobs:
-  changes:
-    name: detect changes
-    runs-on: ubuntu-latest
-    outputs:
-      code: ${{ steps.filter.outputs.code }}
-      ts_fast: ${{ steps.filter.outputs.ts_fast }}
-      ts_slow: ${{ steps.filter.outputs.ts_slow }}
-      ts_conformance: ${{ steps.filter.outputs.ts_conformance }}
-      upstream: ${{ steps.filter.outputs.upstream }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            code:
-              - '.github/**'
-              - '.gitmodules'
-              - 'sources/firstmate'
-              - 'drift/**'
-              - 'manifest/**'
-              - 'schema/**'
-              - 'scripts/**'
-              - 'tests/**'
-              - 'ts/**'
-              - '!*.md'
-              - '!**/*.md'
-              - '!docs/**'
-              - '!LICENSE'
-            ts_fast:
-              - '.github/**'
-              - 'ts/**'
-              - 'schema/**'
-              - 'manifest/**'
-              - '!*.md'
-              - '!**/*.md'
-              - '!docs/**'
-              - '!LICENSE'
-            ts_slow:
-              - '.github/**'
-              - 'ts/src/runner.ts'
-              - 'ts/src/server.ts'
-              - 'ts/src/tools.ts'
-              - 'ts/src/constants.ts'
-              - 'ts/tests/timeout.test.ts'
-              - 'ts/tests/receipt.test.ts'
-              - 'ts/tests/helpers.ts'
-              - 'ts/package.json'
-              - 'ts/pnpm-lock.yaml'
-              - 'ts/tsconfig*.json'
-            ts_conformance:
-              - '.github/**'
-              - 'sources/firstmate'
-              - 'schema/**'
-              - 'manifest/**'
-              - 'drift/**'
-              - 'ts/src/**'
-              - 'ts/tests/conformance*'
-              - 'ts/tests/helpers.ts'
-              - 'ts/scripts/conformance-runner.mjs'
-              - 'ts/package.json'
-              - 'ts/pnpm-lock.yaml'
-              - 'ts/tsconfig*.json'
-            upstream:
-              - '.github/**'
-              - 'sources/firstmate'
-              - 'ts/src/**'
-              - 'tests/upstream/**'
-              - 'scripts/**'
-              - 'manifest/**'
-              - 'schema/**'
-
   schema:
     name: schema validation
     runs-on: ubuntu-latest
@@ -100,7 +36,7 @@ jobs:
               Draft202012Validator.check_schema(schema)
               print(f"ok: {path}")
           PYEOF
-      - name: seed contracts validate (plus stale/invalid refusal proof)
+      - name: seed contracts validate
         run: bash tests/mcp-schema.test.sh
 
   unit:
@@ -120,8 +56,6 @@ jobs:
 
   ts-fast:
     name: ts-fast (${{ matrix.runtime }})
-    needs: changes
-    if: needs.changes.outputs.ts_fast == 'true' || needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -158,8 +92,6 @@ jobs:
 
   ts-slow:
     name: ts-slow (${{ matrix.runtime }})
-    needs: changes
-    if: needs.changes.outputs.ts_slow == 'true' || needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -196,8 +128,6 @@ jobs:
 
   ts-conformance:
     name: ts-conformance (${{ matrix.runtime }}, shard ${{ matrix.shard }})
-    needs: changes
-    if: needs.changes.outputs.ts_conformance == 'true' || needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -220,25 +150,39 @@ jobs:
           node-version: "22"
           cache: "pnpm"
           cache-dependency-path: "ts/pnpm-lock.yaml"
-      - name: restore conformance cache
-        uses: actions/cache@v4
-        with:
-          path: ts/.cache/conformance
-          key: conformance-${{ matrix.runtime }}-${{ matrix.shard }}-${{ hashFiles('sources/firstmate', 'schema/**', 'manifest/**', 'ts/src/**', 'ts/tests/conformance*', 'ts/pnpm-lock.yaml') }}
       - name: install dependencies
         run: |
           cd ts
           pnpm install --frozen-lockfile
-      - name: run conformance tests (bun)
+      - name: run conformance tests uncached (bun)
         if: matrix.runtime == 'bun'
         run: |
           cd ts
-          bun run conformance:${{ matrix.shard }}:bun
-      - name: run conformance tests (node)
+          bun run conformance:${{ matrix.shard }}:bun -- --no-cache
+      - name: run conformance tests uncached (node)
         if: matrix.runtime == 'node'
         run: |
           cd ts
-          pnpm run conformance:${{ matrix.shard }}
+          pnpm run conformance:${{ matrix.shard }} -- --no-cache
+
+  ts-parity:
+    name: ts multi-runtime parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+          cache-dependency-path: "ts/pnpm-lock.yaml"
+      - name: full multi-runtime parity suite
+        run: bash tests/conformance/ts-parity.sh
 
   manifest:
     name: manifest and coverage
@@ -258,8 +202,6 @@ jobs:
 
   upstream:
     name: upstream preservation
-    needs: changes
-    if: needs.changes.outputs.upstream == 'true' || needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -327,18 +269,17 @@ jobs:
           print(f"ok: {len(seed_names)} contracts agree across contracts.yaml, matrix.md, validate.py")
           PYEOF
 
-  ci-gate:
-    name: ci merge gate
-    needs: [changes, schema, unit, manifest, drift, ts-fast, ts-slow, ts-conformance, upstream]
+  nightly-gate:
+    name: nightly merge gate
+    needs: [schema, unit, manifest, drift, ts-fast, ts-slow, ts-conformance, ts-parity, upstream]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: check required jobs
+      - name: check all nightly jobs
         run: |
           python3 - <<'PYEOF'
           import sys
           results = {
-              "changes": "${{ needs.changes.result }}",
               "schema": "${{ needs.schema.result }}",
               "unit": "${{ needs.unit.result }}",
               "manifest": "${{ needs.manifest.result }}",
@@ -346,17 +287,13 @@ jobs:
               "ts-fast": "${{ needs.ts-fast.result }}",
               "ts-slow": "${{ needs.ts-slow.result }}",
               "ts-conformance": "${{ needs.ts-conformance.result }}",
+              "ts-parity": "${{ needs.ts-parity.result }}",
               "upstream": "${{ needs.upstream.result }}",
           }
-          print("Job results:", results)
+          print("Nightly Job results:", results)
           for job, res in results.items():
-              if job in ("ts-fast", "ts-slow", "ts-conformance", "upstream"):
-                  if res not in ("success", "skipped"):
-                      print(f"FAILED: {job} status is {res}")
-                      sys.exit(1)
-              else:
-                  if res != "success":
-                      print(f"FAILED: {job} status is {res}")
-                      sys.exit(1)
-          print("All required checks passed (or cleanly skipped).")
+              if res != "success":
+                  print(f"FAILED: {job} status is {res}")
+                  sys.exit(1)
+          print("All nightly checks passed successfully.")
           PYEOF
