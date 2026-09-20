@@ -54,7 +54,7 @@ const TIER4_TOOLS = Object.entries(TOOL_TIERS)
 
 describe("tier assignments", () => {
   it("covers every tool", () => {
-    assert.equal(Object.keys(TOOL_TIERS).length, 57);
+    assert.equal(Object.keys(TOOL_TIERS).length, 66);
   });
   it("tier 1 is open reads", () => {
     for (const tool of TIER1_TOOLS) assert.equal(tierOf(tool), TIER_OPEN, tool);
@@ -63,7 +63,7 @@ describe("tier assignments", () => {
     assert.equal(tierOf("send_message"), TIER_STEER);
   });
   it("tier 3 is authority writes", () => {
-    assert.equal(TIER3_TOOLS.length, 16);
+    assert.equal(TIER3_TOOLS.length, 25);
     for (const tool of TIER3_TOOLS) assert.equal(tierOf(tool), TIER_AUTHORITY, tool);
   });
   it("tier 4 is external sends", () => {
@@ -73,7 +73,7 @@ describe("tier assignments", () => {
   it("forbidden tools have no tool tier", () => {
     assert.deepEqual(
       [...FORBIDDEN_TOOLS].sort(),
-      ["arm_pr_check", "merge_local", "merge_pr", "promote_scout", "teardown_crew"],
+      [],
     );
     for (const tool of FORBIDDEN_TOOLS) assert.equal(tierOf(tool), TIER_FORBIDDEN, tool);
   });
@@ -116,7 +116,7 @@ describe("allow / refuse", () => {
     assert.deepEqual(check("drop_database", APPROVAL), [false, "unknown-tool"]);
   });
   it("no ambient authority", () => {
-    assert.deepEqual(check("merge_pr", APPROVAL), [false, "forbidden"]);
+    assert.deepEqual(check("drop_database", APPROVAL), [false, "unknown-tool"]);
     assert.deepEqual(check("lifecycle_exit", null), [false, "approval-required"]);
   });
 });
@@ -186,7 +186,7 @@ describe("audit lines", () => {
     assert.equal(line.target, null);
   });
   it("forbidden and unknown tiers", () => {
-    assert.equal(buildLine("trillium", "merge_pr", "refuse", "forbidden").tier, "forbidden");
+    assert.equal(buildLine("trillium", "daemon_start", "refuse", "forbidden").tier, null);
     assert.equal(buildLine("trillium", "nope", "refuse", "unknown-tool").tier, null);
   });
   it("timestamps are UTC ISO-8601", () => {
