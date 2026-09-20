@@ -37,23 +37,29 @@ checks) can point at either server unchanged.
 Bun first (primary runtime), node as fallback compat — both must stay green:
 
 ```sh
-bun run test:bun  # full proof under bun: 167 checks (validators, envelope, auth, server, runner, conformance)
-pnpm test         # same proof under node (fallback compat)
+bun run test:bun  # full proof under bun (validators, envelope, auth, server, followon, timeout, receipt, conformance)
+pnpm test         # same full proof under node (fallback compat)
 ```
 
-Focused suites:
+Split test targets (split-then-hash hybrid architecture):
 
 ```sh
-bun run test:fast:bun   # pure unit suites under bun (no subprocess, <1s)
-pnpm run test:fast      # pure unit suites under node
-bun run conformance:bun # read-tool equivalence fixtures under bun
-pnpm run conformance    # read-tool equivalence fixtures under node
+bun run test:fast:bun   # fast unit & smarts suites under bun (<3s: validators, envelope, auth, followon, server)
+pnpm run test:fast      # fast unit & smarts suites under node (<4s)
+bun run test:slow:bun   # slow timing, budget, & receipt proofs under bun (timeout, process-group kill, receipts)
+pnpm run test:slow      # slow timing, budget, & receipt proofs under node
+bun run conformance:bun # sharded & hash-cached read-tool equivalence fixtures under bun
+pnpm run conformance    # sharded & hash-cached read-tool equivalence fixtures under node
 ```
 
-`tests/server.test.ts` mirrors the upstream 103-check proof (stub homes via
-`FM_HOME`, approval gating, traversal refusals, the >30s / >128KB envelope
-fixture). `tests/conformance.test.ts` mirrors
-`tests/conformance/test_conformance.py` hermetically (no live checkout).
+Conformance shards (parallelizable across CI jobs):
+- `read`: snapshot, crew_state, status_tail, diagnostic reads, session tools (`conformance:read` / `conformance:read:bun`)
+- `remote`: secondmate remote reads, digests, mail, voice records (`conformance:remote` / `conformance:remote:bun`)
+- `system`: system installs, small gaps, side-effect-free invariants (`conformance:system` / `conformance:system:bun`)
+
+`tests/server.test.ts` covers the smarts server surface (handshake, 57 tools, schema, refusals).
+`tests/timeout.test.ts` and `tests/receipt.test.ts` cover live timing, envelope, process-group kill, and receipt lifecycle (NEVER-cached).
+`tests/conformance-*.test.ts` mirrors upstream conformance hermetically with per-runtime input hashing and hash-skipping on byte-identical inputs.
 
 Cross-path wire parity (same stub home, same calls, diffed payloads)
 lives in the shared suite: `bash tests/conformance/ts-parity.sh`.

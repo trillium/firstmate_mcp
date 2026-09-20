@@ -189,7 +189,11 @@ def existing_suites():
         "tests/upstream/run_upstream.sh",
         "tests/test_drift.py",
         "ts/tests/server.test.ts",
-        "ts/tests/conformance.test.ts",
+        "ts/tests/timeout.test.ts",
+        "ts/tests/receipt.test.ts",
+        "ts/tests/conformance-read.test.ts",
+        "ts/tests/conformance-remote.test.ts",
+        "ts/tests/conformance-system.test.ts",
         "ts/tests/auth.test.ts",
         "ts/tests/followon.test.ts",
     ]
@@ -253,9 +257,9 @@ def generate():
     lines.append("- Contract map — `schema/contracts.yaml` declares the depended-on")
     lines.append("  subset with stability tiers; `schema/validate.py` fails naming the")
     lines.append("  stale pin; `schema/matrix.md` is the human view.")
-    lines.append("- Conformance fixtures — `ts/tests/conformance.test.ts` proves TS server")
-    lines.append("  output equals the owning scripts' output via stub homes (skips cleanly")
-    lines.append("  without a firstmate checkout).")
+    lines.append("- Conformance fixtures — `ts/tests/conformance-*.test.ts` proves TS server")
+    lines.append("  output equals the owning scripts' output via stub homes (sharded & hash-cached across")
+    lines.append("  Bun and Node runtimes).")
     lines.append("- Upstream preservation — `tests/upstream/` runs upstream firstmate")
     lines.append("  tests unchanged against the TypeScript server via thin adapters")
     lines.append("  (upstream reference skips cleanly without a checkout); verdicts")
