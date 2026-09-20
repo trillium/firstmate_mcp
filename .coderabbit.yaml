@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit repository configuration
+# Disables automatic pull request reviews per repository policy.
+# Reference: https://docs.coderabbit.ai/configuration/auto-review
+reviews:
+  auto_review:
+    enabled: false
