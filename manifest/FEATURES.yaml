@@ -390,6 +390,21 @@ features:
         fm-secondmate-home-summary.v1 validation; the refresh itself is
         firstmate-owned plumbing (session start, watcher, spawn, teardown
         call it --best-effort).
+  - id: home_summary_refresh
+    kind: upstream-mirror
+    summary: Published home-summary refresh; atomic publication of state/home-summary.json.
+    upstream_command: bin/fm-home-summary-refresh.sh
+    upstream_flags: ["--best-effort"]
+    contract: schema/contracts.yaml#home_summary_refresh
+    upstream_test: "ts/tests/conformance.test.ts::TestHomeSummaryRefreshEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:home_summary_refresh"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Subprocess dispatch wrapping fm-home-summary-refresh.sh with optional
+        best-effort flag; the published ledger is validated against schema
+        fm-secondmate-home-summary.v1 and updated atomically under home-local lock.
   - id: contributions_snapshot
     kind: upstream-mirror
     summary: Owned-contribution coverage projected from the fleet snapshot; never contacts a forge.

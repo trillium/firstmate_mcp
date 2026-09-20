@@ -33,6 +33,7 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | inbox_status | bin/fm-inbox.sh | stable | status | durable-records inbox status reads (no wake) |
 | inbox_list | bin/fm-inbox.sh | stable | list | queued inbox note reads |
 | home_summary | file: state/home-summary.json | stable | <none> | published home-summary ledger reads |
+| home_summary_refresh | bin/fm-home-summary-refresh.sh | stable | --best-effort | published home-summary atomic refresh |
 | contributions_snapshot | bin/fm-contributions.sh | stable | snapshot, <contribution-input>, --all | owned-contribution coverage reads (no forge) |
 | contributions_pending | bin/fm-contributions.sh | stable | pending | pending contribution token reads |
 | mail_status | bin/fm-mail.sh | stable | status | mail config + cursor reads (no network) |

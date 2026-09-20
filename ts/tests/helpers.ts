@@ -58,6 +58,7 @@ export const STUBS: Record<string, string> = {
     "exit 2\n",
   "fm-bearings-board.sh": 'echo "$FM_HOME/.lavish/bearings-board.html"\n',
   "fm-inbox.sh": 'echo "inbox-stub:$1"\n',
+  "fm-home-summary-refresh.sh": 'echo "home-summary-refresh-stub: $1"\n',
   "fm-contributions.sh": 'if [ "$1" = "pending" ]; then echo "[]"; else cat "$2"; fi\n',
   "fm-mail.sh":
     'if [ "$1" = "status" ]; then echo "mail-stub:status"; ' +

@@ -151,6 +151,28 @@ describe("digest-read equivalence", () => {
     assert.equal(result.payload["error"], "no home summary");
   });
 
+  it("home_summary_refresh matches direct stub", async () => {
+    const direct = directRun(fx, "fm-home-summary-refresh.sh", []);
+    const result = okPayload(await readOnlyCall(fx, "home_summary_refresh", {}));
+    assert.equal(result["stdout"], direct.stdout);
+    assert.equal(result["best_effort"], false);
+  });
+
+  it("home_summary_refresh echoes the best_effort flag", async () => {
+    const direct = directRun(fx, "fm-home-summary-refresh.sh", ["--best-effort"]);
+    const result = okPayload(await readOnlyCall(fx, "home_summary_refresh", { best_effort: true }));
+    assert.equal(result["stdout"], direct.stdout);
+    assert.equal(result["best_effort"], true);
+  });
+
+  it("home_summary_refresh refuses non-bool best_effort without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "home_summary_refresh", { best_effort: "yes" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid best_effort");
+    assert.equal(fx.calls.length, before);
+  });
+
   it("contributions_snapshot stages contribution-input", async () => {
     const result = okPayload(await readOnlyCall(fx, "contributions_snapshot", {}));
     assert.equal(result["all"], false);

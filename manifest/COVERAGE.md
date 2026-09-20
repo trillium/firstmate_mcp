@@ -22,9 +22,9 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [PR pipeline](#pr-pipeline) | 2 | 5 | 4 |
 | [Relay](#relay) | 4 | 0 | 4 |
 | [Voice / mail](#voice-mail) | 3 | 0 | 1 |
-| [Digests](#digests) | 5 | 0 | 1 |
+| [Digests](#digests) | 6 | 0 | 0 |
 | [Installs](#installs) | 4 | 0 | 19 |
-| **Total** | **44** | **9** | **105** |
+| **Total** | **45** | **9** | **104** |
 
 ## Fleet runs
 
@@ -221,7 +221,7 @@ Composed captain views: bearings, inbox, home summary, contributions.
 | `fm-bearings-board.sh` | mirrored — `bearings_board_path` (ts✔) | bearings board render |
 | `fm-bearings-snapshot.sh` | mirrored — `bearings_snapshot` (ts✔) | compact bearings projection over the snapshot |
 | `fm-contributions.sh` | mirrored — `contributions_snapshot` (ts✔), `contributions_pending` (ts✔) | published contributions observer |
-| `fm-home-summary-refresh.sh` | gap | published home-summary refresh |
+| `fm-home-summary-refresh.sh` | mirrored — `home_summary_refresh` (ts✔) | published home-summary refresh |
 | `fm-inbox.sh` | mirrored — `inbox_status` (ts✔), `inbox_list` (ts✔) | captain's out-of-band capture surface |
 
 ## Installs

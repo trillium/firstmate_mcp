@@ -64,6 +64,7 @@ CURRENT_PINS = {
     "inbox_status": "fm-inbox.status.v1",
     "inbox_list": "fm-inbox.list.v1",
     "home_summary": "fm-secondmate-home-summary.v1",
+    "home_summary_refresh": "fm-home-summary-refresh.v1",
     "contributions_snapshot": "fm-contributions.snapshot.v1",
     "contributions_pending": "fm-contributions.pending.v1",
     "mail_status": "fm-mail.status.v1",
