@@ -1,4 +1,4 @@
-# Firstmate MCP — an MCP-built adaption of firstmate, shaped to Trillium's desire of how firstmate works
+# Firstmate MCP — an MCP-built adaption of [firstmate](https://github.com/kunchenguid/firstmate), shaped to Trillium's desire of how firstmate works
 
 firstmate_mcp is an MCP-built adaption of firstmate: every tool shells out to
 firstmate's own `bin/fm-*.sh` scripts (pinned as a git submodule at
@@ -441,6 +441,68 @@ feed moved or is unreadable (loud warning, fail-open to the full path).
 path and `--no-fetch` implies it. Fake-feed cases (moved fires,
 unchanged silent, malformed warns loudly) live in
 `tests/mcp-shift-atom.test.sh`.
+
+## Staying current with upstream firstmate
+
+Upstream moves; the adapter warps to fit it while preserving its own shape.
+Standing policy: the radar stays current — every upstream shift is ported
+into our mirrors with our divergences intact, never auto-merged. If you
+maintain your own adapter over firstmate, this is the loop to copy.
+
+### The three pins
+
+- **Radar pin** — `sources/firstmate` gitlink against Kun main. Early warning
+  only; nothing runs against this copy (`drift/shift.py` watches it).
+- **Working pin** — the line everything runs against and was proven against
+  (here: the `trillium/firstmate` fork commit in `manifest/FEATURES.yaml`'s
+  `fork` block; in general: whatever commit your proofs ran on).
+- **Feature pins** — the depended-on subset in `schema/contracts.yaml`
+  (command + flags + stability tier) plus one `manifest/FEATURES.yaml` entry
+  per feature (upstream command, contract pointer, upstream test, per-runtime
+  evidence, divergence status and reason).
+
+### The loop
+
+```mermaid
+flowchart TD
+    W[Watch: shift.py on schedule] --> C{Pin tracks main?}
+    C -- Yes --> Q[Quiet: nothing to do]
+    C -- No --> R[Shift report: PORT vs IGNORE]
+    R --> T[Triage PORT: depended-on moved]
+    R --> N[Ignore IGNORE: unrelated churn]
+    T --> P[Port: replay upstream into mirrors]
+    P --> V[Re-prove: validators, conformance, parity, upstream results]
+    V --> G{All green?}
+    G -- No --> P
+    G -- Yes --> U[Re-pin: submodule, contracts, manifest, baseline]
+    U --> S[Refresh shift report]
+    S --> Q
+```
+
+`PORT` is the port queue (depended-on surfaces that moved); `IGNORE` is
+noise by design. A shift report that names no PORT row means the radar moved
+but nothing you depend on did — re-pin the radar pin and move on.
+
+### How to pin your FM features and take in upstream
+
+```mermaid
+flowchart LR
+    A[Declare subset in contracts.yaml] --> B[Add manifest entry per feature]
+    B --> C[Prove: conformance replay vs owning script]
+    C --> D[Run the loop: shift tells you when you moved]
+    D --> E[Port PORT rows, keep divergences, re-prove, re-pin]
+```
+
+1. **Declare** the depended-on subset: owning script, exact flag subset,
+   stability tier. Everything outside the subset is noise the loop ignores.
+2. **Record** one manifest entry per feature with its upstream test and
+   implementation evidence, plus an explicit divergence reason wherever your
+   behavior intentionally differs. Undocumented drift is the enemy, not drift.
+3. **Prove** reads by replaying adapter output against the owning script
+   under a scratch home; prove writes by stub-home demonstration plus the
+   approval gate (writes never dispatch in conformance).
+4. **Take in upstream** by running the loop above: shift report → port →
+   re-prove → re-pin. Small shifts stay small because the subset bounds them.
 
 ## Design choices
 
