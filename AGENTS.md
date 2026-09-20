@@ -13,9 +13,9 @@ When updating this file, preserve this bar for all agents and keep entries conci
 
 ## Build, test, and envelope
 
-- Server proof: `cd ts && bun run test:bun` (and `npm test`) is the full standalone
+- Server proof: `cd ts && bun test` (or `pnpm test`) is the full standalone
   proof of the TypeScript MCP server (validators, envelope, auth with duration_ms timing,
-  57-tool server suite, and conformance fixtures); run it before shipping server changes.
+  77-tool server suite, and conformance fixtures); run it before shipping server changes.
   It includes fixtures covering >30s timeout kill, >128KB snapshots, and receipt lifecycle.
   Other suites: `bash tests/mcp-adapter.test.sh`, `tests/fm-mcp-authz.test.sh`,
   `tests/mcp-schema.test.sh`, `tests/drift-check.test.sh`,
@@ -47,10 +47,8 @@ When updating this file, preserve this bar for all agents and keep entries conci
   `state/mcp-receipts/`, `RECEIPT_TIMEOUT_S=180`, `RECEIPT_TTL_S=3600`,
   per-home confinement).
 - TypeScript server (`ts/`, stdio sole server, Effect composition): pnpm is the
-  package manager (`pnpm install`), bun is the primary runtime (`bun run test:bun`
-  is the full TS proof); node stays as fallback compat (`pnpm test` / `npm test`
-  must stay green alongside). `bash tests/conformance/ts-parity.sh` runs proof suites
-  and conformance fixtures under both runtimes.
+  package manager (`pnpm install`), bun is the sole runtime (`bun test` / `pnpm test`
+  is the full TS proof). Test runner is native Bun test.
 - Test optimization (split-then-hash hybrid):
   Targets split into fast hermetic unit/smarts (`test:fast` / `test:fast:bun`, <3s)
   vs slow timing/envelope/receipt proofs (`test:slow` / `test:slow:bun`, `timeout.test.ts`,
@@ -64,9 +62,9 @@ When updating this file, preserve this bar for all agents and keep entries conci
   generalized hook engine for MCP actions; auth tiers enforced per action
   (never launders authority from open reads to Tier 3/4 writes), bounded
   DAG loop termination (depth cap + cycle detection + action budget).
-- Test runner: `pnpm run test:dev` / `bun run test:dev` selectively reruns
+- Test runner: `pnpm run test:dev` selectively reruns
   recorded failing test files during local development, while CI and PR
-  always run the full suite (`pnpm test`, `bun run test:bun`).
+  always run the full suite (`bun test` / `pnpm test`).
 - CI path filters (`.github/workflows/mcp-ci.yml`): non-code and docs-only changes
   skip heavy proof suites (`ts-server`, `upstream`) while fast validators
   (`schema`, `unit`, `manifest`, `drift`) and the anchor `ci-gate` merge gate always run.
