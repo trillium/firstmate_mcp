@@ -43,7 +43,7 @@ const TIER1_TOOLS = [
   "mail_status", "mail_read", "voice_status",
   "lint_versions", "tool_update_check", "vendor_auth_probe",
   "startup_memory", "pr_state", "relay_poll",
-  "receipt_submit", "receipt_status",
+  "receipt_submit", "receipt_status", "daemon_status",
 ];
 const TIER3_TOOLS = Object.entries(TOOL_TIERS)
   .filter(([, tier]) => tier === TIER_AUTHORITY)
@@ -54,7 +54,7 @@ const TIER4_TOOLS = Object.entries(TOOL_TIERS)
 
 describe("tier assignments", () => {
   it("covers every tool", () => {
-    assert.equal(Object.keys(TOOL_TIERS).length, 66);
+    assert.equal(Object.keys(TOOL_TIERS).length, 72);
   });
   it("tier 1 is open reads", () => {
     for (const tool of TIER1_TOOLS) assert.equal(tierOf(tool), TIER_OPEN, tool);
@@ -63,11 +63,11 @@ describe("tier assignments", () => {
     assert.equal(tierOf("send_message"), TIER_STEER);
   });
   it("tier 3 is authority writes", () => {
-    assert.equal(TIER3_TOOLS.length, 25);
+    assert.equal(TIER3_TOOLS.length, 29);
     for (const tool of TIER3_TOOLS) assert.equal(tierOf(tool), TIER_AUTHORITY, tool);
   });
   it("tier 4 is external sends", () => {
-    assert.deepEqual([...TIER4_TOOLS].sort(), ["mail_send", "relay_dismiss", "relay_followup", "relay_reply"]);
+    assert.deepEqual([...TIER4_TOOLS].sort(), ["daemon_restart", "mail_send", "relay_dismiss", "relay_followup", "relay_reply"]);
     for (const tool of TIER4_TOOLS) assert.equal(tierOf(tool), TIER_EXTERNAL, tool);
   });
   it("forbidden tools have no tool tier", () => {
@@ -186,7 +186,6 @@ describe("audit lines", () => {
     assert.equal(line.target, null);
   });
   it("forbidden and unknown tiers", () => {
-    assert.equal(buildLine("trillium", "daemon_start", "refuse", "forbidden").tier, null);
     assert.equal(buildLine("trillium", "nope", "refuse", "unknown-tool").tier, null);
   });
   it("timestamps are UTC ISO-8601", () => {
