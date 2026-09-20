@@ -22,7 +22,7 @@ version: v1
 upstream:
   repo: https://github.com/kunchenguid/firstmate.git
   submodule: sources/firstmate
-  gitlink_at_seed: 65a3bac6031286b4058360859a9522a50a09bb14
+  gitlink_at_seed: 1b1b6e051dafc9dcabe3ef0a7d4a64bd40a45567
   baseline: drift/baseline.json
   baseline_rev_at_seed: aaf67489
   baseline_surfaces_at_seed: 163

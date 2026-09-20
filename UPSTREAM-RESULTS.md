@@ -1,9 +1,9 @@
 # UPSTREAM-RESULTS
 
-Seeded: 2026-09-19T21:25:19Z via `bash tests/upstream/run_upstream.sh` (`python3 tests/upstream/run_upstream.py --write-results`).
+Seeded: 2026-09-20T00:19:21Z via `bash tests/upstream/run_upstream.sh` (`python3 tests/upstream/run_upstream.py --write-results`).
 
 - upstream repo: `https://github.com/kunchenguid/firstmate.git`
-- gitlink pin: `65a3bac6031286b4058360859a9522a50a09bb14`
+- gitlink pin: `1b1b6e051dafc9dcabe3ef0a7d4a64bd40a45567`
 - upstream root at seed time: `sources/firstmate`
 - ts runtime at seed time: `bun` (bun-primary, node-fallback; harness spawns the TS server via the proving runtime)
 - contracts source: `schema/contracts.yaml`
