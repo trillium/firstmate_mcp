@@ -169,6 +169,13 @@ describe("audit lines", () => {
     assert.equal(line.approval_ref, approvalRef(APPROVAL));
     assert.equal(line.target, "fm-task1");
     assert.equal(line.duration_ms, null);
+    assert.equal(line.transport, "stdio");
+  });
+  it("allow line records transport when provided", () => {
+    const stdioLine = buildLine("trillium", "fleet_snapshot", "allow", "ok", { transport: "stdio" });
+    const httpLine = buildLine("trillium", "fleet_snapshot", "allow", "ok", { transport: "http" });
+    assert.equal(stdioLine.transport, "stdio");
+    assert.equal(httpLine.transport, "http");
   });
   it("allow line records duration_ms when provided", () => {
     const line = buildLine("trillium", "lifecycle_interrupt", "allow", "ok", {

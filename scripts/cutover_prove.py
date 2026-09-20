@@ -125,7 +125,7 @@ def main():
     listed = ts.rpc("tools/list")
     names = [t["name"] for t in listed["result"]["tools"]]
     row("initialize/tools/list", "n/a",
-        "ok" if len(names) == 57 else "MISMATCH",
+        "ok" if len(names) == 77 else "MISMATCH",
         "%d tools, server %s %s" % (
             len(names), server_info["name"], server_info["version"]))
 
@@ -173,8 +173,8 @@ def main():
         "inert" if err and body.get("exit") == 3 else "MISMATCH",
         "exit=%s (no FMX_PAIRING_TOKEN)" % body.get("exit"))
     resp = ts.rpc("tools/call",
-                  {"name": "promote_scout", "arguments": {}})
-    row("promote_scout", "n/a (code-forbidden)",
+                  {"name": "unadmitted_tool", "arguments": {}})
+    row("unadmitted_tool", "n/a (code-forbidden)",
         "unknown-tool" if resp.get("error", {}).get("message", "").startswith(
             "unknown tool:") else "MISMATCH",
         resp.get("error", {}).get("message", ""))
@@ -201,9 +201,11 @@ def main():
     if refs[6] is None or refs[7] is not None or refs[8] is None:
         audit_failures.append("approval_ref present only where approval given")
     if any(set(ln.keys()) != {"v", "ts", "actor", "tool", "tier",
-                              "decision", "reason", "approval_ref", "target", "duration_ms"}
+                              "decision", "reason", "approval_ref", "target", "duration_ms", "transport"}
            for ln in ts_lines):
         audit_failures.append("audit line keys mismatch AUTH.md")
+    if any(ln.get("transport") != "stdio" for ln in ts_lines):
+        audit_failures.append("stdio cutover proof records must carry transport=stdio")
 
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     md = []
@@ -244,9 +246,8 @@ def main():
     md.append("")
     md.append("## Code-forbidden")
     md.append("")
-    md.append("- `promote_scout` answered `unknown tool`, auditing")
-    md.append("  `refuse/unknown-tool` at tier `forbidden`: no merge authority lives")
-    md.append("  in this layer.")
+    md.append("- `unadmitted_tool` answered `unknown tool`, auditing")
+    md.append("  `refuse/unknown-tool`: unadmitted tools stay out of scope.")
     md.append("")
     md.append("## Audit log (TypeScript server, 10 tools/call lines)")
     md.append("")
