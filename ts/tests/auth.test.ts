@@ -44,6 +44,7 @@ const TIER1_TOOLS = [
   "lint_versions", "tool_update_check", "vendor_auth_probe",
   "startup_memory", "pr_state", "relay_poll",
   "receipt_submit", "receipt_status", "daemon_status",
+  "decision_verify", "decision_open", "decision_diverged",
 ];
 const TIER3_TOOLS = Object.entries(TOOL_TIERS)
   .filter(([, tier]) => tier === TIER_AUTHORITY)
@@ -54,7 +55,7 @@ const TIER4_TOOLS = Object.entries(TOOL_TIERS)
 
 describe("tier assignments", () => {
   it("covers every tool", () => {
-    assert.equal(Object.keys(TOOL_TIERS).length, 78);
+assert.equal(Object.keys(TOOL_TIERS).length, 83);
   });
   it("tier 1 is open reads", () => {
     for (const tool of TIER1_TOOLS) assert.equal(tierOf(tool), TIER_OPEN, tool);
@@ -63,7 +64,7 @@ describe("tier assignments", () => {
     assert.equal(tierOf("send_message"), TIER_STEER);
   });
   it("tier 3 is authority writes", () => {
-    assert.equal(TIER3_TOOLS.length, 34);
+    assert.equal(TIER3_TOOLS.length, 36);
     for (const tool of TIER3_TOOLS) assert.equal(tierOf(tool), TIER_AUTHORITY, tool);
   });
   it("tier 4 is external sends", () => {
@@ -170,6 +171,7 @@ describe("audit lines", () => {
     assert.equal(line.target, "fm-task1");
     assert.equal(line.duration_ms, null);
     assert.equal(line.transport, "stdio");
+    assert.equal(line.decision_digest, null);
   });
   it("allow line records transport when provided", () => {
     const stdioLine = buildLine("trillium", "fleet_snapshot", "allow", "ok", { transport: "stdio" });
@@ -184,6 +186,14 @@ describe("audit lines", () => {
       duration_ms: 42.4,
     });
     assert.equal(line.duration_ms, 42);
+  });
+  it("allow line records decision_digest when provided", () => {
+    const line = buildLine("trillium", "decision_release", "allow", "ok", {
+      approval: APPROVAL,
+      target: "fm-task1",
+      decision_digest: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    });
+    assert.equal(line.decision_digest, "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789");
   });
   it("refuse line works without a token", () => {
     const line = buildLine("trillium", "relay_reply", "refuse", "approval-required");

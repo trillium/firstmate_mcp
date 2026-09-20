@@ -14,8 +14,8 @@ When updating this file, preserve this bar for all agents and keep entries conci
 ## Build, test, and envelope
 
 - Server proof: `cd ts && bun test` (or `pnpm test`) is the full standalone
-  proof of the TypeScript MCP server (validators, envelope, auth with duration_ms timing,
-  77-tool server suite, and conformance fixtures); run it before shipping server changes.
+  proof of the TypeScript MCP server (validators, envelope, auth with duration_ms timing and decision_digest audit logging,
+  82-tool server suite, and conformance fixtures); run it before shipping server changes.
   It includes fixtures covering >30s timeout kill, >128KB snapshots, and receipt lifecycle.
   Other suites: `bash tests/mcp-adapter.test.sh`, `tests/fm-mcp-authz.test.sh`,
   `tests/mcp-schema.test.sh`, `tests/drift-check.test.sh`,
@@ -49,6 +49,16 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - TypeScript server (`ts/`, stdio sole server, Effect composition): pnpm is the
   package manager (`pnpm install`), bun is the sole runtime (`bun test` / `pnpm test`
   is the full TS proof). Test runner is native Bun test.
+- Decision-closing release & attestation mechanics (`ts/src/tools.ts`, `AUTH.md`):
+  `decision_release`, `decision_resolve`, and `review_decision` (with `--release`)
+  enforce the SAFETY CORE: default scope allows releasing/resolving ONLY holds the calling agent
+  opened itself (matching `FM_ACTOR` to hold author/origin metadata); captain-opened or third-party
+  holds refuse without an explicit per-deploy grant (`FM_RELEASE_GRANT=1`, default OFF).
+  Mandatory non-empty decision records are required and every release is audit-logged with
+  `decision_digest` (SHA-256).
+  Attestation tools `decision_complete` (Tier 3 write), `decision_verify` (Tier 1 read),
+  `decision_open` (Tier 1 read), and `decision_diverged` (Tier 1 read) mirror the completion
+  and verification surfaces from `bin/fm-captain-hold.sh`.
 - Test optimization (split-then-hash hybrid):
   Targets split into fast hermetic unit/smarts (`test:fast` / `test:fast:bun`, <3s)
   vs slow timing/envelope/receipt proofs (`test:slow` / `test:slow:bun`, `timeout.test.ts`,

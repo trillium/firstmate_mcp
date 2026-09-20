@@ -139,7 +139,9 @@ describe("expanded surface: 66 tools", () => {
   const REQUIRED = [
     "lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch",
     "lifecycle_suspend", "lifecycle_resume", "spawn_crew", "scaffold_brief",
-    "decision_hold", "decision_resolve", "review_decision", "relay_reply",
+    "decision_hold", "decision_resolve", "decision_release", "decision_complete",
+    "decision_verify", "decision_open", "decision_diverged",
+    "review_decision", "relay_reply",
     "relay_dismiss", "relay_followup", "fleet_poll",
     "peek", "fleet_view", "review_diff",
     "bearings_snapshot", "wake_drain", "guard_check",
@@ -161,10 +163,10 @@ describe("expanded surface: 66 tools", () => {
     "task_intake", "worktree_allocate", "lifecycle_drive", "review_gate", "reconcile_upstream",
   ];
 
-  it("server lists 78 tools", async () => {
+it("server lists 83 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 78);
+    assert.equal(tools.length, 83);
   });
 
   for (const required of REQUIRED) {
@@ -194,6 +196,7 @@ describe("expanded surface: 66 tools", () => {
       "lint_versions", "tool_update_check", "vendor_auth_probe",
       "startup_memory", "pr_state", "relay_poll",
       "receipt_submit", "receipt_status", "daemon_status",
+      "decision_verify", "decision_open", "decision_diverged",
     ]);
     for (const tool of tools) {
       if (open.has(tool.name)) continue;
@@ -315,6 +318,120 @@ describe("expanded surface: 66 tools", () => {
     });
     assert.ok(isError(resp) && String(payload(resp)["error"] ?? "").includes("approval"));
   });
+  it("decision resolve rejects empty decision_text", async () => {
+    const resp = await boxed.call("decision_resolve", {
+      origin_id: "x", decision_key: "k", routed_to: "y", decision_text: "   ", approval: APPROVAL,
+    });
+    assert.ok(isError(resp));
+    assert.equal(payload(resp)["error"], "invalid decision_text");
+  });
+  it("decision release refuses without approval", async () => {
+    const resp = await boxed.call("decision_release", {
+      id: "agent-1-decision-key1", decision_text: "approved",
+    });
+    assert.ok(isError(resp) && String(payload(resp)["error"] ?? "").includes("approval"));
+  });
+  it("decision release rejects empty decision_text", async () => {
+    const resp = await boxed.call("decision_release", {
+      id: "agent-1-decision-key1", decision_text: "", approval: APPROVAL,
+    });
+    assert.ok(isError(resp));
+    assert.equal(payload(resp)["error"], "invalid decision_text");
+  });
+  it("decision release refuses captain-opened hold without grant (SAFETY CORE)", async () => {
+    const resp = await boxed.call("decision_release", {
+      id: "captain-hold", decision_text: "approved release", approval: APPROVAL,
+    });
+    assert.ok(isError(resp));
+    assert.equal(payload(resp)["error"], "release unauthorized");
+    assert.ok(String(payload(resp)["detail"] ?? "").includes("captain-opened hold"));
+  });
+  it("decision release allows captain-opened hold when FM_RELEASE_GRANT is enabled", async () => {
+    const grantClient = new Client({ FM_HOME: sandbox, FM_RELEASE_GRANT: "1" });
+    try {
+      const resp = await grantClient.call("decision_release", {
+        id: "captain-hold", decision_text: "approved release", approval: APPROVAL,
+      });
+      assert.equal(isError(resp), false);
+      assert.equal(payload(resp)["id"], "captain-hold");
+      assert.ok(typeof payload(resp)["decision_digest"] === "string");
+      assert.equal((payload(resp)["decision_digest"] as string).length, 64);
+    } finally {
+      await grantClient.close();
+    }
+  });
+  it("decision release allows self-opened hold (matching FM_ACTOR)", async () => {
+    const workerClient = new Client({ FM_HOME: sandbox, FM_ACTOR: "worker-1" });
+    try {
+      const resp = await workerClient.call("decision_release", {
+        origin_id: "worker-1", decision_key: "auth-gate", routed_to: "task-2", decision_text: "approved release", approval: APPROVAL,
+      });
+      assert.equal(isError(resp), false);
+      assert.equal(payload(resp)["origin_id"], "worker-1");
+      assert.equal(payload(resp)["decision_key"], "auth-gate");
+      assert.ok(typeof payload(resp)["decision_digest"] === "string");
+    } finally {
+      await workerClient.close();
+    }
+  });
+  it("decision release refuses hold opened by different actor without grant", async () => {
+    const workerClient = new Client({ FM_HOME: sandbox, FM_ACTOR: "worker-2" });
+    try {
+      const resp = await workerClient.call("decision_release", {
+        origin_id: "worker-1", decision_key: "auth-gate", routed_to: "task-2", decision_text: "approved release", approval: APPROVAL,
+      });
+      assert.ok(isError(resp));
+      assert.equal(payload(resp)["error"], "release unauthorized");
+    } finally {
+      await workerClient.close();
+    }
+  });
+  it("decision complete refuses without approval", async () => {
+    const resp = await boxed.call("decision_complete", { origin_id: "t1", none: true });
+    assert.ok(isError(resp) && String(payload(resp)["error"] ?? "").includes("approval"));
+  });
+  it("decision complete rejects combining none with task_ids", async () => {
+    const resp = await boxed.call("decision_complete", {
+      origin_id: "t1", none: true, task_ids: ["t2"], approval: APPROVAL,
+    });
+    assert.ok(isError(resp));
+    assert.equal(payload(resp)["error"], "invalid task_ids");
+  });
+  it("decision complete with none succeeds", async () => {
+    const resp = await boxed.call("decision_complete", {
+      origin_id: "t1", none: true, approval: APPROVAL,
+    });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["origin_id"], "t1");
+    assert.equal(payload(resp)["none"], true);
+  });
+  it("decision complete with task_ids succeeds", async () => {
+    const resp = await boxed.call("decision_complete", {
+      origin_id: "t1", task_ids: ["t2", "t3"], approval: APPROVAL,
+    });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["origin_id"], "t1");
+    assert.deepEqual(payload(resp)["task_ids"], ["t2", "t3"]);
+  });
+  it("decision verify succeeds without approval (open read)", async () => {
+    const resp = await boxed.call("decision_verify", { origin_id: "t1" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["origin_id"], "t1");
+    assert.equal(payload(resp)["verified"], true);
+  });
+  it("decision open succeeds without approval (open read)", async () => {
+    const resp = await boxed.call("decision_open", { id: "open-task", identity: true });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["id"], "open-task");
+    assert.equal(payload(resp)["open"], true);
+    assert.equal(payload(resp)["identity"], "2026-09-20T00:00:00Z 1");
+  });
+  it("decision diverged succeeds without approval (open read)", async () => {
+    const resp = await boxed.call("decision_diverged", {});
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["diverged"], true);
+    assert.equal(payload(resp)["count"], 1);
+  });
   it("review refuses without approval", async () => {
     const resp = await boxed.call("review_decision", { id: "no-such-id", verdict: "approve" });
     assert.ok(isError(resp) && String(payload(resp)["error"] ?? "").includes("approval"));
@@ -331,10 +448,34 @@ describe("expanded surface: 66 tools", () => {
       true,
     );
   });
+  it("review with release refuses captain-opened hold without grant", async () => {
+    const resp = await boxed.call("review_decision", {
+      id: "captain-hold", verdict: "approve", release: true, approval: APPROVAL,
+    });
+    assert.ok(isError(resp));
+    assert.equal(payload(resp)["error"], "release unauthorized");
+  });
+  it("review with release allows captain-opened hold when FM_RELEASE_GRANT is enabled", async () => {
+    const grantClient = new Client({ FM_HOME: sandbox, FM_RELEASE_GRANT: "1" });
+    try {
+      const resp = await grantClient.call("review_decision", {
+        id: "captain-hold", verdict: "approve", release: true, approval: APPROVAL,
+      });
+      assert.equal(isError(resp), false);
+      assert.equal(payload(resp)["id"], "captain-hold");
+      assert.equal(payload(resp)["verdict"], "approve");
+      assert.equal(payload(resp)["release"], true);
+      assert.ok(typeof payload(resp)["decision_digest"] === "string");
+    } finally {
+      await grantClient.close();
+    }
+  });
   it("review valid call reaches captain-hold answer and stays structured", async () => {
-    const resp = await boxed.call("review_decision", { id: "no-such-id", verdict: "approve", approval: APPROVAL });
-    assert.equal(isError(resp), true);
-    assert.ok(String((payload(resp)["stderr"] as string | undefined) ?? "").includes("answer"));
+    const resp = await boxed.call("review_decision", { id: "t1", verdict: "approve", approval: APPROVAL });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["id"], "t1");
+    assert.equal(payload(resp)["verdict"], "approve");
+    assert.ok(typeof payload(resp)["decision_digest"] === "string");
   });
   it("relay reply refuses without approval", async () => {
     const resp = await boxed.call("relay_reply", { request_id: "no-such-id", text: "hello" });
@@ -826,5 +967,28 @@ describe("expanded surface: 66 tools", () => {
     const resp = await boxed.call("relay_poll", {});
     assert.equal(isError(resp), false);
     assert.ok(String(payload(resp)["stdout"] ?? "").includes("x-poll stub"));
+  });
+  it("decision_release records decision_digest in audit log", async () => {
+    const auditFile = path.join(sandbox, "state", "mcp-audit.jsonl");
+    const client = new Client({ FM_HOME: sandbox, FM_ACTOR: "audit-tester", FM_AUDIT_LOG: auditFile });
+    try {
+      const resp = await client.call("decision_release", {
+        origin_id: "audit-tester",
+        decision_key: "audit-key",
+        routed_to: "task-99",
+        decision_text: "decision text for audit test",
+        approval: APPROVAL,
+      });
+      assert.equal(isError(resp), false);
+      const digest = payload(resp)["decision_digest"] as string;
+      assert.ok(typeof digest === "string" && digest.length === 64);
+      assert.ok(fs.existsSync(auditFile));
+      const lines = fs.readFileSync(auditFile, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+      const matching = lines.find((l) => l.tool === "decision_release" && l.actor === "audit-tester");
+      assert.ok(matching, "audit line for decision_release must exist");
+      assert.equal(matching.decision_digest, digest);
+    } finally {
+      await client.close();
+    }
   });
 });
