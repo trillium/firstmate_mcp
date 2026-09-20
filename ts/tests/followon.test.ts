@@ -543,18 +543,18 @@ describe("Follow-On: LOAD-BEARING AUTH TIERS & ANTI-LAUNDERING SAFETY", () => {
     assert.strictEqual(summary.results[0].payload["error"], "approval required");
   });
 
-  test("Code-forbidden tools (promote_scout, teardown_crew, etc.) are strictly refused", async () => {
+  test("Denied / unadmitted tools (daemon_start, etc.) are strictly refused", async () => {
     const auditLines: AuditLine[] = [];
     const testAuditLayer = makeTestAuditLayer(auditLines);
     const mockToolContext = createMockToolContext();
 
     const rules: FollowOnRule[] = [
       {
-        id: "forbidden-tool-attempt",
+        id: "denied-tool-attempt",
         trigger: { tool: "fleet_snapshot", on: "success" },
         actions: [
           {
-            tool: "promote_scout",
+            tool: "daemon_start",
             arguments: { approval: APPROVAL },
           },
         ],
@@ -572,10 +572,10 @@ describe("Follow-On: LOAD-BEARING AUTH TIERS & ANTI-LAUNDERING SAFETY", () => {
     assert.strictEqual(summary.actionsFailed, 1);
     assert.strictEqual(summary.results[0].status, "refused");
 
-    const forbiddenAudit = auditLines.find((line) => line.tool === "promote_scout");
-    assert.ok(forbiddenAudit);
-    assert.strictEqual(forbiddenAudit.decision, "refuse");
-    assert.strictEqual(forbiddenAudit.reason, "forbidden");
+    const deniedAudit = auditLines.find((line) => line.tool === "daemon_start");
+    assert.ok(deniedAudit);
+    assert.strictEqual(deniedAudit.decision, "refuse");
+    assert.strictEqual(deniedAudit.reason, "unknown-tool");
   });
 });
 
