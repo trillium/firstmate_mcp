@@ -43,6 +43,8 @@ jobs:
         run: bash tests/mcp-adapter.test.sh
       - name: authz tier and timing tests
         run: bash tests/fm-mcp-authz.test.sh
+      - name: commit-msg hook and setup tests
+        run: bash tests/mcp-hooks.test.sh
 
   ts-server:
     name: typescript server proof

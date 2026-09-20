@@ -142,6 +142,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   - `tests/fm-mcp-authz.test.sh`
   - `tests/fm-coverage.test.sh`
   - `tests/fm-manifest.test.sh`
+  - `tests/mcp-hooks.test.sh`
   - `tests/conformance/conformance.sh`
   - `tests/conformance/ts-parity.sh`
   - `tests/upstream/run_upstream.sh`
@@ -180,6 +181,7 @@ refusal reason; gap is the explicitly unmirrored port backlog.
 - [What this is](#what-this-is)
 - [Line binding and checkout resolution](#line-binding-and-checkout-resolution)
 - [Quickstart](#quickstart)
+- [Commit hooks](#commit-hooks)
 - [Cutover](#cutover)
 - [Tools](#tools)
 - [Authorization tiers](#authorization-tiers)
@@ -284,6 +286,38 @@ cd ts && bun run test:bun
 The suite handshakes, lists tools, exercises every read, proves traversal and
 validation refusals, proves approval gating on every authority-bearing tool,
 proves audit duration_ms timing, and proves every removed code-writing surface answers unknown-tool.
+
+## Commit hooks
+
+This repository enforces Conventional Commits (`<type>(<scope>): <subject>` or `<type>: <subject>`) via a lightweight, zero-dependency git `commit-msg` hook matching observed repository history.
+
+### Allowed types
+
+`feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `perf`, `build`, `revert`, `style`
+
+### Installation
+
+Configure hooks for the checkout:
+
+```sh
+bash scripts/setup-hooks.sh
+```
+
+This sets `core.hooksPath` to `.githooks` in the repository configuration.
+
+### Worktrees and Treehouse pools
+
+Git shares `core.hooksPath` across all worktrees linked to the repository. Because `.githooks/` is tracked in version control, running `bash scripts/setup-hooks.sh` in the primary checkout or any worktree (including treehouse-pooled worktrees) activates hook enforcement across all present and future worktrees without copying files into `.git/hooks`.
+
+### Escape hatch
+
+For rare legitimate exceptions or automated worker scripts:
+
+```sh
+git commit --no-verify -m "..."
+# or set environment variable
+FM_SKIP_HOOKS=1 git commit -m "..."
+```
 
 ## Cutover
 
@@ -477,6 +511,8 @@ ready-vs-not-ready ledger live in the notes of epic `task-5x79b`.
 
 ## Layout
 
+- `.githooks/` — repo-local git hooks (`commit-msg` enforcing conventional commit messages).
+- `scripts/setup-hooks.sh` — hook configuration script (sets `core.hooksPath = .githooks` across checkouts and worktrees).
 - `ts/` — TypeScript MCP server (Effect composition, stdio transport, sole server).
 - `scripts/fm-mcp-launch.sh` — cutover launcher: pins one FM_HOME, local-only
   stdio transport, execs the TypeScript server.

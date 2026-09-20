@@ -23,7 +23,8 @@ When updating this file, preserve this bar for all agents and keep entries conci
   honesty, contract coverage, and kinds `upstream-mirror`, `local`, and `fork`),
   `tests/fm-coverage.test.sh` (support-coverage view: `scripts/gen_coverage.py` renders every
   upstream command area with its mirror status into `manifest/COVERAGE.md`; the gate fails
-  on any unclassified command), `tests/conformance/ts-parity.sh` (multi-runtime Bun + Node proof),
+  on any unclassified command), `tests/mcp-hooks.test.sh` (commit-msg hook and setup proof),
+  `tests/conformance/ts-parity.sh` (multi-runtime Bun + Node proof),
   `tests/upstream/run_upstream.sh` (preservation proof against TS server).
   Coverage/manifest gates need `sources/firstmate` checked out
   (`git submodule update --init`); without it `gen_coverage.py` falls back
@@ -74,6 +75,10 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Coverage provenance outside `bin/fm-*.sh` (e.g. `bin/fm_voice_records.py`)
   needs a `bin/` key in `scripts/gen_coverage.py` COMMAND_AREAS; it renders
   via the special-rows path, never the upstream `.sh` enumeration.
+- Commit hooks: `bash scripts/setup-hooks.sh` configures `core.hooksPath = .githooks`
+  (enforcing conventional commits `feat|fix|chore|docs|refactor|test|ci|perf|build|revert|style`
+  matching observed history, shared across checkouts and linked worktrees; escape hatch `--no-verify`
+  or `FM_SKIP_HOOKS=1`; test suite `tests/mcp-hooks.test.sh`).
 - Cutover: `scripts/fm-mcp-launch.sh --home $FM_HOME` serves the fleet
   local-only over stdio via the TypeScript server (`ts/dist/server.js`); pins
   `FM_HOME`, refuses network flags, never add a repo-root `bin/` (it would
