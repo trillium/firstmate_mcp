@@ -126,14 +126,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [bun, node]
+        runtime: [bun]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
           version: 9
       - uses: oven-sh/setup-bun@v2
-        if: matrix.runtime == 'bun'
         with:
           bun-version: latest
       - uses: actions/setup-node@v4
@@ -146,15 +145,9 @@ jobs:
           cd ts
           pnpm install --frozen-lockfile
       - name: run fast unit & smarts tests (bun)
-        if: matrix.runtime == 'bun'
         run: |
           cd ts
-          bun run test:fast:bun
-      - name: run fast unit & smarts tests (node)
-        if: matrix.runtime == 'node'
-        run: |
-          cd ts
-          pnpm run test:fast
+          bun run test:fast
 
   ts-slow:
     name: ts-slow (${{ matrix.runtime }})
@@ -164,14 +157,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [bun, node]
+        runtime: [bun]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
           version: 9
       - uses: oven-sh/setup-bun@v2
-        if: matrix.runtime == 'bun'
         with:
           bun-version: latest
       - uses: actions/setup-node@v4
@@ -184,15 +176,9 @@ jobs:
           cd ts
           pnpm install --frozen-lockfile
       - name: run slow timing & receipt tests (bun)
-        if: matrix.runtime == 'bun'
         run: |
           cd ts
-          bun run test:slow:bun
-      - name: run slow timing & receipt tests (node)
-        if: matrix.runtime == 'node'
-        run: |
-          cd ts
-          pnpm run test:slow
+          bun run test:slow
 
   ts-conformance:
     name: ts-conformance (${{ matrix.runtime }}, shard ${{ matrix.shard }})
@@ -202,7 +188,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [bun, node]
+        runtime: [bun]
         shard: [read, remote, system]
     steps:
       - uses: actions/checkout@v4
@@ -212,7 +198,6 @@ jobs:
         with:
           version: 9
       - uses: oven-sh/setup-bun@v2
-        if: matrix.runtime == 'bun'
         with:
           bun-version: latest
       - uses: actions/setup-node@v4
@@ -230,15 +215,9 @@ jobs:
           cd ts
           pnpm install --frozen-lockfile
       - name: run conformance tests (bun)
-        if: matrix.runtime == 'bun'
         run: |
           cd ts
-          bun run conformance:${{ matrix.shard }}:bun
-      - name: run conformance tests (node)
-        if: matrix.runtime == 'node'
-        run: |
-          cd ts
-          pnpm run conformance:${{ matrix.shard }}
+          bun run conformance:${{ matrix.shard }}
 
   manifest:
     name: manifest and coverage
