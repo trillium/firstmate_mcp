@@ -57,6 +57,9 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Test runner: `pnpm run test:dev` / `bun run test:dev` selectively reruns
   recorded failing test files during local development, while CI and PR
   always run the full suite (`pnpm test`, `bun run test:bun`).
+- CI path filters (`.github/workflows/mcp-ci.yml`): non-code and docs-only changes
+  skip heavy proof suites (`ts-server`, `upstream`) while fast validators
+  (`schema`, `unit`, `manifest`, `drift`) and the anchor `ci-gate` merge gate always run.
 - Upstream-shift watch: `drift/shift.py` polls the upstream Atom feed
   first (`drift/atom.py`: feed SHA vs the pin as cached SHA, quiet when
   unchanged, loud `ATOM PARSE FAILURE` on malformed feeds, fail-open to

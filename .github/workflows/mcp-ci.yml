@@ -6,6 +6,32 @@ on:
   pull_request:
 
 jobs:
+  changes:
+    name: detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - '.github/**'
+              - '.gitmodules'
+              - 'sources/firstmate'
+              - 'drift/**'
+              - 'manifest/**'
+              - 'schema/**'
+              - 'scripts/**'
+              - 'tests/**'
+              - 'ts/**'
+              - '!*.md'
+              - '!**/*.md'
+              - '!docs/**'
+              - '!LICENSE'
+
   schema:
     name: schema validation
     runs-on: ubuntu-latest
@@ -46,6 +72,8 @@ jobs:
 
   ts-server:
     name: typescript server proof
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,6 +120,8 @@ jobs:
 
   upstream:
     name: upstream preservation
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -157,4 +187,36 @@ jobs:
               print("\n".join(f" - {f}" for f in failures))
               sys.exit(1)
           print(f"ok: {len(seed_names)} contracts agree across contracts.yaml, matrix.md, validate.py")
+          PYEOF
+
+  ci-gate:
+    name: ci merge gate
+    needs: [changes, schema, unit, manifest, drift, ts-server, upstream]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: check required jobs
+        run: |
+          python3 - <<'PYEOF'
+          import sys
+          results = {
+              "changes": "${{ needs.changes.result }}",
+              "schema": "${{ needs.schema.result }}",
+              "unit": "${{ needs.unit.result }}",
+              "manifest": "${{ needs.manifest.result }}",
+              "drift": "${{ needs.drift.result }}",
+              "ts-server": "${{ needs.ts-server.result }}",
+              "upstream": "${{ needs.upstream.result }}",
+          }
+          print("Job results:", results)
+          for job, res in results.items():
+              if job in ("ts-server", "upstream"):
+                  if res not in ("success", "skipped"):
+                      print(f"FAILED: {job} status is {res}")
+                      sys.exit(1)
+              else:
+                  if res != "success":
+                      print(f"FAILED: {job} status is {res}")
+                      sys.exit(1)
+          print("All required checks passed (or cleanly skipped).")
           PYEOF
