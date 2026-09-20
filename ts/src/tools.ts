@@ -2092,6 +2092,111 @@ export async function toolWatchStop(args: ToolArgs, ctx: ToolContext): Promise<T
   return { payload: { status: "stopped" }, isError: false };
 }
 
+export async function toolTaskIntake(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  const project = args["project"];
+  const mode = args["mode"] !== undefined ? args["mode"] : "no-mistakes";
+  if (!validId(taskId)) {
+    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  if (!validProject(project)) {
+    return { payload: { error: "invalid project", expect: "bare name or projects/<name>" }, isError: true };
+  }
+  const briefRes = await toolScaffoldBrief({ task_id: taskId, project, mode, approval: args["approval"] }, ctx);
+  if (briefRes.isError) return briefRes;
+  return {
+    payload: {
+      status: "intake_complete",
+      task_id: taskId,
+      project,
+      mode,
+      brief: briefRes.payload,
+    },
+    isError: false,
+  };
+}
+
+export async function toolWorktreeAllocate(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  const project = args["project"];
+  if (!validId(taskId)) {
+    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  if (!validProject(project)) {
+    return { payload: { error: "invalid project", expect: "bare name or projects/<name>" }, isError: true };
+  }
+  const wtPath = path.resolve(ctx.stateDir, "worktrees", taskId as string);
+  try {
+    fs.mkdirSync(wtPath, { recursive: true });
+    return {
+      payload: {
+        status: "allocated",
+        task_id: taskId,
+        worktree_path: wtPath,
+      },
+      isError: false,
+    };
+  } catch (err) {
+    return { payload: { error: "failed to allocate worktree", detail: String(err) }, isError: true };
+  }
+}
+
+export async function toolLifecycleDrive(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  const project = args["project"];
+  const mode = (args["mode"] as (typeof MODES)[number]) || "no-mistakes";
+  const yolo = (args["yolo"] as "on" | "off") || "off";
+  if (!validId(taskId)) {
+    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  if (!validProject(project)) {
+    return { payload: { error: "invalid project", expect: "bare name or projects/<name>" }, isError: true };
+  }
+  const spawnRes = await toolSpawnCrew({ task_id: taskId, project, mode, yolo, approval: args["approval"] }, ctx);
+  if (spawnRes.isError) return spawnRes;
+  const stateRes = await toolCrewState({ id: taskId }, ctx);
+  return {
+    payload: {
+      status: "lifecycle_driven",
+      task_id: taskId,
+      spawn: spawnRes.payload,
+      current_state: stateRes.payload,
+    },
+    isError: false,
+  };
+}
+
+export async function toolReviewGate(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  const verdict = args["verdict"] as (typeof VERDICTS)[number];
+  const comment = args["comment"] as string | undefined;
+  if (!validId(taskId)) {
+    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  if (!VERDICTS.includes(verdict)) {
+    return { payload: { error: "invalid verdict", expect: `must be one of ${VERDICTS.join(", ")}` }, isError: true };
+  }
+  const diffRes = await toolReviewDiff({ id: taskId, stat: true }, ctx);
+  if (diffRes.isError) return diffRes;
+  const decRes = await toolReviewDecision({ id: taskId, verdict, comment, approval: args["approval"] }, ctx);
+  if (decRes.isError) return decRes;
+  return {
+    payload: {
+      status: "review_gate_passed",
+      task_id: taskId,
+      verdict,
+      diff: diffRes.payload,
+      decision: decRes.payload,
+    },
+    isError: false,
+  };
+}
+
+export async function toolReconcileUpstream(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const cmd = ["python3", path.join(ctx.binDir, "..", "drift", "shift.py"), "--format", "json"];
+  return ownedCall(cmd, "reconcile_upstream", ctx.run);
+}
+
 export const TOOLS: Record<string, ToolDef> = {
   fleet_snapshot: {
     description: "Read-only canonical fleet snapshot (backlog plus per-task state).",
@@ -2702,6 +2807,47 @@ export const TOOLS: Record<string, ToolDef> = {
     description: "Authority write: stop watcher cycle.",
     inputSchema: approvalSchema({}),
     handler: toolWatchStop,
+  },
+  task_intake: {
+    description: "Authority composite: ingest task and scaffold brief.",
+    inputSchema: approvalSchema({
+      task_id: { type: "string" },
+      project: { type: "string", description: "Bare name or projects/<name>" },
+      mode: { type: "string", enum: [...BRIEF_MODES], default: "no-mistakes" },
+    }),
+    handler: toolTaskIntake,
+  },
+  worktree_allocate: {
+    description: "Authority write: allocate isolated worktree slot for task.",
+    inputSchema: approvalSchema({
+      task_id: { type: "string" },
+      project: { type: "string" },
+    }),
+    handler: toolWorktreeAllocate,
+  },
+  lifecycle_drive: {
+    description: "Authority composite: spawn crew and capture initial state.",
+    inputSchema: approvalSchema({
+      task_id: { type: "string" },
+      project: { type: "string" },
+      mode: { type: "string", enum: [...MODES], default: "no-mistakes" },
+      yolo: { type: "string", enum: ["on", "off"], default: "off" },
+    }),
+    handler: toolLifecycleDrive,
+  },
+  review_gate: {
+    description: "Authority composite: inspect diff and record captain review decision.",
+    inputSchema: approvalSchema({
+      task_id: { type: "string" },
+      verdict: { type: "string", enum: [...VERDICTS] },
+      comment: { type: "string" },
+    }),
+    handler: toolReviewGate,
+  },
+  reconcile_upstream: {
+    description: "Authority composite: run upstream drift/shift report for reconciliation.",
+    inputSchema: approvalSchema({}),
+    handler: toolReconcileUpstream,
   },
 };
 
