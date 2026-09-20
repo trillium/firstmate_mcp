@@ -3,7 +3,7 @@
   "upstream": {
     "repo": "https://github.com/kunchenguid/firstmate.git",
     "submodule": "sources/firstmate",
-    "gitlink": "65a3bac6031286b4058360859a9522a50a09bb14",
+    "gitlink": "1b1b6e051dafc9dcabe3ef0a7d4a64bd40a45567",
     "note": "Human-readable pointer only; the gitlink is the authoritative pin. Resolved live by run_upstream.py in resolution order: sources/firstmate, $FIRSTMATE_HOME/$FM_REAL_HOME/$FM_CHECKOUT, live checkout sibling. Upstream tests are read-only input and are never patched."
   },
   "contracts_source": "schema/contracts.yaml",
