@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# Git commit-msg hook enforcing conventional/semantic commit messages.
+#
+# Enforces the format:
+#   <type>(<scope>): <subject>
+#   <type>: <subject>
+#   <type>(<scope>)!: <subject>
+#   <type>!: <subject>
+#
+# Allowed types: feat, fix, chore, docs, refactor, test, ci, perf, build, revert, style
+# Escape hatch: git commit --no-verify (or FM_SKIP_HOOKS=1 / SKIP_COMMIT_MSG_HOOK=1)
+set -e
+
+# Escape hatch via environment variable for automated tools or emergency bypass
+if [ -n "${FM_SKIP_HOOKS:-}" ] || [ -n "${SKIP_COMMIT_MSG_HOOK:-}" ] || [ -n "${FM_SKIP_COMMIT_MSG:-}" ] || [ -n "${NO_VERIFY:-}" ]; then
+  exit 0
+fi
+
+MSG_FILE="$1"
+if [ ! -f "$MSG_FILE" ]; then
+  exit 0
+fi
+
+# Extract the first non-comment, non-empty line (the subject line)
+SUBJECT_LINE=""
+while IFS= read -r line || [ -n "$line" ]; do
+  # Strip leading whitespace
+  trimmed="${line#"${line%%[![:space:]]*}"}"
+  # Skip comments and empty lines
+  case "$trimmed" in
+    \#*|"") continue ;;
+    *)
+      SUBJECT_LINE="$line"
+      break
+      ;;
+  esac
+done < "$MSG_FILE"
+
+# If no subject line found, let git handle empty commit message refusal
+if [ -z "$SUBJECT_LINE" ]; then
+  exit 0
+fi
+
+# Exemptions: merge commits, reconciliations, reverts, and git autosquash
+case "$SUBJECT_LINE" in
+  Merge\ *|Reconcile:\ *|Revert\ \"*\"|fixup!\ *|squash!\ *|amend!\ *)
+    exit 0
+    ;;
+esac
+
+# Conventional commit regex
+# Types matching repo history: feat, fix, chore, docs, refactor, test, ci, perf, build, revert, style
+# Scope: optional lowercase alphanumeric with dashes, underscores, dots, or slashes: [a-z0-9_./-]+
+# Breaking change marker: optional ! before colon
+# Subject: non-empty string after ": "
+TYPES="feat|fix|chore|docs|refactor|test|ci|perf|build|revert|style"
+SEMANTIC_REGEX="^(${TYPES})(\([a-z0-9_./-]+\))?!?: .+$"
+
+if echo "$SUBJECT_LINE" | grep -Eq "$SEMANTIC_REGEX"; then
+  exit 0
+fi
+
+# Format validation failed — print helpful diagnostic and guidance to stderr
+cat >&2 <<EOF
+================================================================================
+COMMIT MESSAGE REJECTED: Semantic / Conventional Commit format required
+================================================================================
+
+Your commit message subject:
+  "${SUBJECT_LINE}"
+
+Expected format:
+  <type>(<scope>): <subject>
+  <type>: <subject>
+
+Allowed types:
+  feat     A new feature
+  fix      A bug fix
+  chore    Routine maintenance, tooling, or dependency updates
+  docs     Documentation changes only
+  refactor Code change that neither fixes a bug nor adds a feature
+  test     Adding or correcting tests
+  ci       Changes to CI/CD configuration files and scripts
+  perf     A code change that improves performance
+  build    Changes affecting build system or external dependencies
+  revert   Reverts a previous commit
+  style    Changes that do not affect code meaning (formatting, etc.)
+
+Scope (optional):
+  Lowercase letters, numbers, hyphens, underscores, dots (e.g. ts, server, mcp, drift, hygiene)
+
+Examples:
+  feat(ts): implement follow-on action validator
+  fix(mcp): raise fleet-read envelope to live-fleet size
+  docs: line binding and runtime checkout resolution
+  chore(hygiene): adopt pnpm as package manager for ts/
+  refactor(server): drop Python MCP server, make TypeScript sole server
+  ci: add mcp-ci workflow
+
+Escape hatch (emergencies / scripted exceptions):
+  git commit --no-verify -m "..."
+  or FM_SKIP_HOOKS=1 git commit -m "..."
+================================================================================
+EOF
+
+exit 1

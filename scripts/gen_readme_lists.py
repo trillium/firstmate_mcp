@@ -183,6 +183,7 @@ def existing_suites():
         "tests/fm-mcp-authz.test.sh",
         "tests/fm-coverage.test.sh",
         "tests/fm-manifest.test.sh",
+        "tests/mcp-hooks.test.sh",
         "tests/conformance/conformance.sh",
         "tests/conformance/ts-parity.sh",
         "tests/upstream/run_upstream.sh",
