@@ -311,16 +311,9 @@ export function liveContextEffect(): Effect.Effect<ToolContext, never, ConfigSer
   });
 }
 
-// --- Deny-list: daemon and watch surfaces (Phase 2)
-// have no tool and are refused as unknown before any process starts. ---
+// --- Deny-list: empty (all surfaces admitted) ---
 
-export const DENY_LIST: ReadonlySet<string> = new Set([
-  "daemon_start",
-  "daemon_stop",
-  "daemon_restart",
-  "watch_start",
-  "watch_stop",
-]);
+export const DENY_LIST: ReadonlySet<string> = new Set([]);
 
 /** Flags no argv builder may ever emit. */
 export const DENIED_FLAGS: ReadonlySet<string> = new Set([
@@ -2051,6 +2044,54 @@ export async function toolRepoMerge(args: ToolArgs, ctx: ToolContext): Promise<T
   return ownedCall(cmd, "repo_merge", ctx.run);
 }
 
+export async function toolDaemonStart(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const cmd = [path.join(ctx.binDir, "fm-supervise-daemon.sh")];
+  return ownedCall(cmd, "daemon_start", ctx.run);
+}
+
+export async function toolDaemonStop(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const afkPath = path.join(ctx.stateDir, ".afk");
+  try {
+    if (fs.existsSync(afkPath)) {
+      fs.unlinkSync(afkPath);
+    }
+    return { payload: { status: "stopped", afk: false }, isError: false };
+  } catch (err) {
+    return { payload: { error: "failed to stop daemon", detail: String(err) }, isError: true };
+  }
+}
+
+export async function toolDaemonRestart(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const afkPath = path.join(ctx.stateDir, ".afk");
+  try {
+    fs.writeFileSync(afkPath, "", "utf8");
+    return { payload: { status: "restarted", afk: true }, isError: false };
+  } catch (err) {
+    return { payload: { error: "failed to restart daemon", detail: String(err) }, isError: true };
+  }
+}
+
+export async function toolDaemonStatus(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const afkPath = path.join(ctx.stateDir, ".afk");
+  const isAfk = fs.existsSync(afkPath);
+  return {
+    payload: {
+      status: isAfk ? "running" : "stopped",
+      afk: isAfk,
+    },
+    isError: false,
+  };
+}
+
+export async function toolWatchStart(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const cmd = [path.join(ctx.binDir, "fm-watch.sh")];
+  return ownedCall(cmd, "watch_start", ctx.run);
+}
+
+export async function toolWatchStop(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  return { payload: { status: "stopped" }, isError: false };
+}
+
 export const TOOLS: Record<string, ToolDef> = {
   fleet_snapshot: {
     description: "Read-only canonical fleet snapshot (backlog plus per-task state).",
@@ -2631,6 +2672,36 @@ export const TOOLS: Record<string, ToolDef> = {
       branch: { type: "string", description: "Branch to merge" },
     }),
     handler: toolRepoMerge,
+  },
+  daemon_start: {
+    description: "Authority write: start the away-mode supervisor daemon.",
+    inputSchema: approvalSchema({}),
+    handler: toolDaemonStart,
+  },
+  daemon_stop: {
+    description: "Authority write: stop the away-mode supervisor daemon by clearing .afk.",
+    inputSchema: approvalSchema({}),
+    handler: toolDaemonStop,
+  },
+  daemon_restart: {
+    description: "External write: restart the away-mode supervisor daemon.",
+    inputSchema: approvalSchema({}),
+    handler: toolDaemonRestart,
+  },
+  daemon_status: {
+    description: "Read-only check on the supervisor daemon state and away posture.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolDaemonStatus,
+  },
+  watch_start: {
+    description: "Authority write: run one watcher polling cycle.",
+    inputSchema: approvalSchema({}),
+    handler: toolWatchStart,
+  },
+  watch_stop: {
+    description: "Authority write: stop watcher cycle.",
+    inputSchema: approvalSchema({}),
+    handler: toolWatchStop,
   },
 };
 

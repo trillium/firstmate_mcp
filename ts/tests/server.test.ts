@@ -156,13 +156,14 @@ describe("expanded surface: 66 tools", () => {
     "receipt_submit", "receipt_status",
     "promote_scout", "teardown_crew", "arm_pr_check", "merge_pr", "merge_local",
     "repo_edit", "repo_commit", "repo_push", "repo_merge",
+    "daemon_start", "daemon_stop", "daemon_restart", "daemon_status",
+    "watch_start", "watch_stop",
   ];
-  const DENIED_PHASE2 = ["daemon_start", "daemon_stop", "daemon_restart", "watch_start", "watch_stop"];
 
-  it("server lists 66 tools", async () => {
+  it("server lists 72 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 66);
+    assert.equal(tools.length, 72);
   });
 
   for (const required of REQUIRED) {
@@ -172,20 +173,6 @@ describe("expanded surface: 66 tools", () => {
         ((resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>).map((t) => t.name),
       );
       assert.ok(names.has(required));
-    });
-  }
-
-  for (const denied of DENIED_PHASE2) {
-    it(`denied absent: ${denied}`, async () => {
-      const resp = await boxed.request("tools/list");
-      const names = new Set(
-        ((resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>).map((t) => t.name),
-      );
-      assert.ok(!names.has(denied));
-    });
-    it(`denied refused: ${denied}`, async () => {
-      const resp = await boxed.call(denied, {});
-      assert.ok("error" in resp && resp.error!.code === -32602);
     });
   }
 
@@ -205,7 +192,7 @@ describe("expanded surface: 66 tools", () => {
       "mail_status", "mail_read", "voice_status",
       "lint_versions", "tool_update_check", "vendor_auth_probe",
       "startup_memory", "pr_state", "relay_poll",
-      "receipt_submit", "receipt_status",
+      "receipt_submit", "receipt_status", "daemon_status",
     ]);
     for (const tool of tools) {
       if (open.has(tool.name)) continue;
