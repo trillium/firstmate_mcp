@@ -121,9 +121,9 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - Contract map — `schema/contracts.yaml` declares the depended-on
   subset with stability tiers; `schema/validate.py` fails naming the
   stale pin; `schema/matrix.md` is the human view.
-- Conformance fixtures — `ts/tests/conformance.test.ts` proves TS server
-  output equals the owning scripts' output via stub homes (skips cleanly
-  without a firstmate checkout).
+- Conformance fixtures — `ts/tests/conformance-*.test.ts` proves TS server
+  output equals the owning scripts' output via stub homes (sharded & hash-cached across
+  Bun and Node runtimes).
 - Upstream preservation — `tests/upstream/` runs upstream firstmate
   tests unchanged against the TypeScript server via thin adapters
   (upstream reference skips cleanly without a checkout); verdicts
@@ -148,7 +148,11 @@ Refused by the adapter deny-list (no tool, answered unknown):
   - `tests/upstream/run_upstream.sh`
   - `tests/test_drift.py`
   - `ts/tests/server.test.ts`
-  - `ts/tests/conformance.test.ts`
+  - `ts/tests/timeout.test.ts`
+  - `ts/tests/receipt.test.ts`
+  - `ts/tests/conformance-read.test.ts`
+  - `ts/tests/conformance-remote.test.ts`
+  - `ts/tests/conformance-system.test.ts`
   - `ts/tests/auth.test.ts`
   - `ts/tests/followon.test.ts`
 

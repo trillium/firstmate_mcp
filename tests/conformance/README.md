@@ -29,7 +29,7 @@ The TS implementation in `ts/` is proved across both Bun (primary) and Node (fal
 bash tests/conformance/ts-parity.sh
 ```
 
-`ts/tests/conformance.test.ts` runs the TS read-tool equivalence fixtures hermetically with no live checkout. All tests are side-effect-free by construction (stub homes only, read boundary plus validation refusals).
+`ts/tests/conformance-*.test.ts` runs the TS read-tool equivalence fixtures hermetically with no live checkout across three parallelizable shards (`conformance-read`, `conformance-remote`, `conformance-system`) with per-runtime input hashing. All tests are side-effect-free by construction (stub homes only, read boundary plus validation refusals).
 
 ## What equivalence means here
 
