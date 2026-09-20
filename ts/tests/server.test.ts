@@ -158,12 +158,13 @@ describe("expanded surface: 66 tools", () => {
     "repo_edit", "repo_commit", "repo_push", "repo_merge",
     "daemon_start", "daemon_stop", "daemon_restart", "daemon_status",
     "watch_start", "watch_stop",
+    "task_intake", "worktree_allocate", "lifecycle_drive", "review_gate", "reconcile_upstream",
   ];
 
-  it("server lists 72 tools", async () => {
+  it("server lists 77 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 72);
+    assert.equal(tools.length, 77);
   });
 
   for (const required of REQUIRED) {
