@@ -6,7 +6,7 @@ Every upstream firstmate command area with its mirror status: **mirrored**
 (tool name + py/ts status from `manifest/FEATURES.yaml`), **denied-by-design**
 (with reason), or **unmirrored gap**. Captain area order.
 
-Source: `bin/fm-*.sh top-level + backends/` at the pinned submodule `65a3bac` (baseline `drift/baseline.json`, rev `aaf67489`, 163 surfaces).
+Source: `bin/fm-*.sh top-level + backends/` at the pinned submodule `1b1b6e0` (baseline `drift/baseline.json`, rev `aaf67489`, 163 surfaces).
 Backends ship per-harness session adapters; voice helpers outside `fm-*.sh`
 are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 
