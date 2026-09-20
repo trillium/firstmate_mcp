@@ -946,7 +946,7 @@ features:
     upstream_test: "n/a (local) — proof: tests/conformance/conformance.sh + tests/conformance/ts-parity.sh (py/ts payloads field-for-field)"
     readme_anchor: Conformance fixtures
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/tests/conformance.test.ts:test", "ts/src/server.ts:handleToolsCall"]}
+    ts: {status: implemented, evidence: ["ts/tests/conformance-helpers.ts:setup", "ts/src/server.ts:handleToolsCall"]}
     divergence: {status: not-applicable, reason: ""}
   - id: typescript_sibling
     kind: local
