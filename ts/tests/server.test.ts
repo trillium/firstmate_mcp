@@ -161,12 +161,13 @@ describe("expanded surface: 66 tools", () => {
     "daemon_start", "daemon_stop", "daemon_restart", "daemon_status",
     "watch_start", "watch_stop",
     "task_intake", "worktree_allocate", "lifecycle_drive", "review_gate", "reconcile_upstream",
+    "grant_mint", "grant_revoke", "grant_status",
   ];
 
-it("server lists 84 tools", async () => {
+  it("server lists 87 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 84);
+    assert.equal(tools.length, 87);
   });
 
   for (const required of REQUIRED) {
@@ -195,7 +196,7 @@ it("server lists 84 tools", async () => {
       "mail_status", "mail_read", "mail_check", "voice_status",
       "lint_versions", "tool_update_check", "vendor_auth_probe",
       "startup_memory", "pr_state", "relay_poll",
-      "receipt_submit", "receipt_status", "daemon_status",
+      "receipt_submit", "receipt_status", "daemon_status", "grant_status",
       "decision_verify", "decision_open", "decision_diverged",
     ]);
     for (const tool of tools) {

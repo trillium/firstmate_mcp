@@ -76,6 +76,16 @@ export function validApproval(value: unknown): value is string {
   );
 }
 
+export function validGrantToken(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length >= 8 &&
+    value.length <= NOTE_MAX_CHARS &&
+    !value.includes("\n") &&
+    !value.includes("\r")
+  );
+}
+
 export function validSteerText(
   value: unknown,
   maxChars: number = SEND_TEXT_MAX_CHARS,

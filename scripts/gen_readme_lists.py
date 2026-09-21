@@ -149,7 +149,7 @@ TOOL_TIERS = {
     "mail_status": 1, "mail_read": 1, "mail_check": 1, "voice_status": 1,
     "lint_versions": 1, "tool_update_check": 1, "vendor_auth_probe": 1,
     "startup_memory": 1, "pr_state": 1, "relay_poll": 1,
-    "receipt_submit": 1, "receipt_status": 1,
+    "receipt_submit": 1, "receipt_status": 1, "grant_status": 1,
     "decision_verify": 1, "decision_open": 1, "decision_diverged": 1,
     "send_message": 2,
     "lifecycle_interrupt": 3, "lifecycle_exit": 3, "lifecycle_relaunch": 3,
@@ -158,7 +158,7 @@ TOOL_TIERS = {
     "decision_release": 3, "decision_complete": 3,
     "review_decision": 3, "secondmate_nudge": 3, "secondmate_restart": 3,
     "secondmate_report": 3, "remote_control": 3, "handoff_move": 3,
-    "voice_queue": 3,
+    "voice_queue": 3, "grant_mint": 3, "grant_revoke": 3,
     "mail_send": 4, "relay_reply": 4, "relay_dismiss": 4, "relay_followup": 4,
 }
 
@@ -205,6 +205,7 @@ def existing_suites():
         "ts/tests/conformance-system.test.ts",
         "ts/tests/auth.test.ts",
         "ts/tests/followon.test.ts",
+        "ts/tests/grants.test.ts",
     ]
     return [c for c in candidates if os.path.exists(os.path.join(ROOT, c))]
 
@@ -260,6 +261,11 @@ def generate():
     lines.append("  budget and returns a pending receipt; `receipt_status` reports")
     lines.append("  running/done/failed with the result attached, TTL expiry, and")
     lines.append("  per-home confinement so receipts never leak across homes.")
+    lines.append("- Standing approval grants — `grant_mint`, `grant_revoke`, and `grant_status`")
+    lines.append("  allow autonomous callers to mint, inspect, and revoke scoped standing approval grants.")
+    lines.append("- Standing approval primitive — `ts/src/grants.ts` provides scoped standing approval")
+    lines.append("  for autonomous MCP loops with tier boundaries, tool allowlists, project scopes,")
+    lines.append("  expiry TTL, usage caps, and instant revocability while preserving default-deny and captain-hold release gates.")
     lines.append("- Auth tiers in code — `ts/src/auth.ts` assigns every tool a tier,")
     lines.append("  writes the JSON-lines audit log; every authority-bearing tool")
     lines.append("  refuses without an `I authorize` string.")

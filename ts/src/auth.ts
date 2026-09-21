@@ -134,6 +134,9 @@ export const TOOL_TIERS: Record<string, Tier> = {
   relay_reply: TIER_EXTERNAL,
   relay_dismiss: TIER_EXTERNAL,
   relay_followup: TIER_EXTERNAL,
+  grant_mint: TIER_AUTHORITY,
+  grant_revoke: TIER_AUTHORITY,
+  grant_status: TIER_OPEN,
 };
 
 export const FORBIDDEN_TOOLS: readonly string[] = [
@@ -178,12 +181,18 @@ export type CheckReason =
   | "approval-required"
   | "approval-invalid";
 
-export function check(tool: string, approval?: unknown): [boolean, CheckReason] {
+export function check(
+  tool: string,
+  approval?: unknown,
+  grantRef?: string | null,
+): [boolean, CheckReason] {
   const tier = tierOf(tool);
   if (tier === null) return [false, "unknown-tool"];
   if (tier === TIER_FORBIDDEN) return [false, "forbidden"];
   if (tier === TIER_OPEN || tier === TIER_STEER) return [true, "ok"];
-  if (validApproval(approval)) return [true, "ok"];
+  if (validApproval(approval) || (typeof grantRef === "string" && grantRef.length > 0)) {
+    return [true, "ok"];
+  }
   if (approval === undefined || approval === null) return [false, "approval-required"];
   return [false, "approval-invalid"];
 }
@@ -236,6 +245,7 @@ export function buildLine(
   reason: string,
   opts: {
     approval?: unknown;
+    grant_ref?: string | null;
     target?: string | null;
     ts?: string;
     duration_ms?: number | null;
@@ -251,7 +261,7 @@ export function buildLine(
     tier: tierOf(tool),
     decision,
     reason,
-    approval_ref: approvalRef(opts.approval),
+    approval_ref: opts.grant_ref ?? approvalRef(opts.approval),
     target: opts.target ?? null,
     duration_ms:
       typeof opts.duration_ms === "number"
@@ -300,6 +310,7 @@ export type AuthCheckError =
 export function checkEffect(
   tool: string,
   approval?: unknown,
+  grantRef?: string | null,
 ): Effect.Effect<void, AuthCheckError> {
   const tier = tierOf(tool);
   if (tier === null) {
@@ -311,17 +322,19 @@ export function checkEffect(
   if (tier === TIER_OPEN || tier === TIER_STEER) {
     return Effect.void;
   }
-  if (validApproval(approval)) return Effect.void;
+  if (validApproval(approval) || (typeof grantRef === "string" && grantRef.length > 0)) {
+    return Effect.void;
+  }
   if (approval === undefined || approval === null) {
     return Effect.fail(
       new ApprovalRequiredError({
-        expect: "explicit approval string starting with 'I authorize'",
+        expect: "explicit approval string starting with 'I authorize' or valid standing grant",
       }),
     );
   }
   return Effect.fail(
     new ApprovalInvalidError({
-      expect: "explicit approval string starting with 'I authorize'",
+      expect: "explicit approval string starting with 'I authorize' or valid standing grant",
     }),
   );
 }

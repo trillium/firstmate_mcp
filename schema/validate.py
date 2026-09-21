@@ -79,6 +79,9 @@ CURRENT_PINS = {
     "startup_memory": "fm-startup-memory-budget.v1",
     "pr_state": "fm-pr-state.v1",
     "relay_poll": "fm-x-poll.v1",
+    "grant_mint": "mcp-grant.v1",
+    "grant_revoke": "mcp-grant.v1",
+    "grant_status": "mcp-grant.v1",
 }
 
 
