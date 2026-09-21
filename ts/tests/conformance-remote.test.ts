@@ -223,6 +223,22 @@ describe("mail equivalence", () => {
     assert.equal(result["stdout"], direct.stdout);
     assert.ok(String(result["warning"] ?? "").includes("BODY.PEEK"));
   });
+
+  it("mail_check runs the bounded check and matches the direct stub", async () => {
+    const direct = directRun(fx, "fm-mail-check.sh", ["check"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "mail_check", {}));
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("mail_check never arms the watcher check", async () => {
+    const before = fx.calls.length;
+    okPayload(await readOnlyCall(fx, "mail_check", {}));
+    assert.equal(fx.calls.length, before + 1);
+    const call = fx.calls[fx.calls.length - 1];
+    assert.equal(call?.script, "fm-mail-check.sh");
+    assert.deepEqual(call?.argv.slice(1), ["check"]);
+  });
 });
 
 describe("voice equivalence", () => {

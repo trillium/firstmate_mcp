@@ -38,6 +38,7 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | contributions_pending | bin/fm-contributions.sh | stable | pending | pending contribution token reads |
 | mail_status | bin/fm-mail.sh | stable | status | mail config + cursor reads (no network) |
 | mail_read | bin/fm-mail.sh | stable | read | unseen-INBOX digest reads (BODY.PEEK) |
+| mail_check | bin/fm-mail-check.sh | stable | check | inbound received-mail check reads (no arm/disarm) |
 | mail_send | bin/fm-mail.sh | evolving | send, <to>, <subject>, - | SMTP send subset (body via stdin) |
 | voice_status | bin/fm_voice_records.py | stable | status, --scope | voice status reads (no mic, no Bedrock) |
 | voice_queue | bin/fm_voice_records.py | evolving | queue, <text> | handover queue writes |
