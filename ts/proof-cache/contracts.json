@@ -1,0 +1,215 @@
+{
+  "version": 1,
+  "description": "Proof contracts mapping bounded unit test blocks to target source code units for AST-based proof caching in firstmate_mcp",
+  "contracts": [
+    {
+      "id": "validators.validId",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "validId",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "function",
+        "targetName": "validId"
+      },
+      "description": "Pure input validator for ID slugs (64-char boundary, traversal rejection)",
+      "bounded": true
+    },
+    {
+      "id": "validators.validProject",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "validProject",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "function",
+        "targetName": "validProject"
+      },
+      "description": "Pure input validator for project names and paths",
+      "bounded": true
+    },
+    {
+      "id": "validators.notesAndApproval",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "notes and approval",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "multi_function",
+        "targetName": "validNote",
+        "additionalNames": ["validApproval", "validSingleLine"]
+      },
+      "description": "Validators for human notes, single line bounds, and approval strings",
+      "bounded": true
+    },
+    {
+      "id": "validators.validSteerText",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "validSteerText",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "function",
+        "targetName": "validSteerText"
+      },
+      "description": "Validator for steer text ensuring single line and non-command text",
+      "bounded": true
+    },
+    {
+      "id": "validators.validStatusLines",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "validStatusLines",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "function",
+        "targetName": "validStatusLines"
+      },
+      "description": "Integer bounds clamping for status lines window",
+      "bounded": true
+    },
+    {
+      "id": "validators.validPeekLines",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "validPeekLines",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "function",
+        "targetName": "validPeekLines"
+      },
+      "description": "Integer bounds clamping for peek lines window",
+      "bounded": true
+    },
+    {
+      "id": "validators.validRelpath",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "validRelpath",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "function",
+        "targetName": "validRelpath"
+      },
+      "description": "Relative path confinement validator",
+      "bounded": true
+    },
+    {
+      "id": "validators.validSha256AndCorr",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "validSha256 and validCorr",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "multi_function",
+        "targetName": "validSha256",
+        "additionalNames": ["validCorr"]
+      },
+      "description": "Hex hash and correlation ID format validators",
+      "bounded": true
+    },
+    {
+      "id": "validators.deltaWindows",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "delta windows",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "multi_function",
+        "targetName": "validNonnegInt",
+        "additionalNames": ["validDeltaWait", "validRemoteMaxBytes", "validHandoffLines"]
+      },
+      "description": "Non-negative integer bounds and clamping for delta windows",
+      "bounded": true
+    },
+    {
+      "id": "validators.validIdList",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "validIdList",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "function",
+        "targetName": "validIdList"
+      },
+      "description": "Array list validator for bounded ID collections",
+      "bounded": true
+    },
+    {
+      "id": "validators.wave4Validators",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "wave-4 validators",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "multi_function",
+        "targetName": "validProbe",
+        "additionalNames": [
+          "validVoiceScope",
+          "validStartupMode",
+          "validMailTo",
+          "validMailSubject",
+          "validMailBody",
+          "validVoiceQueueText",
+          "validPrUrl"
+        ]
+      },
+      "description": "Expanded tool parameter validators for mail, voice, probe, and PR URLs",
+      "bounded": true
+    },
+    {
+      "id": "validators.confineHandoffPath",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "confineHandoffPath",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "function",
+        "targetName": "confineHandoffPath"
+      },
+      "description": "Filesystem path confinement under data/handoff",
+      "bounded": true
+    },
+    {
+      "id": "validators.confineStatePath",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "confineStatePath",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "function",
+        "targetName": "confineStatePath"
+      },
+      "description": "Filesystem path confinement under state directory",
+      "bounded": true
+    },
+    {
+      "id": "envelope.okEnvelope",
+      "testFile": "tests/envelope.test.ts",
+      "testPattern": "ok envelope",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/envelope.ts",
+        "targetKind": "multi_function",
+        "targetName": "ok",
+        "additionalNames": ["isOk"]
+      },
+      "description": "Pure success envelope constructors and type guards",
+      "bounded": true
+    },
+    {
+      "id": "envelope.errEnvelope",
+      "testFile": "tests/envelope.test.ts",
+      "testPattern": "err envelope",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/envelope.ts",
+        "targetKind": "multi_function",
+        "targetName": "err",
+        "additionalNames": ["isErr"]
+      },
+      "description": "Pure error envelope constructors and type guards",
+      "bounded": true
+    }
+  ]
+}

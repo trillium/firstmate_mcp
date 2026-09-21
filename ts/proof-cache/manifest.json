@@ -1,0 +1,246 @@
+{
+  "version": 1,
+  "generatedAt": "2026-09-21T01:42:35.765Z",
+  "proofs": {
+    "envelope.errEnvelope": {
+      "status": "PASS",
+      "testFingerprint": "e780e7d618e0826686747ddd3647b093bd4bf25aeab43316e7059fd1c046184b",
+      "targetFingerprint": "e4de88cda84495d5fabc6eaed7f5a0decc335d87da43afe48801a52a580a66c4",
+      "testFile": "tests/envelope.test.ts",
+      "testUnit": "describe:err envelope",
+      "targetFile": "src/envelope.ts",
+      "targetUnit": "multi_function:err",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "envelope.okEnvelope": {
+      "status": "PASS",
+      "testFingerprint": "a89b49eef6b3f8a4dd48ded149252c9ec028a8961c2e22de3a7b59a6a7c02fd1",
+      "targetFingerprint": "95b8ec51ca306d68340ced49e46c0925b918e17ba2d812117064a3f5acf26d82",
+      "testFile": "tests/envelope.test.ts",
+      "testUnit": "describe:ok envelope",
+      "targetFile": "src/envelope.ts",
+      "targetUnit": "multi_function:ok",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.confineHandoffPath": {
+      "status": "PASS",
+      "testFingerprint": "2fca233bfaba3d0c95e82c7278e1331daa772243302fe5f6b070430a30e01c89",
+      "targetFingerprint": "2861c4e560683090cfbb49c9c95873e18a6f5cea2d1a503a4a31425704b754e8",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:confineHandoffPath",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "function:confineHandoffPath",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.confineStatePath": {
+      "status": "PASS",
+      "testFingerprint": "6717ec35d046b53aad861019c4119f21fd505f341b1d6d0e13383d3e73294786",
+      "targetFingerprint": "e37a8b0a7f52ee4bca4e05635996417d6994979db5f8f8330be530b8ba0b6679",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:confineStatePath",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "function:confineStatePath",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.deltaWindows": {
+      "status": "PASS",
+      "testFingerprint": "c232988e66543ffac0e01e35bd8dff1f72769aa2eec8bc6cfec3bd880de16472",
+      "targetFingerprint": "603e6db042c9238af799f5ccfb9fe02f68abeb51ff318ecaf27398f14c1a05fb",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:delta windows",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "multi_function:validNonnegInt",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.notesAndApproval": {
+      "status": "PASS",
+      "testFingerprint": "06c250bbd2562293a86e5d108136fba2de591edda0b49f40663aa57325acc612",
+      "targetFingerprint": "67e7e358331f8cc9b4b2229f9f80ac54026d0f9c0903975b0e172bb274b5e3ae",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:notes and approval",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "multi_function:validNote",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.validId": {
+      "status": "PASS",
+      "testFingerprint": "f9a8953ce9b978f228a71c735976818e273c4f86c661111be3d409f5b5b04ca7",
+      "targetFingerprint": "96436b73b3d34a7c771376e4097de0484cad3ce029e28b97ddefdcb493114f92",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:validId",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "function:validId",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.validIdList": {
+      "status": "PASS",
+      "testFingerprint": "334814e4a0346f22d0dc97c121449bf1cf9417073be52a62c5b57f2746447229",
+      "targetFingerprint": "e85e143f3683c6277b229e36e82ba764d56d0c26b64d2718b994cbd968bb5bbe",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:validIdList",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "function:validIdList",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.validPeekLines": {
+      "status": "PASS",
+      "testFingerprint": "307d24c37a436e15a905e82339529dcf749481dfc16042f1744fc5257d290332",
+      "targetFingerprint": "b3ff206d147b9e0b63934fcd2f5810b64ab1ec7c8cc933f7f8b1eaa55a0a1419",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:validPeekLines",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "function:validPeekLines",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.validProject": {
+      "status": "PASS",
+      "testFingerprint": "55e20f2e0e5fb114628762bf415a4713dd52e79ac20ccee505fc5fa9ab720473",
+      "targetFingerprint": "e538c747b692996fb2162600aa9760cddc9f817f8d3a300340fa5d433504572a",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:validProject",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "function:validProject",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.validRelpath": {
+      "status": "PASS",
+      "testFingerprint": "899c957229c6cc00b44293aa4adc878c80b7f709640648a565be68b6c3a23730",
+      "targetFingerprint": "0c9abe55421d5cb77209fef1c66b5a7e37ddfdd0b00c07008e92f38cbebb8c97",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:validRelpath",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "function:validRelpath",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.validSha256AndCorr": {
+      "status": "PASS",
+      "testFingerprint": "b9e3243ea14abfaa5a6f79469e53eb5bd11101f365dc4d11300c65891f276f9b",
+      "targetFingerprint": "4bc4b0ad18adebb3869c5f10efd9b536c4a1a7bf81b768552581a3b2ca3b370e",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:validSha256 and validCorr",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "multi_function:validSha256",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.validStatusLines": {
+      "status": "PASS",
+      "testFingerprint": "74ff9d5e64456588bee7af4da9afa13ff2c27d5c17fdbca3b9c5e0c3da9a8257",
+      "targetFingerprint": "2ac4568b39277e5b904e5e69b077cbb1a22b95f10415224b7e42984421f4ce58",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:validStatusLines",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "function:validStatusLines",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.validSteerText": {
+      "status": "PASS",
+      "testFingerprint": "0344b8a9a9dcb5c24ae6f39d3c3ce1ab1bb452ac29d1f509264f0909556437bf",
+      "targetFingerprint": "20ed86ebab916d96691a39ea0421375d0d6cfdaaf3b4f067fc3aad0946c598de",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:validSteerText",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "function:validSteerText",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.wave4Validators": {
+      "status": "PASS",
+      "testFingerprint": "94257bfae1c97b9b59da29cfda067d2180cfb2990f06dc19ce1733eeb1bcf979",
+      "targetFingerprint": "17a7f9706408e98881b6abdb56afc7224d8dc2d3916db71ba99c7349619ecd62",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:wave-4 validators",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "multi_function:validProbe",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T01:42:35.765Z",
+        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "astGrepVersion": "0.45.3"
+      }
+    }
+  }
+}

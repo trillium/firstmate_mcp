@@ -16,8 +16,14 @@
     "test:bun": "pnpm run build && pnpm run build:tests && bun test --timeout 180000 testbuild/tests/*.test.js",
     "test:dev": "pnpm run build && pnpm run build:tests && bun scripts/test-runner.mjs --bun",
     "test:failed": "pnpm run build && pnpm run build:tests && bun scripts/test-runner.mjs --bun --failed-only",
-    "test:fast": "pnpm run build && pnpm run build:tests && bun test --timeout 120000 testbuild/tests/validators.test.js testbuild/tests/envelope.test.js testbuild/tests/auth.test.js testbuild/tests/followon.test.js testbuild/tests/server.test.js testbuild/tests/http.test.js",
+    "test:fast": "pnpm run build && pnpm run build:tests && bun test --timeout 120000 testbuild/tests/validators.test.js testbuild/tests/envelope.test.js testbuild/tests/auth.test.js testbuild/tests/followon.test.js testbuild/tests/server.test.js testbuild/tests/http.test.js testbuild/tests/proof-cache.test.js",
+    "test:fast:bun": "pnpm run test:fast",
     "test:slow": "pnpm run build && pnpm run build:tests && bun test --timeout 180000 testbuild/tests/timeout.test.js testbuild/tests/receipt.test.js",
+    "test:slow:bun": "pnpm run test:slow",
+    "proof:check": "node scripts/proof-cache.mjs check",
+    "proof:update": "node scripts/proof-cache.mjs update",
+    "proof:explain": "node scripts/proof-cache.mjs explain",
+    "proof:bench": "node scripts/proof-cache.mjs bench",
     "conformance": "pnpm run build && pnpm run build:tests && bun scripts/conformance-runner.mjs --runtime=bun --shard=all",
     "conformance:read": "pnpm run build && pnpm run build:tests && bun scripts/conformance-runner.mjs --runtime=bun --shard=read",
     "conformance:remote": "pnpm run build && pnpm run build:tests && bun scripts/conformance-runner.mjs --runtime=bun --shard=remote",
@@ -31,8 +37,10 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "typescript": "^5.6.3",
-    "@types/node": "^22.7.4"
+    "@ast-grep/cli": "^0.45.3",
+    "@ast-grep/napi": "^0.45.3",
+    "@types/node": "^22.7.4",
+    "typescript": "^5.6.3"
   },
   "dependencies": {
     "effect": "3.22.2"
