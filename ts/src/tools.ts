@@ -2539,6 +2539,48 @@ export async function toolRelayLink(args: ToolArgs, ctx: ToolContext): Promise<T
   return ownedCall(cmd, "relay_link", ctx.run);
 }
 
+export async function toolFleetSync(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const project = args["project"];
+  if (project !== undefined && typeof project !== "string") {
+    return { payload: { error: "invalid project", expect: "string" }, isError: true };
+  }
+  if (typeof project === "string" && (project.includes("..") || project.startsWith("/"))) {
+    return { payload: { error: "invalid project", expect: "project name or relative path without traversal" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = [path.join(ctx.binDir, "fm-fleet-sync.sh"), ...(project ? [project as string] : [])];
+  return ownedCall(cmd, "fleet_sync", ctx.run);
+}
+
+export async function toolInactiveReconcile(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const mode = args["mode"] !== undefined ? args["mode"] : "scan";
+  const startup = args["startup"];
+  const taskId = args["task_id"];
+  const fingerprint = args["fingerprint"];
+  if (typeof mode !== "string" || !["scan", "report", "acknowledge"].includes(mode)) {
+    return { payload: { error: "invalid mode", expect: "must be scan, report, or acknowledge" }, isError: true };
+  }
+  if (mode === "report") {
+    if (!validId(taskId)) {
+      return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
+    }
+  } else if (mode === "acknowledge") {
+    if (typeof fingerprint !== "string" || !/^[A-Fa-f0-9]+$/.test(fingerprint)) {
+      return { payload: { error: "invalid fingerprint", expect: "hex string" }, isError: true };
+    }
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  let cmd: string[];
+  if (mode === "report") {
+    cmd = [path.join(ctx.binDir, "fm-inactive-reconcile.sh"), "report", taskId as string];
+  } else if (mode === "acknowledge") {
+    cmd = [path.join(ctx.binDir, "fm-inactive-reconcile.sh"), "acknowledge", fingerprint as string];
+  } else {
+    cmd = [path.join(ctx.binDir, "fm-inactive-reconcile.sh"), "scan", ...(startup ? ["--startup"] : [])];
+  }
+  return ownedCall(cmd, "inactive_reconcile", ctx.run);
+}
+
 // --- Registry (schemas match the Python server's tools/list exactly) ---
 
 export interface ToolDef {
@@ -2547,7 +2589,7 @@ export interface ToolDef {
   handler: ToolHandler;
 }
 
-function approvalSchema(extra: Record<string, unknown>): Record<string, unknown> {
+function approvalSchema(extra: Record<string, unknown>, required?: string[]): Record<string, unknown> {
   const properties = { ...extra };
   (properties as Record<string, unknown>)["approval"] = {
     type: "string",
@@ -2556,7 +2598,7 @@ function approvalSchema(extra: Record<string, unknown>): Record<string, unknown>
   return {
     type: "object",
     properties,
-    required: [...Object.keys(extra), "approval"],
+    required: required !== undefined ? [...required, "approval"] : [...Object.keys(extra), "approval"],
     additionalProperties: false,
   };
 }
@@ -3592,6 +3634,23 @@ export const TOOLS: Record<string, ToolDef> = {
       request_id: { type: "string" },
     }),
     handler: toolRelayLink,
+  },
+  fleet_sync: {
+    description: "Authority write: refresh project clones with safe fast-forwards, self-heals, and branch pruning.",
+    inputSchema: approvalSchema({
+      project: { type: "string", description: "Optional project name or relative path" },
+    }, []),
+    handler: toolFleetSync,
+  },
+  inactive_reconcile: {
+    description: "Authority write: run bounded reconciliation of inactive crewmate terminal outcomes.",
+    inputSchema: approvalSchema({
+      mode: { type: "string", enum: ["scan", "report", "acknowledge"], description: "Reconciliation mode" },
+      startup: { type: "boolean", description: "Run startup scan immediately" },
+      task_id: { type: "string", description: "Task ID for report mode" },
+      fingerprint: { type: "string", description: "Outcome fingerprint for acknowledge mode" },
+    }, []),
+    handler: toolInactiveReconcile,
   },
   receipt_submit: {
     description:

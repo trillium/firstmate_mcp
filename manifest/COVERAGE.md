@@ -14,7 +14,7 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 
 | Area | Mirrored | Denied | Gap |
 | --- | --- | --- | --- |
-| [Fleet runs](#fleet-runs) | 3 | 0 | 5 |
+| [Fleet runs](#fleet-runs) | 3 | 2 | 3 |
 | [Supervision](#supervision) | 8 | 4 | 28 |
 | [Sessions](#sessions) | 4 | 0 | 21 |
 | [Backlog / decisions](#backlog-decisions) | 4 | 0 | 9 |
@@ -24,7 +24,7 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 |
 | [Installs](#installs) | 4 | 0 | 19 |
-| **Total** | **48** | **11** | **99** |
+| **Total** | **48** | **13** | **97** |
 
 ## Fleet runs
 
@@ -34,9 +34,9 @@ Whole-fleet reads and fleet hygiene: snapshot, views, and reconciliation.
 | --- | --- | --- |
 | `fm-agent-axi.sh` (removed upstream) | gap | read-only reap-triage; removed upstream since pin |
 | `fm-fleet-snapshot.sh` | mirrored — `fleet_snapshot` (ts✔), `fleet_poll` (ts✔), `backlog` (derived, ts✔) | canonical read; backlog counts derive from it |
-| `fm-fleet-sync.sh` | gap | project sync across the fleet |
+| `fm-fleet-sync.sh` | denied-by-design — `fleet_sync` | project sync across the fleet. refreshing project clones mutates local checkouts and branch tracking; only session start and teardown own fleet sync |
 | `fm-fleet-view.sh` | mirrored — `fleet_view` (ts✔) | human render of the snapshot |
-| `fm-inactive-reconcile.sh` | gap | bounded reconciliation of inactive outcomes |
+| `fm-inactive-reconcile.sh` | denied-by-design — `inactive_reconcile` | bounded reconciliation of inactive outcomes. reconciling inactive terminal outcomes mutates terminal outcome records and publishes parent channel/wake updates; only watcher poll and session start own inactive outcome reconciliation |
 | `fm-mini1-healthcheck.sh` (removed upstream) | gap | mini1 dev-space health read; removed upstream since pin |
 | `fm-peek.sh` | mirrored — `peek` (ts✔) | bounded endpoint tail for cheap diagnosis |
 | `fm-pool-reclaim.sh` (removed upstream) | gap | treehouse pool-slot reclaim; removed upstream since pin |
