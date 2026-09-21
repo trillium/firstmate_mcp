@@ -2367,20 +2367,31 @@ async function toolLintVersions(_args: ToolArgs, ctx: ToolContext): Promise<Tool
     path.join(ctx.binDir, "fm-lint-workflows.sh"),
     "--required-version",
   ]);
+  let actionlint: unknown;
   if (!isRunResult(actionlintRes)) {
-    return { payload: actionlintRes as Record<string, unknown>, isError: true };
-  }
-  if (actionlintRes.exitCode !== 0) {
+    // The owning script is retired upstream: degrade this probe instead of
+    // failing the whole call, so the pins we do have still land.
+    if ((actionlintRes as Record<string, unknown>)["error"] === "executable not found") {
+      actionlint = {
+        error: "unsupported probe",
+        expect: "owning script fm-lint-workflows.sh retired upstream",
+      };
+    } else {
+      return { payload: actionlintRes as Record<string, unknown>, isError: true };
+    }
+  } else if (actionlintRes.exitCode !== 0) {
     const [out] = truncate(actionlintRes.stderr || actionlintRes.stdout || "");
     return {
       payload: { error: "lint versions failed", exit: actionlintRes.exitCode, output: out },
       isError: true,
     };
+  } else {
+    actionlint = (actionlintRes.stdout ?? "").trim();
   }
   return {
     payload: {
       shellcheck: (shellcheckRes.stdout ?? "").trim(),
-      actionlint: (actionlintRes.stdout ?? "").trim(),
+      actionlint,
     },
     isError: false,
   };
@@ -3659,7 +3670,7 @@ export const TOOLS: Record<string, ToolDef> = {
     handler: toolVoiceQueue,
   },
   lint_versions: {
-    description: "Read-only required ShellCheck/actionlint pins from the lint owners.",
+    description: "Read-only required ShellCheck/actionlint pins from the lint owners (actionlint degrades to an unsupported-probe record when its owning script is retired upstream).",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     handler: toolLintVersions,
   },
