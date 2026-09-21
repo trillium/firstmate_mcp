@@ -58,6 +58,9 @@ script's observable output (modulo the envelope wrap).
 - `send_message` — via `fm-send.sh` (pinned in schema/contracts.yaml)
 - `startup_memory` — via `fm-startup-memory-budget.sh` (pinned in schema/contracts.yaml)
 - `status_tail` — via `native (no owning script)` (pinned in schema/contracts.yaml)
+- `tasks_list` — via `fm-tasks-axi.sh` (pinned in schema/contracts.yaml)
+- `tasks_ready` — via `fm-tasks-axi.sh` (pinned in schema/contracts.yaml)
+- `tasks_show` — via `fm-tasks-axi.sh` (pinned in schema/contracts.yaml)
 - `tool_update_check` — via `fm-tool-update-check.sh` (pinned in schema/contracts.yaml)
 - `vendor_auth_probe` — via `fm-vendor-auth-probe.sh` (pinned in schema/contracts.yaml)
 - `voice_status` — via `fm_voice_records.py` (pinned in schema/contracts.yaml)
@@ -94,6 +97,7 @@ revalidated ids/paths/text, explicit per-call approval.
 Refused by the adapter deny-list (no tool, answered unknown):
 
 - `arm_pr_check` (code-forbidden)
+- `backlog_receive` (out of smarts-only scope)
 - `daemon_restart` (out of smarts-only scope)
 - `daemon_start` (out of smarts-only scope)
 - `daemon_stop` (out of smarts-only scope)
@@ -147,7 +151,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` implements the 66-tool
+- TypeScript sibling — `ts/` implements the 69-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Customizable follow-on actions — `ts/src/followon.ts` provides configurable
@@ -193,7 +197,7 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | Fleet runs | 3 | 2 | 3 |
 | Supervision | 8 | 4 | 28 |
 | Sessions | 4 | 0 | 21 |
-| Backlog / decisions | 4 | 0 | 9 |
+| Backlog / decisions | 5 | 1 | 7 |
 | Secondmates / remotes | 7 | 0 | 13 |
 | PR pipeline | 2 | 5 | 4 |
 | Relay | 6 | 2 | 0 |

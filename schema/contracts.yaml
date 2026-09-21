@@ -855,3 +855,51 @@ contracts:
       header: bin/fm-public-followup-collect.sh:1-35
       doc: INVENTORY.md
     notes: Non-destructive read of typed terminal events staged in this home's outbox; drop/retire stays firstmate-owned.
+  - name: tasks_list
+    command: bin/fm-tasks-axi.sh
+    flags: ["list", "--state", "--repo", "--kind", "--blocked", "--limit", "--fields"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: backlog item listing with fields; exits 0
+      nonzero: unreadable backlog or invalid flags; stderr carries reason
+    stability: evolving
+    pinned: fm-tasks-axi.list.v1
+    evidence:
+      header: bin/fm-tasks-axi.sh:1-40
+      doc: INVENTORY.md
+    notes: Read-only backlog item listing for this home; moves and mutations stay firstmate-owned.
+  - name: tasks_show
+    command: bin/fm-tasks-axi.sh
+    flags: ["show", "<id>", "--full"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: single-task formatted metadata and optional body notes; exits 0
+      nonzero: missing task or unreadable backlog; stderr carries reason
+    stability: evolving
+    pinned: fm-tasks-axi.show.v1
+    evidence:
+      header: bin/fm-tasks-axi.sh:1-40
+      doc: INVENTORY.md
+    notes: Read-only inspection of one task in this home's backlog.
+  - name: tasks_ready
+    command: bin/fm-tasks-axi.sh
+    flags: ["ready", "--repo", "--include-held"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: unblocked unheld queued work listing; exits 0
+      nonzero: unreadable backlog or backend failure; stderr carries reason
+    stability: evolving
+    pinned: fm-tasks-axi.ready.v1
+    evidence:
+      header: bin/fm-tasks-axi.sh:1-40
+      doc: INVENTORY.md
+    notes: Read-only list of dependency-cleared ready queued work dispatchable now.

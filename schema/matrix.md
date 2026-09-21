@@ -50,6 +50,9 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | relay_poll | bin/fm-x-poll.sh | stable | <none> | relay short-poll reads (inert without consent) |
 | public_followup_pending | bin/fm-public-followup.sh | stable | pending | open public-followup loop digest |
 | public_followup_collect | bin/fm-public-followup-collect.sh | stable | drain <obligation-id> | read staged terminal events non-destructively |
+| tasks_list | bin/fm-tasks-axi.sh | evolving | list, --state, --repo, --kind, --blocked, --limit, --fields | backlog item listing reads |
+| tasks_show | bin/fm-tasks-axi.sh | evolving | show, <id>, --full | single-task detail inspection reads |
+| tasks_ready | bin/fm-tasks-axi.sh | evolving | ready, --repo, --include-held | dispatchable ready queued task reads |
 | spawn_crew | bin/fm-spawn.sh | evolving | task, project, mode, yolo | dispatch writes |
 | scaffold_brief | bin/fm-brief.sh | evolving | task, repo, mode/scout | dispatch writes |
 | receipt_submit | native: receipt store (state/mcp-receipts/) | experimental | <tool> <arguments> | detach long calls past the 30s budget |
