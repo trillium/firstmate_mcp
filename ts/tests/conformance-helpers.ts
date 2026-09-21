@@ -53,6 +53,8 @@ export const READ_TOOLS: ReadonlySet<string> = new Set([
   "startup_memory",
   "pr_state",
   "relay_poll",
+  "public_followup_pending",
+  "public_followup_collect",
 ]);
 
 // Scripts the suite may execute. Anything else fails closed at the runner.
@@ -86,6 +88,8 @@ export const READ_SCRIPTS: ReadonlySet<string> = new Set([
   "fm-startup-memory-budget.sh",
   "fm-pr-state.sh",
   "fm-x-poll.sh",
+  "fm-public-followup.sh",
+  "fm-public-followup-collect.sh",
 ]);
 
 export const SNAPSHOT_STUB = `node -e '
@@ -154,6 +158,8 @@ export const VENDOR_PROBE_STUB = 'echo "probe=$1 status=unauthenticated version=
 export const STARTUP_MEMORY_STUB = 'echo "memory-stub:$1"\n';
 export const PR_STATE_STUB = 'echo "pr-stub:$1"\n';
 export const X_POLL_STUB = 'echo "x-poll stub: empty"\n';
+export const PUBLIC_FOLLOWUP_STUB = 'echo "public-followup-stub:$1"\n';
+export const PUBLIC_FOLLOWUP_COLLECT_STUB = 'echo "public-followup-collect-stub:$1 id=$2"\n';
 export const HOME_SUMMARY_FIXTURE = {
   schema: "fm-secondmate-home-summary.v1",
   generated: "stub",
@@ -215,6 +221,8 @@ export function setup(): Fixture {
   writeStub(path.join(scratch, "bin"), "fm-startup-memory-budget.sh", STARTUP_MEMORY_STUB);
   writeStub(path.join(scratch, "bin"), "fm-pr-state.sh", PR_STATE_STUB);
   writeStub(path.join(scratch, "bin"), "fm-x-poll.sh", X_POLL_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-public-followup.sh", PUBLIC_FOLLOWUP_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-public-followup-collect.sh", PUBLIC_FOLLOWUP_COLLECT_STUB);
 
   const savedFmHome = process.env.FM_HOME;
   const savedStateOverride = process.env.FM_STATE_OVERRIDE;

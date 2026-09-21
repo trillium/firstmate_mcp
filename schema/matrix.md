@@ -48,6 +48,8 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | startup_memory | bin/fm-startup-memory-budget.sh | stable | read, report | startup-memory budget reads |
 | pr_state | bin/fm-pr-state.sh | stable | <pr-url> | PR blockers reads (no posts) |
 | relay_poll | bin/fm-x-poll.sh | stable | <none> | relay short-poll reads (inert without consent) |
+| public_followup_pending | bin/fm-public-followup.sh | stable | pending | open public-followup loop digest |
+| public_followup_collect | bin/fm-public-followup-collect.sh | stable | drain <obligation-id> | read staged terminal events non-destructively |
 | spawn_crew | bin/fm-spawn.sh | evolving | task, project, mode, yolo | dispatch writes |
 | scaffold_brief | bin/fm-brief.sh | evolving | task, repo, mode/scout | dispatch writes |
 | receipt_submit | native: receipt store (state/mcp-receipts/) | experimental | <tool> <arguments> | detach long calls past the 30s budget |

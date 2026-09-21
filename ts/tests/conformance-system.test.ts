@@ -100,6 +100,28 @@ describe("small-gaps equivalence", () => {
     const result = okPayload(await readOnlyCall(fx, "relay_poll", {}));
     assert.equal(result["stdout"], direct.stdout);
   });
+
+  it("public_followup_pending matches direct stub", async () => {
+    const direct = directRun(fx, "fm-public-followup.sh", ["pending"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "public_followup_pending", {}));
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("public_followup_collect matches direct stub with obligation echoed", async () => {
+    const direct = directRun(fx, "fm-public-followup-collect.sh", ["drain", "ob-1"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "public_followup_collect", { obligation_id: "ob-1" }));
+    assert.equal(result["stdout"], direct.stdout);
+    assert.equal(result["obligation_id"], "ob-1");
+  });
+
+  it("public_followup_collect refuses traversal without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "public_followup_collect", { obligation_id: "../x" });
+    assert.equal(result.isError, true);
+    assert.equal(fx.calls.length, before);
+  });
 });
 
 describe("side-effect-free", () => {
@@ -162,6 +184,8 @@ describe("side-effect-free", () => {
     await readOnlyCall(fx, "startup_memory", {});
     await readOnlyCall(fx, "pr_state", { url: "https://github.com/octo/repo/pull/1" });
     await readOnlyCall(fx, "relay_poll", {});
+    await readOnlyCall(fx, "public_followup_pending", {});
+    await readOnlyCall(fx, "public_followup_collect", { obligation_id: "ob-1" });
 
     assert.ok(fx.calls.length >= 20);
     const nonRead = fx.calls.filter(
@@ -176,7 +200,7 @@ describe("side-effect-free", () => {
         call.script.includes("restart") ||
         call.script.includes("reply") ||
         call.script.includes("dismiss") ||
-        call.script.includes("followup"),
+        call.script.includes("x-followup"),
     );
     assert.deepEqual(nonRead, [], `conformance executed write scripts: ${JSON.stringify(nonRead)}`);
   });

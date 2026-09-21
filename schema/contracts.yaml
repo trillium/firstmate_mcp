@@ -823,3 +823,35 @@ contracts:
       header: bin/fm-x-poll.sh:1-30
       doc: INVENTORY.md
     notes: Short bounded poll; hard no-op without relay consent (FMX token). Failures mean no wake this cycle, never a merge signal.
+  - name: public_followup_pending
+    command: bin/fm-public-followup.sh
+    flags: ["pending"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: one line per open public loop (unresolved or open-loop), or silence when none; always exits 0 by contract
+      nonzero: unreadable backlog with registrations present or usage error; stderr carries reason
+    stability: stable
+    pinned: fm-public-followup.pending.v1
+    evidence:
+      header: bin/fm-public-followup.sh:1-35
+      doc: INVENTORY.md
+    notes: Bounded read-only digest of open public commitments; never mutates registry or posts outward to relay.
+  - name: public_followup_collect
+    command: bin/fm-public-followup-collect.sh
+    flags: ["drain", "<obligation_id>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: staged event JSON lines for obligation, or silence on empty outbox; exits 0
+      nonzero: invalid obligation id, unreadable outbox, or jq missing; exit 1 or 2
+    stability: stable
+    pinned: fm-public-followup-collect.drain.v1
+    evidence:
+      header: bin/fm-public-followup-collect.sh:1-35
+      doc: INVENTORY.md
+    notes: Non-destructive read of typed terminal events staged in this home's outbox; drop/retire stays firstmate-owned.
