@@ -151,6 +151,10 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - Customizable follow-on actions — `ts/src/followon.ts` provides configurable
   chained follow-on actions for any MCP tool with condition evaluation,
   context forwarding, strict anti-laundering auth gates, and loop termination.
+- Supervised deployment — `deploy/com.firstmate.mcp.plist.template` provides
+  launchd user agent supervisor configuration with copytruncate log rotation
+  (`scripts/fm-mcp-logrotate.sh`) and fail-closed smoke gate verification
+  (`scripts/fm-mcp-smoke.sh`).
 - Proof suites in this tree (all run in gates below):
   - `tests/mcp-adapter.test.sh`
   - `tests/mcp-schema.test.sh`
@@ -158,6 +162,9 @@ Refused by the adapter deny-list (no tool, answered unknown):
   - `tests/fm-mcp-authz.test.sh`
   - `tests/fm-coverage.test.sh`
   - `tests/fm-manifest.test.sh`
+  - `tests/fm-mcp-deploy.test.sh`
+  - `tests/fm-mcp-smoke.test.sh`
+  - `tests/fm-mcp-logrotate.test.sh`
   - `tests/mcp-hooks.test.sh`
   - `tests/conformance/conformance.sh`
   - `tests/conformance/ts-parity.sh`

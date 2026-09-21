@@ -197,6 +197,9 @@ def existing_suites():
         "tests/fm-mcp-authz.test.sh",
         "tests/fm-coverage.test.sh",
         "tests/fm-manifest.test.sh",
+        "tests/fm-mcp-deploy.test.sh",
+        "tests/fm-mcp-smoke.test.sh",
+        "tests/fm-mcp-logrotate.test.sh",
         "tests/mcp-hooks.test.sh",
         "tests/conformance/conformance.sh",
         "tests/conformance/ts-parity.sh",
@@ -293,6 +296,10 @@ def generate():
     lines.append("- Customizable follow-on actions — `ts/src/followon.ts` provides configurable")
     lines.append("  chained follow-on actions for any MCP tool with condition evaluation,")
     lines.append("  context forwarding, strict anti-laundering auth gates, and loop termination.")
+    lines.append("- Supervised deployment — `deploy/com.firstmate.mcp.plist.template` provides")
+    lines.append("  launchd user agent supervisor configuration with copytruncate log rotation")
+    lines.append("  (`scripts/fm-mcp-logrotate.sh`) and fail-closed smoke gate verification")
+    lines.append("  (`scripts/fm-mcp-smoke.sh`).")
     lines.append("- Proof suites in this tree (all run in gates below):")
     for s in suites:
         lines.append(f"  - `{s}`")

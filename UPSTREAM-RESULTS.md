@@ -1,6 +1,6 @@
 # UPSTREAM-RESULTS
 
-Seeded: 2026-09-20T23:35:28Z via `bash tests/upstream/run_upstream.sh` (`python3 tests/upstream/run_upstream.py --write-results`).
+Seeded: 2026-09-21T06:17:55Z via `bash tests/upstream/run_upstream.sh` (`python3 tests/upstream/run_upstream.py --write-results`).
 
 - upstream repo: `https://github.com/kunchenguid/firstmate.git`
 - gitlink pin: `1b1b6e051dafc9dcabe3ef0a7d4a64bd40a45567`
