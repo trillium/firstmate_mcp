@@ -159,6 +159,7 @@ describe("expanded surface: 66 tools", () => {
     "receipt_submit", "receipt_status",
     "promote_scout", "teardown_crew", "arm_pr_check", "merge_pr", "merge_local",
     "public_followup_emit", "relay_link",
+    "fleet_sync", "inactive_reconcile",
     "repo_edit", "repo_commit", "repo_push", "repo_merge",
     "daemon_start", "daemon_stop", "daemon_restart", "daemon_status",
     "watch_start", "watch_stop",
@@ -166,10 +167,10 @@ describe("expanded surface: 66 tools", () => {
     "grant_mint", "grant_revoke", "grant_status",
   ];
 
-  it("server lists 91 tools", async () => {
+  it("server lists 93 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 91);
+    assert.equal(tools.length, 93);
   });
 
   for (const required of REQUIRED) {
@@ -1013,6 +1014,38 @@ describe("expanded surface: 66 tools", () => {
   it("relay_link rejects traversal task_id", async () => {
     assert.equal(
       isError(await boxed.call("relay_link", { task_id: "../x", request_id: "req-1", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("fleet_sync refuses without approval", async () => {
+    const resp = await boxed.call("fleet_sync", {});
+    assert.equal(isError(resp), true);
+  });
+  it("fleet_sync rejects traversal project", async () => {
+    assert.equal(
+      isError(await boxed.call("fleet_sync", { project: "../x", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("inactive_reconcile refuses without approval", async () => {
+    const resp = await boxed.call("inactive_reconcile", {});
+    assert.equal(isError(resp), true);
+  });
+  it("inactive_reconcile rejects invalid mode", async () => {
+    assert.equal(
+      isError(await boxed.call("inactive_reconcile", { mode: "invalid", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("inactive_reconcile report mode rejects traversal task_id", async () => {
+    assert.equal(
+      isError(await boxed.call("inactive_reconcile", { mode: "report", task_id: "../x", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("inactive_reconcile acknowledge mode rejects non-hex fingerprint", async () => {
+    assert.equal(
+      isError(await boxed.call("inactive_reconcile", { mode: "acknowledge", fingerprint: "not-hex!", approval: APPROVAL })),
       true,
     );
   });

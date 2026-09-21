@@ -65,7 +65,8 @@ test_manifest_and_deny_appear() {
   done
   for name in promote_scout teardown_crew arm_pr_check merge_pr merge_local \
     daemon_start daemon_stop daemon_restart watch_start watch_stop \
-    repo_edit repo_commit repo_push repo_merge public_followup_emit relay_link; do
+    repo_edit repo_commit repo_push repo_merge public_followup_emit relay_link \
+    fleet_sync inactive_reconcile; do
     case "$(cat "$COVERAGE")" in
       *"$name"*) : ;;
       *) printf 'coverage missing DENY_LIST name: %s\n' "$name" >&2; missing=1 ;;

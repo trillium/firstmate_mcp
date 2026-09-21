@@ -272,6 +272,8 @@ DENY_REASONS = {
     "repo_merge": ("policy: repo-mutation", "project changes belong to workers behind merge authority"),
     "public_followup_emit": ("fm-public-followup-emit.sh", "emitting staged terminal events advances public commitments toward delivery; only supervisor/crew workflow owns terminal event staging"),
     "relay_link": ("fm-x-link.sh", "linking tasks to public relay mentions binds public reply budgets; only fmx-respond skill owns relay linking"),
+    "fleet_sync": ("fm-fleet-sync.sh", "refreshing project clones mutates local checkouts and branch tracking; only session start and teardown own fleet sync"),
+    "inactive_reconcile": ("fm-inactive-reconcile.sh", "reconciling inactive terminal outcomes mutates terminal outcome records and publishes parent channel/wake updates; only watcher poll and session start own inactive outcome reconciliation"),
 }
 
 DENY_LIST = frozenset(DENY_REASONS.keys())

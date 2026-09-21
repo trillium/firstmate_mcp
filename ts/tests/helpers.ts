@@ -81,6 +81,8 @@ export const STUBS: Record<string, string> = {
   "fm-public-followup-collect.sh": 'echo "public-followup-collect-stub:$1 id=$2"\n',
   "fm-public-followup-emit.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-x-link.sh": "echo 'stub: refused' >&2\nexit 1\n",
+  "fm-fleet-sync.sh": "echo 'stub: refused' >&2\nexit 1\n",
+  "fm-inactive-reconcile.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-send.sh": "echo 'stub: no such crew' >&2\nexit 1\n",
   "fm-control.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-spawn.sh": "echo 'stub: refused' >&2\nexit 1\n",
