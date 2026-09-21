@@ -125,7 +125,7 @@ def main():
     listed = ts.rpc("tools/list")
     names = [t["name"] for t in listed["result"]["tools"]]
     row("initialize/tools/list", "n/a",
-        "ok" if len(names) == 77 else "MISMATCH",
+        "ok" if len(names) == 87 else "MISMATCH",
         "%d tools, server %s %s" % (
             len(names), server_info["name"], server_info["version"]))
 
@@ -201,7 +201,7 @@ def main():
     if refs[6] is None or refs[7] is not None or refs[8] is None:
         audit_failures.append("approval_ref present only where approval given")
     if any(set(ln.keys()) != {"v", "ts", "actor", "tool", "tier",
-                              "decision", "reason", "approval_ref", "target", "duration_ms", "transport"}
+                              "decision", "reason", "approval_ref", "target", "duration_ms", "transport", "decision_digest"}
            for ln in ts_lines):
         audit_failures.append("audit line keys mismatch AUTH.md")
     if any(ln.get("transport") != "stdio" for ln in ts_lines):

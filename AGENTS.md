@@ -113,3 +113,9 @@ When updating this file, preserve this bar for all agents and keep entries conci
   `FM_ACTOR`; approval stored as hash only). Live proof:
   `python3 scripts/cutover_prove.py` writes `CUTOVER-PROOF.md` from a fixed
   scratch home — never the live fleet.
+- Autonomous loop runner: `python3 scripts/fm-mcp-loop.py` (and test
+  `bash tests/fm-mcp-loop.test.sh`) proves the end-to-end unattended MCP loop
+  (scout discovery read chain, Tier 2 plain steer, Tier 3 authority writes under
+  standing approval grant without human strings, async receipt submit/poll,
+  decision attestation, and mid-run kill-switch revocation) against a dedicated
+  scratch home, writing `LOOP-PROOF.md`.
