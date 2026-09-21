@@ -148,7 +148,7 @@ describe("expanded surface: 66 tools", () => {
     "remote_control", "handoff_move",
     "harness_detect", "project_mode", "lock_status", "lease_check",
     "bearings_board_path", "inbox_status", "inbox_list",
-    "home_summary", "contributions_snapshot", "contributions_pending",
+    "home_summary", "home_summary_refresh", "contributions_snapshot", "contributions_pending",
     "mail_status", "mail_read", "voice_status",
     "lint_versions", "tool_update_check", "vendor_auth_probe",
     "startup_memory", "pr_state", "relay_poll",
@@ -161,10 +161,10 @@ describe("expanded surface: 66 tools", () => {
     "task_intake", "worktree_allocate", "lifecycle_drive", "review_gate", "reconcile_upstream",
   ];
 
-  it("server lists 77 tools", async () => {
+  it("server lists 78 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 77);
+    assert.equal(tools.length, 78);
   });
 
   for (const required of REQUIRED) {
@@ -189,7 +189,7 @@ describe("expanded surface: 66 tools", () => {
       "remote_doctor", "remote_file", "remote_delta", "handoff_status",
       "harness_detect", "project_mode", "lock_status", "lease_check",
       "bearings_board_path", "inbox_status", "inbox_list",
-      "home_summary", "contributions_snapshot", "contributions_pending",
+      "home_summary", "home_summary_refresh", "contributions_snapshot", "contributions_pending",
       "mail_status", "mail_read", "voice_status",
       "lint_versions", "tool_update_check", "vendor_auth_probe",
       "startup_memory", "pr_state", "relay_poll",
@@ -669,6 +669,21 @@ describe("expanded surface: 66 tools", () => {
     const resp = await boxed.call("home_summary", {});
     assert.equal(isError(resp), false);
     assert.equal(payload(resp)["schema"], "fm-secondmate-home-summary.v1");
+  });
+  it("home_summary_refresh runs the refresh stub", async () => {
+    const resp = await boxed.call("home_summary_refresh", {});
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["best_effort"], false);
+    assert.ok(((payload(resp)["stdout"] as string) ?? "").includes("home-summary-refresh-stub"));
+  });
+  it("home_summary_refresh echoes the best_effort flag", async () => {
+    const resp = await boxed.call("home_summary_refresh", { best_effort: true });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["best_effort"], true);
+    assert.ok(((payload(resp)["stdout"] as string) ?? "").includes("--best-effort"));
+  });
+  it("home_summary_refresh rejects non-bool best_effort", async () => {
+    assert.equal(isError(await boxed.call("home_summary_refresh", { best_effort: "yes" })), true);
   });
   it("contributions_snapshot projects coverage without a forge", async () => {
     const resp = await boxed.call("contributions_snapshot", {});

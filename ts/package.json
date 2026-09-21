@@ -25,6 +25,8 @@
     "proof:explain": "node scripts/proof-cache.mjs explain",
     "proof:bench": "node scripts/proof-cache.mjs bench",
     "conformance": "pnpm run build && pnpm run build:tests && bun scripts/conformance-runner.mjs --runtime=bun --shard=all",
+    "conformance:bun": "pnpm run build && pnpm run build:tests && bun scripts/conformance-runner.mjs --runtime=bun --shard=all",
+    "conformance:node": "pnpm run build && pnpm run build:tests && bun scripts/conformance-runner.mjs --runtime=node --shard=all",
     "conformance:read": "pnpm run build && pnpm run build:tests && bun scripts/conformance-runner.mjs --runtime=bun --shard=read",
     "conformance:remote": "pnpm run build && pnpm run build:tests && bun scripts/conformance-runner.mjs --runtime=bun --shard=remote",
     "conformance:system": "pnpm run build && pnpm run build:tests && bun scripts/conformance-runner.mjs --runtime=bun --shard=system",

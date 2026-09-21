@@ -535,6 +535,22 @@ contracts:
       header: bin/fm-home-summary-refresh.sh:1-20
       doc: INVENTORY.md
     notes: Dispatch read; ledger only, never the refresh. Refresh is firstmate-owned plumbing (session start, watcher, spawn, teardown call it --best-effort).
+  - name: home_summary_refresh
+    command: bin/fm-home-summary-refresh.sh
+    flags: ["--best-effort"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout", "best_effort"]
+    exits:
+      zero: published state/home-summary.json refreshed atomically; exit 0 with best_effort flag echoed
+      nonzero: refresh worker failed or exceeded deadline; stderr carries the reason
+    stability: stable
+    pinned: fm-home-summary-refresh.v1
+    evidence:
+      header: bin/fm-home-summary-refresh.sh:1-30
+      doc: INVENTORY.md
+    notes: Atomically refresh and publish state/home-summary.json for this FM_HOME; best_effort logs failures and exits zero.
   - name: contributions_snapshot
     command: bin/fm-contributions.sh
     flags: ["snapshot", "<contribution-input>", "--all"]
