@@ -149,7 +149,7 @@ describe("expanded surface: 66 tools", () => {
     "harness_detect", "project_mode", "lock_status", "lease_check",
     "bearings_board_path", "inbox_status", "inbox_list",
     "home_summary", "home_summary_refresh", "contributions_snapshot", "contributions_pending",
-    "mail_status", "mail_read", "voice_status",
+    "mail_status", "mail_read", "mail_check", "voice_status",
     "lint_versions", "tool_update_check", "vendor_auth_probe",
     "startup_memory", "pr_state", "relay_poll",
     "voice_queue", "mail_send",
@@ -161,10 +161,10 @@ describe("expanded surface: 66 tools", () => {
     "task_intake", "worktree_allocate", "lifecycle_drive", "review_gate", "reconcile_upstream",
   ];
 
-  it("server lists 78 tools", async () => {
+  it("server lists 79 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 78);
+    assert.equal(tools.length, 79);
   });
 
   for (const required of REQUIRED) {
@@ -190,7 +190,7 @@ describe("expanded surface: 66 tools", () => {
       "harness_detect", "project_mode", "lock_status", "lease_check",
       "bearings_board_path", "inbox_status", "inbox_list",
       "home_summary", "home_summary_refresh", "contributions_snapshot", "contributions_pending",
-      "mail_status", "mail_read", "voice_status",
+      "mail_status", "mail_read", "mail_check", "voice_status",
       "lint_versions", "tool_update_check", "vendor_auth_probe",
       "startup_memory", "pr_state", "relay_poll",
       "receipt_submit", "receipt_status", "daemon_status",
@@ -714,6 +714,20 @@ describe("expanded surface: 66 tools", () => {
     assert.equal(isError(resp), false);
     assert.ok(String(payload(resp)["stdout"] ?? "").includes("mail-stub:read"));
     assert.ok(String(payload(resp)["warning"] ?? "").includes("BODY.PEEK"));
+  });
+  it("mail_check runs the bounded inbound check", async () => {
+    const resp = await boxed.call("mail_check", {});
+    assert.equal(isError(resp), false);
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("mail-check-stub:check"));
+  });
+  it("mail_check has no arm/disarm parameter and always dispatches check", async () => {
+    // The tool schema is closed (no properties), so arm/disarm cannot be
+    // selected at all; extra keys are inert and the argv is always "check".
+    for (const action of ["arm", "disarm"]) {
+      const resp = await boxed.call("mail_check", { action });
+      assert.equal(isError(resp), false);
+      assert.ok(String(payload(resp)["stdout"] ?? "").includes("mail-check-stub:check"));
+    }
   });
   it("mail_send refuses without approval", async () => {
     const resp = await boxed.call("mail_send", { to: "a@example.com", subject: "hi", body: "hello" });

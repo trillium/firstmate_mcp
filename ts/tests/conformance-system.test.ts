@@ -155,6 +155,7 @@ describe("side-effect-free", () => {
     await readOnlyCall(fx, "contributions_pending", {});
     await readOnlyCall(fx, "mail_status", {});
     await readOnlyCall(fx, "mail_read", {});
+    await readOnlyCall(fx, "mail_check", {});
     await readOnlyCall(fx, "voice_status", {});
     await readOnlyCall(fx, "lint_versions", {});
     await readOnlyCall(fx, "tool_update_check", {});

@@ -45,6 +45,7 @@ export const READ_TOOLS: ReadonlySet<string> = new Set([
   "contributions_pending",
   "mail_status",
   "mail_read",
+  "mail_check",
   "voice_status",
   "lint_versions",
   "tool_update_check",
@@ -76,6 +77,7 @@ export const READ_SCRIPTS: ReadonlySet<string> = new Set([
   "fm-home-summary-refresh.sh",
   "fm-contributions.sh",
   "fm-mail.sh",
+  "fm-mail-check.sh",
   "fm_voice_records.py",
   "fm-lint.sh",
   "fm-lint-workflows.sh",
@@ -140,6 +142,7 @@ export const MAIL_STUB =
   'elif [ "$1" = "read" ]; then echo "mail-stub:read"; ' +
   'elif [ "$1" = "send" ]; then cat >/dev/null; echo "mail-stub:sent to $2 subj=$3"; ' +
   'else echo "stub: refused" >&2; exit 1; fi\n';
+export const MAIL_CHECK_STUB = 'if [ "$1" = "check" ]; then echo "mail-check-stub:check"; else exit 1; fi\n';
 export const VOICE_RECORDS_STUB =
   'if [ "$1" = "status" ]; then echo "{\\"scope\\":\\"$3\\",\\"workers_on_deck\\":0,\\"in_flight\\":0,\\"queued\\":0}"; ' +
   'elif [ "$1" = "queue" ]; then echo "voice-stub:queued $2"; ' +
@@ -203,6 +206,7 @@ export function setup(): Fixture {
   writeStub(path.join(scratch, "bin"), "fm-home-summary-refresh.sh", HOME_SUMMARY_REFRESH_STUB);
   writeStub(path.join(scratch, "bin"), "fm-contributions.sh", CONTRIBUTIONS_STUB);
   writeStub(path.join(scratch, "bin"), "fm-mail.sh", MAIL_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-mail-check.sh", MAIL_CHECK_STUB);
   writeStub(path.join(scratch, "bin"), "fm_voice_records.py", VOICE_RECORDS_STUB);
   writeStub(path.join(scratch, "bin"), "fm-lint.sh", LINT_STUB);
   writeStub(path.join(scratch, "bin"), "fm-lint-workflows.sh", LINT_WORKFLOWS_STUB);

@@ -39,6 +39,7 @@ script's observable output (modulo the envelope wrap).
 - `lease_check` — via `fm-lease.sh` (pinned in schema/contracts.yaml)
 - `lint_versions` — via `fm-lint.sh` (pinned in schema/contracts.yaml)
 - `lock_status` — via `fm-lock.sh` (pinned in schema/contracts.yaml)
+- `mail_check` — via `fm-mail-check.sh` (pinned in schema/contracts.yaml)
 - `mail_read` — via `fm-mail.sh` (pinned in schema/contracts.yaml)
 - `mail_status` — via `fm-mail.sh` (pinned in schema/contracts.yaml)
 - `peek` — via `fm-peek.sh` (pinned in schema/contracts.yaml)
@@ -130,7 +131,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` implements the 58-tool
+- TypeScript sibling — `ts/` implements the 59-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Customizable follow-on actions — `ts/src/followon.ts` provides configurable
@@ -172,7 +173,7 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | Secondmates / remotes | 7 | 0 | 13 |
 | PR pipeline | 2 | 5 | 4 |
 | Relay | 4 | 0 | 4 |
-| Voice / mail | 3 | 0 | 1 |
+| Voice / mail | 4 | 0 | 0 |
 | Digests | 6 | 0 | 0 |
 | Installs | 4 | 0 | 19 |
 

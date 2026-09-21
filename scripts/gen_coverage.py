@@ -218,7 +218,7 @@ COMMAND_AREAS = {
     "fm-public-followup-collect.sh": ("relay", "retire terminal events staged for an owning home"),
     # ---- voice / mail ----
     "fm-mail.sh": ("voice-mail", "IMAP read / SMTP send plane"),
-    "fm-mail-check.sh": ("voice-mail", "inbound mail check"),
+    "fm-mail-check.sh": ("voice-mail", "bounded inbound mail check; arm/disarm watcher trust writes stay out"),
     "bin/fm_voice_records.py": ("voice-mail", "voice status/queue helper (non-command module; mic client and Bedrock relay stay out)"),
     # ---- digests ----
     "file: state/home-summary.json": ("digests", "published home-summary ledger read; refresh stays firstmate-owned"),

@@ -6,8 +6,8 @@
  * fleet_view, review_diff, bearings_snapshot, wake_drain, guard_check,
  * remote_doctor, remote_file, remote_delta, handoff_status,
  * harness_detect, project_mode, lock_status, lease_check,
- * bearings_board_path, inbox_status, inbox_list, home_summary,
- * contributions_snapshot, contributions_pending, mail_status, mail_read,
+ * bearings_board_path, inbox_status, inbox_list, home_summary, home_summary_refresh,
+ * contributions_snapshot, contributions_pending, mail_status, mail_read, mail_check,
  * voice_status, lint_versions, tool_update_check, vendor_auth_probe,
  * startup_memory, pr_state, relay_poll,
  * plus receipt_submit/receipt_status, the fail-closed async receipts).
@@ -1714,6 +1714,15 @@ async function toolMailRead(_args: ToolArgs, ctx: ToolContext): Promise<ToolResu
   return { payload, isError: true };
 }
 
+async function toolMailCheck(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // Inbound mail check only; arming and disarming stay out of MCP.
+  return ownedCall(
+    argv(path.join(ctx.binDir, "fm-mail-check.sh"), "check"),
+    "mail check failed",
+    ctx.run,
+  );
+}
+
 async function toolMailSend(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   const to = args["to"];
   const subject = args["subject"];
@@ -2621,6 +2630,12 @@ export const TOOLS: Record<string, ToolDef> = {
       "Read-only unseen-INBOX digest over BODY.PEEK; mail stays unseen until firstmate answers.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     handler: toolMailRead,
+  },
+  mail_check: {
+    description:
+      "Read-only inbound received-mail check; arming/disarming watcher check stays out of MCP.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolMailCheck,
   },
   mail_send: {
     description: "External send: one SMTP message via fm-mail.sh send; credentials live outside MCP.",

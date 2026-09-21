@@ -615,6 +615,22 @@ contracts:
       header: bin/fm-mail.sh:1-30
       doc: INVENTORY.md
     notes: Read only; BODY.PEEK never marks mail seen. Credentials live outside MCP in the home .env and never cross args or logs.
+  - name: mail_check
+    command: bin/fm-mail-check.sh
+    flags: ["check"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: wake line printed if new mail or non-noop outcome, or silence when no-op; always exits 0
+      nonzero: check failed; stderr carries the reason
+    stability: stable
+    pinned: fm-mail-check.v1
+    evidence:
+      header: bin/fm-mail-check.sh:1-30
+      doc: INVENTORY.md
+    notes: Report-only inbound check; arm/disarm mutate watcher trust bindings and stay out of MCP. The check's own FM_MAIL_CHECK_BUDGET (default 15s, capped at FM_CHECK_TIMEOUT-3) keeps it inside the 30s MCP envelope.
   - name: mail_send
     command: bin/fm-mail.sh
     flags: ["send", "<to>", "<subject>", "-"]

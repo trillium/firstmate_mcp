@@ -40,7 +40,7 @@ const TIER1_TOOLS = [
   "harness_detect", "project_mode", "lock_status", "lease_check",
   "bearings_board_path", "inbox_status", "inbox_list",
   "home_summary", "home_summary_refresh", "contributions_snapshot", "contributions_pending",
-  "mail_status", "mail_read", "voice_status",
+  "mail_status", "mail_read", "mail_check", "voice_status",
   "lint_versions", "tool_update_check", "vendor_auth_probe",
   "startup_memory", "pr_state", "relay_poll",
   "receipt_submit", "receipt_status", "daemon_status",
@@ -54,7 +54,7 @@ const TIER4_TOOLS = Object.entries(TOOL_TIERS)
 
 describe("tier assignments", () => {
   it("covers every tool", () => {
-    assert.equal(Object.keys(TOOL_TIERS).length, 78);
+    assert.equal(Object.keys(TOOL_TIERS).length, 79);
   });
   it("tier 1 is open reads", () => {
     for (const tool of TIER1_TOOLS) assert.equal(tierOf(tool), TIER_OPEN, tool);
