@@ -57,6 +57,20 @@ import {
 } from "./constants.js";
 import { ownedCall, runScript, truncate, byteLength, isRunResult } from "./runner.js";
 import {
+  tierOf,
+  TIER_FORBIDDEN,
+  FORBIDDEN_TOOLS,
+  type Tier,
+} from "./auth.js";
+import {
+  checkAuthorization,
+  mintGrant,
+  revokeGrant,
+  getGrantStatus,
+  type MintGrantParams,
+  type GrantTier,
+} from "./grants.js";
+import {
   confineHandoffPath,
   confineStatePath,
   validApproval,
@@ -134,6 +148,7 @@ const NEEDS_APPROVAL: ReadonlySet<string> = new Set([
   "review_decision", "relay_reply", "relay_dismiss", "relay_followup",
   "secondmate_nudge", "secondmate_restart", "secondmate_report",
   "remote_control", "handoff_move", "voice_queue", "mail_send",
+  "grant_mint", "grant_revoke",
 ]);
 
 function receiptDir(ctx: ToolContext): string {
@@ -245,8 +260,9 @@ async function toolReceiptSubmit(args: ToolArgs, ctx: ToolContext): Promise<Tool
   if (!(target in TOOLS) || target === "receipt_submit") {
     return { payload: { error: "unknown tool", tool: target }, isError: true };
   }
-  if (NEEDS_APPROVAL.has(target) && !validApproval((nested as ToolArgs)["approval"])) {
-    return { payload: approvalError(), isError: true };
+  if (NEEDS_APPROVAL.has(target)) {
+    const auth = await requireAuth(target, nested as ToolArgs, ctx);
+    if (!auth.ok) return auth.result;
   }
   const receiptId = `rcpt-${randomBytes(8).toString("hex")}`;
   const createdEpoch = Date.now() / 1000;
@@ -354,6 +370,24 @@ function approvalError(): Record<string, unknown> {
     error: "approval required",
     expect: "explicit approval string starting with 'I authorize'",
   };
+}
+
+async function requireAuth(
+  tool: string,
+  args: ToolArgs,
+  ctx: ToolContext,
+): Promise<{ ok: true } | { ok: false; result: ToolResult }> {
+  const auth = await checkAuthorization(tool, args, ctx);
+  if (!auth.ok) {
+    return {
+      ok: false,
+      result: {
+        payload: auth.payload ?? approvalError(),
+        isError: true,
+      },
+    };
+  }
+  return { ok: true };
 }
 
 function sleepSyncMs(ms: number): Promise<void> {
@@ -1139,7 +1173,8 @@ async function lifecycleTool(
       isError: true,
     };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth(`lifecycle_${verb}`, args, ctx);
+  if (!auth.ok) return auth.result;
   const cmd = argv(path.join(ctx.binDir, "fm-control.sh"), taskId as string, verb);
   if (needsNote) {
     const note = args["note"];
@@ -1185,7 +1220,8 @@ async function toolSpawnCrew(args: ToolArgs, ctx: ToolContext): Promise<ToolResu
   if (!(YOLO as readonly unknown[]).includes(yolo)) {
     return { payload: { error: "invalid yolo", expect: "one of on, off" }, isError: true };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("spawn_crew", args, ctx);
+  if (!auth.ok) return auth.result;
   const { payload, isError } = await ownedCall(
     argv(
       path.join(ctx.binDir, "fm-spawn.sh"),
@@ -1233,7 +1269,8 @@ async function toolScaffoldBrief(args: ToolArgs, ctx: ToolContext): Promise<Tool
       isError: true,
     };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("scaffold_brief", args, ctx);
+  if (!auth.ok) return auth.result;
   const base = [path.join(ctx.binDir, "fm-brief.sh"), taskId as string, project as string];
   const cmd =
     mode === "scout" ? argv(...base, "--scout") : argv(...base, "--mode", mode as string);
@@ -1273,7 +1310,8 @@ async function toolDecisionHold(args: ToolArgs, ctx: ToolContext): Promise<ToolR
       isError: true,
     };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("decision_hold", args, ctx);
+  if (!auth.ok) return auth.result;
   const { payload, isError } = await ownedCall(
     argv(
       path.join(ctx.binDir, "fm-decision-hold.sh"),
@@ -1465,13 +1503,14 @@ async function toolDecisionResolve(args: ToolArgs, ctx: ToolContext): Promise<To
       isError: true,
     };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("decision_resolve", args, ctx);
+  if (!auth.ok) return auth.result;
 
   const callerActor = process.env.FM_ACTOR ?? "local";
-  const auth = await isReleaseAuthorized(callerActor, originId as string, undefined, ctx);
-  if (!auth.authorized) {
+  const releaseAuth = await isReleaseAuthorized(callerActor, originId as string, undefined, ctx);
+  if (!releaseAuth.authorized) {
     return {
-      payload: { error: "release unauthorized", detail: auth.reason },
+      payload: { error: "release unauthorized", detail: releaseAuth.reason },
       isError: true,
     };
   }
@@ -1558,18 +1597,19 @@ async function toolDecisionRelease(args: ToolArgs, ctx: ToolContext): Promise<To
       isError: true,
     };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("decision_release", args, ctx);
+  if (!auth.ok) return auth.result;
 
   const callerActor = process.env.FM_ACTOR ?? "local";
-  const auth = await isReleaseAuthorized(
+  const releaseAuth = await isReleaseAuthorized(
     callerActor,
     originId as string | undefined,
     taskId as string | undefined,
     ctx,
   );
-  if (!auth.authorized) {
+  if (!releaseAuth.authorized) {
     return {
-      payload: { error: "release unauthorized", detail: auth.reason },
+      payload: { error: "release unauthorized", detail: releaseAuth.reason },
       isError: true,
     };
   }
@@ -1675,20 +1715,20 @@ async function toolReviewDecision(args: ToolArgs, ctx: ToolContext): Promise<Too
       isError: true,
     };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("review_decision", args, ctx);
+  if (!auth.ok) return auth.result;
 
   // If release is requested, enforce SAFETY CORE
   if (release) {
     const callerActor = process.env.FM_ACTOR ?? "local";
-    const auth = await isReleaseAuthorized(callerActor, undefined, taskId as string, ctx);
-    if (!auth.authorized) {
+    const releaseAuth = await isReleaseAuthorized(callerActor, undefined, taskId as string, ctx);
+    if (!releaseAuth.authorized) {
       return {
-        payload: { error: "release unauthorized", detail: auth.reason },
+        payload: { error: "release unauthorized", detail: releaseAuth.reason },
         isError: true,
       };
     }
   }
-
   const decisionText =
     typeof comment === "string" && comment.trim() !== ""
       ? `${verdict as string} - ${comment as string}`
@@ -1768,7 +1808,8 @@ async function toolDecisionComplete(args: ToolArgs, ctx: ToolContext): Promise<T
       isError: true,
     };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("decision_complete", args, ctx);
+  if (!auth.ok) return auth.result;
 
   const cmdArgs = [path.join(ctx.binDir, "fm-captain-hold.sh"), "complete", originId as string];
   if (none === true) {
@@ -1901,7 +1942,8 @@ async function toolRelayReply(args: ToolArgs, ctx: ToolContext): Promise<ToolRes
   if (typeof text !== "string" || text.length < 1 || text.length > 2000) {
     return { payload: { error: "invalid text", expect: "1..2000 chars" }, isError: true };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("relay_reply", args, ctx);
+  if (!auth.ok) return auth.result;
   const { payload, isError } = await ownedCall(
     argv(path.join(ctx.binDir, "fm-x-reply.sh"), requestId as string, text),
     "relay reply refused or failed",
@@ -1919,7 +1961,8 @@ async function toolRelayDismiss(args: ToolArgs, ctx: ToolContext): Promise<ToolR
       isError: true,
     };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("relay_dismiss", args, ctx);
+  if (!auth.ok) return auth.result;
   const { payload, isError } = await ownedCall(
     argv(path.join(ctx.binDir, "fm-x-dismiss.sh"), requestId as string),
     "relay dismiss refused or failed",
@@ -1945,7 +1988,8 @@ async function toolRelayFollowup(args: ToolArgs, ctx: ToolContext): Promise<Tool
   if (typeof final !== "boolean") {
     return { payload: { error: "invalid final", expect: "boolean" }, isError: true };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("relay_followup", args, ctx);
+  if (!auth.ok) return auth.result;
   const tmp = writeTempFile(text);
   try {
     const cmd = argv(path.join(ctx.binDir, "fm-x-followup.sh"), taskId as string, "--text-file", tmp);
@@ -1963,7 +2007,8 @@ async function toolRelayFollowup(args: ToolArgs, ctx: ToolContext): Promise<Tool
 async function toolSecondmateNudge(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   // Notify-only subset: the backstop asks mismatched secondmates to
   // reconcile through the cooldown-guarded notify path.
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("secondmate_nudge", args, ctx);
+  if (!auth.ok) return auth.result;
   return ownedCall(
     argv(path.join(ctx.binDir, "fm-secondmate-reconcile.sh"), "notify"),
     "reconcile notify refused or failed",
@@ -1979,7 +2024,8 @@ async function toolSecondmateRestart(args: ToolArgs, ctx: ToolContext): Promise<
       isError: true,
     };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("secondmate_restart", args, ctx);
+  if (!auth.ok) return auth.result;
   const { payload, isError } = await ownedCall(
     argv(path.join(ctx.binDir, "fm-secondmate-restart.sh"), ...ids),
     "secondmate restart refused or failed",
@@ -2011,7 +2057,8 @@ async function toolSecondmateReport(args: ToolArgs, ctx: ToolContext): Promise<T
       isError: true,
     };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("secondmate_report", args, ctx);
+  if (!auth.ok) return auth.result;
   // Note-only form: --doc stays out, and the helper resolves the parent
   // channel itself, so no status path ever crosses this boundary.
   const { payload, isError } = await ownedCall(
@@ -2038,7 +2085,8 @@ async function toolRemoteControl(args: ToolArgs, ctx: ToolContext): Promise<Tool
       isError: true,
     };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("remote_control", args, ctx);
+  if (!auth.ok) return auth.result;
   const cmd = argv(path.join(ctx.binDir, "fm-remote-secondmate-control.sh"), verb, taskId);
   if (verb === "send") {
     const text = args["text"];
@@ -2082,7 +2130,8 @@ async function toolHandoffMove(args: ToolArgs, ctx: ToolContext): Promise<ToolRe
   if (typeof resume !== "boolean") {
     return { payload: { error: "invalid resume", expect: "boolean" }, isError: true };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("handoff_move", args, ctx);
+  if (!auth.ok) return auth.result;
   if (resume) {
     const keys = args["keys"] ?? [];
     if (!(Array.isArray(keys) && keys.length === 0)) {
@@ -2216,7 +2265,8 @@ async function toolMailSend(args: ToolArgs, ctx: ToolContext): Promise<ToolResul
   if (!validMailBody(body)) {
     return { payload: { error: "invalid body", expect: "1..5000 chars" }, isError: true };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("mail_send", args, ctx);
+  if (!auth.ok) return auth.result;
   // Body via stdin ("-" form), exactly like the owning script: never argv.
   const res = await ctx.run(
     argv(path.join(ctx.binDir, "fm-mail.sh"), "send", to as string, subject as string, "-"),
@@ -2288,7 +2338,8 @@ async function toolVoiceQueue(args: ToolArgs, ctx: ToolContext): Promise<ToolRes
       isError: true,
     };
   }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const auth = await requireAuth("voice_queue", args, ctx);
+  if (!auth.ok) return auth.result;
   // Handover queue only: no microphone, no audio, no Bedrock session.
   const { payload, isError } = await ownedCall(
     argv(path.join(ctx.binDir, "fm_voice_records.py"), "queue", text as string),
@@ -2687,6 +2738,171 @@ export async function toolReviewGate(args: ToolArgs, ctx: ToolContext): Promise<
 export async function toolReconcileUpstream(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   const cmd = ["python3", path.join(ctx.binDir, "..", "drift", "shift.py"), "--format", "json"];
   return ownedCall(cmd, "reconcile_upstream", ctx.run);
+}
+
+export async function toolGrantMint(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const auth = await requireAuth("grant_mint", args, ctx);
+  if (!auth.ok) return auth.result;
+
+  const grantee = args["grantee"];
+  if (typeof grantee !== "string" || !grantee.trim() || grantee.length > 64) {
+    return {
+      payload: { error: "invalid grantee", expect: "non-empty string, max 64 chars" },
+      isError: true,
+    };
+  }
+
+  const tierLimit = args["tier_limit"] !== undefined ? Number(args["tier_limit"]) : 3;
+  if (!Number.isInteger(tierLimit) || tierLimit < 1 || tierLimit > 4) {
+    return {
+      payload: { error: "invalid tier_limit", expect: "integer between 1 and 4" },
+      isError: true,
+    };
+  }
+
+  let tools: string[] | null = null;
+  if (args["tools"] !== undefined && args["tools"] !== null) {
+    if (!Array.isArray(args["tools"])) {
+      return {
+        payload: { error: "invalid tools", expect: "array of tool name strings or null" },
+        isError: true,
+      };
+    }
+    tools = [];
+    for (const t of args["tools"]) {
+      if (typeof t !== "string" || !t.trim()) {
+        return {
+          payload: { error: "invalid tools", expect: "array of tool name strings" },
+          isError: true,
+        };
+      }
+      const trimmed = t.trim();
+      if (trimmed === "*") {
+        tools.push("*");
+        continue;
+      }
+      if (tierOf(trimmed) === TIER_FORBIDDEN || (FORBIDDEN_TOOLS as readonly string[]).includes(trimmed)) {
+        return {
+          payload: { error: "cannot grant forbidden tool", tool: trimmed },
+          isError: true,
+        };
+      }
+      tools.push(trimmed);
+    }
+  }
+
+  let projects: string[] | null = null;
+  if (args["projects"] !== undefined && args["projects"] !== null) {
+    if (!Array.isArray(args["projects"])) {
+      return {
+        payload: { error: "invalid projects", expect: "array of project strings or null" },
+        isError: true,
+      };
+    }
+    projects = [];
+    for (const p of args["projects"]) {
+      if (typeof p !== "string" || !validProject(p)) {
+        return {
+          payload: { error: "invalid projects", expect: "array of valid project names" },
+          isError: true,
+        };
+      }
+      projects.push(p);
+    }
+  }
+
+  let ttlS = 3600;
+  if (args["ttl_s"] !== undefined && args["ttl_s"] !== null) {
+    const parsed = Number(args["ttl_s"]);
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 2592000) {
+      return {
+        payload: { error: "invalid ttl_s", expect: "integer between 1 and 2592000 seconds (max 30 days)" },
+        isError: true,
+      };
+    }
+    ttlS = parsed;
+  }
+
+  let maxUses: number | null = null;
+  if (args["max_uses"] !== undefined && args["max_uses"] !== null) {
+    const parsed = Number(args["max_uses"]);
+    if (!Number.isInteger(parsed) || parsed < 1) {
+      return {
+        payload: { error: "invalid max_uses", expect: "positive integer" },
+        isError: true,
+      };
+    }
+    maxUses = parsed;
+  }
+
+  let note: string | null = null;
+  if (args["note"] !== undefined && args["note"] !== null) {
+    if (!validNote(args["note"], 200)) {
+      return {
+        payload: { error: "invalid note", expect: "single line, 1..200 chars" },
+        isError: true,
+      };
+    }
+    note = args["note"] as string;
+  }
+
+  const issuer = (typeof args["issuer"] === "string" && args["issuer"].trim()) ? args["issuer"].trim() : "captain";
+
+  const result = mintGrant(
+    {
+      issuer,
+      grantee: grantee.trim(),
+      tier_limit: tierLimit as GrantTier,
+      tools,
+      projects,
+      ttl_s: ttlS,
+      max_uses: maxUses,
+      note,
+    },
+    ctx,
+  );
+
+  return { payload: result as unknown as Record<string, unknown>, isError: false };
+}
+
+export async function toolGrantRevoke(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const auth = await requireAuth("grant_revoke", args, ctx);
+  if (!auth.ok) return auth.result;
+
+  const grantId = args["grant_id"];
+  if (typeof grantId !== "string" || !grantId.trim()) {
+    return {
+      payload: { error: "invalid grant_id", expect: "non-empty grant ID or grant_ref" },
+      isError: true,
+    };
+  }
+
+  let reason: string | null = null;
+  if (args["reason"] !== undefined && args["reason"] !== null) {
+    if (!validNote(args["reason"], 200)) {
+      return {
+        payload: { error: "invalid reason", expect: "single line, 1..200 chars" },
+        isError: true,
+      };
+    }
+    reason = args["reason"] as string;
+  }
+
+  const res = revokeGrant(grantId.trim(), reason, ctx);
+  if ("error" in res) {
+    return { payload: res, isError: true };
+  }
+  return { payload: res, isError: false };
+}
+
+export async function toolGrantStatus(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const grantId = typeof args["grant_id"] === "string" && args["grant_id"].trim() ? args["grant_id"].trim() : null;
+  const grantee = typeof args["grantee"] === "string" && args["grantee"].trim() ? args["grantee"].trim() : null;
+  const res = getGrantStatus(grantId, grantee, ctx);
+  if ("error" in res) {
+    return { payload: res, isError: true };
+  }
+  return { payload: res, isError: false };
 }
 
 export const TOOLS: Record<string, ToolDef> = {
@@ -3427,6 +3643,41 @@ export const TOOLS: Record<string, ToolDef> = {
     description: "Authority composite: run upstream drift/shift report for reconciliation.",
     inputSchema: approvalSchema({}),
     handler: toolReconcileUpstream,
+  },
+  grant_mint: {
+    description:
+      "Authority write: mint a new scoped standing approval grant for autonomous loops.",
+    inputSchema: approvalSchema({
+      grantee: { type: "string", description: "Identity receiving the grant (e.g. task id or agent name)" },
+      tier_limit: { type: "integer", minimum: 1, maximum: 4, default: 3, description: "Maximum tier allowed by grant" },
+      tools: { type: "array", items: { type: "string" }, description: "Optional allowlist of tool names" },
+      projects: { type: "array", items: { type: "string" }, description: "Optional allowlist of projects" },
+      ttl_s: { type: "integer", minimum: 1, maximum: 2592000, default: 3600, description: "Grant lifetime in seconds" },
+      max_uses: { type: "integer", minimum: 1, description: "Optional maximum usage count" },
+      note: { type: "string", description: "Optional description or note for the grant" },
+    }),
+    handler: toolGrantMint,
+  },
+  grant_revoke: {
+    description: "Authority write: revoke an active standing approval grant immediately.",
+    inputSchema: approvalSchema({
+      grant_id: { type: "string", description: "Grant ID or grant_ref to revoke" },
+      reason: { type: "string", description: "Optional revocation reason" },
+    }),
+    handler: toolGrantRevoke,
+  },
+  grant_status: {
+    description:
+      "Read-only inspection of standing approval grants (safe metadata only, never exposes secrets).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        grant_id: { type: "string", description: "Optional grant ID or grant_ref to inspect" },
+        grantee: { type: "string", description: "Optional grantee filter" },
+      },
+      additionalProperties: false,
+    },
+    handler: toolGrantStatus,
   },
 };
 

@@ -73,6 +73,10 @@ export const RECEIPT_TIMEOUT_S = 180;
  */
 export const RECEIPT_TTL_S = 3600;
 export const RECEIPT_DIRNAME = "mcp-receipts";
+export const GRANT_DIRNAME = "mcp-grants";
+export const GRANT_DEFAULT_TTL_S = 3600;
+export const GRANT_MAX_TTL_S = 2592000;
+export const GRANT_TOKEN_PREFIX = "sg_";
 export const MAX_OUTPUT_BYTES = 1048576;
 export const TAIL_CAP_BYTES = 8192;
 export const PROCESS_GROUP_GRACE_S = 5;
