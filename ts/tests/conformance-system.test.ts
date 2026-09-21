@@ -94,6 +94,32 @@ describe("small-gaps equivalence", () => {
     assert.equal(fx.calls.length, before);
   });
 
+  it("pr_poll matches direct stub with url echoed", async () => {
+    const url = "https://github.com/octo/repo/pull/42";
+    const direct = directRun(fx, "fm-pr-poll.sh", [
+      "--validated",
+      "github",
+      url,
+      "github.com",
+      "octo/repo",
+      "42",
+    ]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "pr_poll", { url }));
+    assert.equal(result["url"], url);
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("pr_poll refuses non-GitHub urls without spawn", async () => {
+    const before = fx.calls.length;
+    for (const url of ["not a url", "https://example.com/o/r/pull/1"]) {
+      const result = await readOnlyCall(fx, "pr_poll", { url });
+      assert.equal(result.isError, true);
+      assert.equal(result.payload["error"], "invalid url");
+    }
+    assert.equal(fx.calls.length, before);
+  });
+
   it("relay_poll matches direct stub", async () => {
     const direct = directRun(fx, "fm-x-poll.sh", []);
     assert.equal(direct.status, 0);
@@ -220,6 +246,7 @@ describe("side-effect-free", () => {
     await readOnlyCall(fx, "vendor_auth_probe", { probe: "codex" });
     await readOnlyCall(fx, "startup_memory", {});
     await readOnlyCall(fx, "pr_state", { url: "https://github.com/octo/repo/pull/1" });
+    await readOnlyCall(fx, "pr_poll", { url: "https://github.com/octo/repo/pull/1" });
     await readOnlyCall(fx, "relay_poll", {});
     await readOnlyCall(fx, "public_followup_pending", {});
     await readOnlyCall(fx, "public_followup_collect", { obligation_id: "ob-1" });

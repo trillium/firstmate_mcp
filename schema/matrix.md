@@ -47,6 +47,7 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | vendor_auth_probe | bin/fm-vendor-auth-probe.sh | stable | <probe> | bounded vendor auth probes |
 | startup_memory | bin/fm-startup-memory-budget.sh | stable | read, report | startup-memory budget reads |
 | pr_state | bin/fm-pr-state.sh | stable | <pr-url> | PR blockers reads (no posts) |
+| pr_poll | bin/fm-pr-poll.sh | stable | --validated, github, <pr-url>, github.com, <path>, <number> | static merge-poll watcher check source |
 | relay_poll | bin/fm-x-poll.sh | stable | <none> | relay short-poll reads (inert without consent) |
 | public_followup_pending | bin/fm-public-followup.sh | stable | pending | open public-followup loop digest |
 | public_followup_collect | bin/fm-public-followup-collect.sh | stable | drain <obligation-id> | read staged terminal events non-destructively |

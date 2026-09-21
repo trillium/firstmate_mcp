@@ -46,6 +46,7 @@ script's observable output (modulo the envelope wrap).
 - `mail_read` — via `fm-mail.sh` (pinned in schema/contracts.yaml)
 - `mail_status` — via `fm-mail.sh` (pinned in schema/contracts.yaml)
 - `peek` — via `fm-peek.sh` (pinned in schema/contracts.yaml)
+- `pr_poll` — via `fm-pr-poll.sh` (pinned in schema/contracts.yaml)
 - `pr_state` — via `fm-pr-state.sh` (pinned in schema/contracts.yaml)
 - `project_mode` — via `fm-project-mode.sh` (pinned in schema/contracts.yaml)
 - `public_followup_collect` — via `fm-public-followup-collect.sh` (pinned in schema/contracts.yaml)
@@ -151,7 +152,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` implements the 69-tool
+- TypeScript sibling — `ts/` implements the 70-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Customizable follow-on actions — `ts/src/followon.ts` provides configurable
@@ -199,7 +200,7 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | Sessions | 4 | 0 | 21 |
 | Backlog / decisions | 5 | 1 | 7 |
 | Secondmates / remotes | 7 | 0 | 13 |
-| PR pipeline | 2 | 5 | 4 |
+| PR pipeline | 3 | 5 | 3 |
 | Relay | 6 | 2 | 0 |
 | Voice / mail | 4 | 0 | 0 |
 | Digests | 6 | 0 | 0 |
