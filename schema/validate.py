@@ -69,6 +69,7 @@ CURRENT_PINS = {
     "contributions_pending": "fm-contributions.pending.v1",
     "mail_status": "fm-mail.status.v1",
     "mail_read": "fm-mail.read.v1",
+    "mail_check": "fm-mail-check.v1",
     "mail_send": "fm-mail.safe-subset.v1",
     "voice_status": "fm-voice-records.status.v1",
     "voice_queue": "fm-voice-records.queue.v1",

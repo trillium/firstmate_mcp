@@ -65,6 +65,7 @@ export const STUBS: Record<string, string> = {
     'elif [ "$1" = "read" ]; then echo "mail-stub:read"; ' +
     'elif [ "$1" = "send" ]; then cat >/dev/null; echo "mail-stub:sent to $2 subj=$3"; ' +
     'else echo "stub: refused" >&2; exit 1; fi\n',
+  "fm-mail-check.sh": 'echo "mail-check-stub:$1"\n',
   "fm_voice_records.py":
     'if [ "$1" = "status" ]; then echo "{\\"scope\\":\\"$3\\",\\"workers_on_deck\\":0,\\"in_flight\\":0,\\"queued\\":0}"; ' +
     'elif [ "$1" = "queue" ]; then echo "voice-stub:queued $2"; ' +
