@@ -2581,6 +2581,121 @@ export async function toolInactiveReconcile(args: ToolArgs, ctx: ToolContext): P
   return ownedCall(cmd, "inactive_reconcile", ctx.run);
 }
 
+export async function toolTasksList(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const state = args["state"];
+  const repo = args["repo"];
+  const kind = args["kind"];
+  const blocked = args["blocked"];
+  const limit = args["limit"];
+  const fields = args["fields"];
+
+  if (state !== undefined && (typeof state !== "string" || !["queued", "in_flight", "done", "held", "all"].includes(state))) {
+    return { payload: { error: "invalid state", expect: "queued, in_flight, done, held, or all" }, isError: true };
+  }
+  if (repo !== undefined) {
+    if (typeof repo !== "string" || repo.includes("..") || repo.startsWith("/")) {
+      return { payload: { error: "invalid repo", expect: "repo name without traversal" }, isError: true };
+    }
+  }
+  if (kind !== undefined) {
+    if (typeof kind !== "string" || !validId(kind)) {
+      return { payload: { error: "invalid kind", expect: "short slug, no slashes" }, isError: true };
+    }
+  }
+  if (blocked !== undefined && typeof blocked !== "boolean") {
+    return { payload: { error: "invalid blocked", expect: "boolean" }, isError: true };
+  }
+  if (limit !== undefined) {
+    if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1 || limit > 1000) {
+      return { payload: { error: "invalid limit", expect: "integer between 1 and 1000" }, isError: true };
+    }
+  }
+  if (fields !== undefined) {
+    if (typeof fields !== "string" || fields.includes(" ") || fields.includes("\n") || fields.length > 200) {
+      return { payload: { error: "invalid fields", expect: "comma-separated field names without spaces" }, isError: true };
+    }
+  }
+
+  const cmd = [
+    path.join(ctx.binDir, "fm-tasks-axi.sh"),
+    "list",
+    ...(state ? ["--state", state] : []),
+    ...(repo ? ["--repo", repo] : []),
+    ...(kind ? ["--kind", kind] : []),
+    ...(blocked ? ["--blocked"] : []),
+    ...(limit !== undefined ? ["--limit", String(limit)] : []),
+    ...(fields ? ["--fields", fields] : []),
+  ];
+  return ownedCall(cmd, "tasks list failed", ctx.run);
+}
+
+export async function toolTasksShow(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const id = args["id"];
+  const full = args["full"];
+  if (!validId(id)) {
+    return { payload: { error: "invalid id", expect: "short slug, no slashes" }, isError: true };
+  }
+  if (full !== undefined && typeof full !== "boolean") {
+    return { payload: { error: "invalid full", expect: "boolean" }, isError: true };
+  }
+  const cmd = [
+    path.join(ctx.binDir, "fm-tasks-axi.sh"),
+    "show",
+    id as string,
+    ...(full ? ["--full"] : []),
+  ];
+  return ownedCall(cmd, "tasks show failed", ctx.run);
+}
+
+export async function toolTasksReady(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const repo = args["repo"];
+  const includeHeld = args["include_held"];
+  if (repo !== undefined) {
+    if (typeof repo !== "string" || repo.includes("..") || repo.startsWith("/")) {
+      return { payload: { error: "invalid repo", expect: "repo name without traversal" }, isError: true };
+    }
+  }
+  if (includeHeld !== undefined && typeof includeHeld !== "boolean") {
+    return { payload: { error: "invalid include_held", expect: "boolean" }, isError: true };
+  }
+  const cmd = [
+    path.join(ctx.binDir, "fm-tasks-axi.sh"),
+    "ready",
+    ...(repo ? ["--repo", repo] : []),
+    ...(includeHeld ? ["--include-held"] : []),
+  ];
+  return ownedCall(cmd, "tasks ready failed", ctx.run);
+}
+
+export async function toolBacklogReceive(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const relPath = args["path"];
+  const bytes = args["bytes"];
+  const sha256 = args["sha256"];
+  const generation = args["generation"];
+
+  if (typeof relPath !== "string" || !relPath.startsWith("state/handoff/") || !relPath.endsWith(".outbox.md") || relPath.includes("..")) {
+    return { payload: { error: "invalid path", expect: "state/handoff/<id>.outbox.md without traversal" }, isError: true };
+  }
+  if (typeof bytes !== "number" || !Number.isInteger(bytes) || bytes < 0 || bytes > 1048576) {
+    return { payload: { error: "invalid bytes", expect: "non-negative integer <= 1048576" }, isError: true };
+  }
+  if (typeof sha256 !== "string" || !/^[A-Fa-f0-9]{64}$/.test(sha256)) {
+    return { payload: { error: "invalid sha256", expect: "64 hex chars" }, isError: true };
+  }
+  if (typeof generation !== "number" || !Number.isInteger(generation) || generation < 1) {
+    return { payload: { error: "invalid generation", expect: "positive integer" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = [
+    path.join(ctx.binDir, "fm-backlog-receive.sh"),
+    relPath,
+    String(bytes),
+    sha256,
+    String(generation),
+  ];
+  return ownedCall(cmd, "backlog_receive", ctx.run);
+}
+
 // --- Registry (schemas match the Python server's tools/list exactly) ---
 
 export interface ToolDef {
@@ -3651,6 +3766,57 @@ export const TOOLS: Record<string, ToolDef> = {
       fingerprint: { type: "string", description: "Outcome fingerprint for acknowledge mode" },
     }, []),
     handler: toolInactiveReconcile,
+  },
+  tasks_list: {
+    description: "Read-only backlog item listing via fm-tasks-axi.sh list.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        state: { type: "string", enum: ["queued", "in_flight", "done", "held", "all"], description: "Filter by task state" },
+        repo: { type: "string", description: "Filter by repository name" },
+        kind: { type: "string", description: "Filter by task kind" },
+        blocked: { type: "boolean", description: "Filter to blocked tasks" },
+        limit: { type: "integer", description: "Maximum number of items to list (1..1000)" },
+        fields: { type: "string", description: "Comma-separated field list" },
+      },
+      additionalProperties: false,
+    },
+    handler: toolTasksList,
+  },
+  tasks_show: {
+    description: "Read-only inspection of one task in the backlog via fm-tasks-axi.sh show.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Task ID slug" },
+        full: { type: "boolean", description: "Include full body notes" },
+      },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    handler: toolTasksShow,
+  },
+  tasks_ready: {
+    description: "Read-only list of dependency-cleared ready queued work via fm-tasks-axi.sh ready.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Filter by repository name" },
+        include_held: { type: "boolean", description: "Include held work in a separate section" },
+      },
+      additionalProperties: false,
+    },
+    handler: toolTasksReady,
+  },
+  backlog_receive: {
+    description: "Authority write: receive one delivered remote-secondmate outbox into this home's backlog.",
+    inputSchema: approvalSchema({
+      path: { type: "string", description: "Delivered outbox path (state/handoff/<id>.outbox.md)" },
+      bytes: { type: "integer", description: "Expected byte size" },
+      sha256: { type: "string", description: "Expected SHA-256 digest" },
+      generation: { type: "integer", description: "Upload generation" },
+    }, ["path", "bytes", "sha256", "generation"]),
+    handler: toolBacklogReceive,
   },
   receipt_submit: {
     description:

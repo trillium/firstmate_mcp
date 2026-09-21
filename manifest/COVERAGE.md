@@ -17,14 +17,14 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Fleet runs](#fleet-runs) | 3 | 2 | 3 |
 | [Supervision](#supervision) | 8 | 4 | 28 |
 | [Sessions](#sessions) | 4 | 0 | 21 |
-| [Backlog / decisions](#backlog-decisions) | 4 | 0 | 9 |
+| [Backlog / decisions](#backlog-decisions) | 5 | 1 | 7 |
 | [Secondmates / remotes](#secondmates-remotes) | 7 | 0 | 13 |
 | [PR pipeline](#pr-pipeline) | 2 | 5 | 4 |
 | [Relay](#relay) | 6 | 2 | 0 |
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 |
 | [Installs](#installs) | 4 | 0 | 19 |
-| **Total** | **48** | **13** | **97** |
+| **Total** | **49** | **14** | **95** |
 
 ## Fleet runs
 
@@ -129,7 +129,7 @@ Queue mechanics and durable captain decisions: backlog moves, holds, verdicts.
 | `file: data/handoff/<id>.outbox.md` | mirrored — `handoff_status` (ts✔) | Staged handoff outbox read; list staged moves or read one outbox tail. |
 | `fm-backlog-handoff.sh` | mirrored — `handoff_move` (ts✔) | secondmate handoff moves |
 | `fm-backlog-import-beads.sh` (removed upstream) | gap | one-time backlog.md importer; removed upstream since pin |
-| `fm-backlog-receive.sh` | gap | remote outbox receipt |
+| `fm-backlog-receive.sh` | denied-by-design — `backlog_receive` | remote outbox receipt. receiving remote outboxes moves backlog items between homes; only secondmate receipt loops own backlog receipt |
 | `fm-bead-stamp.sh` (removed upstream) | gap | bead stamp helper; removed upstream since pin |
 | `fm-captain-hold.sh` | mirrored — `decision_complete` (ts✔), `decision_verify` (ts✔), `decision_open` (ts✔), `decision_diverged` (ts✔), `review_decision` (ts✔) | unified held-for-captain mechanics; supersedes review-decision upstream |
 | `fm-decision-hold.sh` | mirrored — `decision_hold` (ts✔), `decision_resolve` (ts✔), `decision_release` (ts✔) | durable captain holds behind approval |
@@ -138,7 +138,7 @@ Queue mechanics and durable captain decisions: backlog moves, holds, verdicts.
 | `fm-ledger.sh` (removed upstream) | gap | landed-but-open bead surface; removed upstream since pin |
 | `fm-review-decision.sh` (removed upstream) | gap | removed upstream since pin; review_decision now ports onto fm-captain-hold.sh answer |
 | `fm-staleness-file.sh` (removed upstream) | gap | staleness-file writer; removed upstream since pin |
-| `fm-tasks-axi.sh` | gap | backlog backend CLI for this home |
+| `fm-tasks-axi.sh` | mirrored — `tasks_list` (ts✔), `tasks_show` (ts✔), `tasks_ready` (ts✔) | backlog backend CLI for this home |
 
 ## Secondmates / remotes
 

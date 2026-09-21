@@ -23,7 +23,7 @@ Secondmate/remote verbs carry the same safe-subset discipline: `secondmate_nudge
 Downstream code work stays under the owning scripts with merge authority, yolo posture, and decision-hold lifecycle.
 Tier 4 - external sends (approval required, relay-gated): `relay_reply`, `relay_dismiss`, `relay_followup`, `mail_send` shell to the owning `fm-x-*.sh` / `fm-mail.sh` scripts and stay inert without relay/mail consent.
 `mail_send` carries a validated to/subject plus a body piped via stdin (never in argv, never logged); SMTP credentials live outside MCP in the home `.env`.
-Code-forbidden (no tool, refused as unknown): `promote_scout`, `teardown_crew`, `arm_pr_check`, `merge_pr`, `merge_local`, `public_followup_emit`, `relay_link`, `fleet_sync`, `inactive_reconcile`.
+Code-forbidden (no tool, refused as unknown): `promote_scout`, `teardown_crew`, `arm_pr_check`, `merge_pr`, `merge_local`, `public_followup_emit`, `relay_link`, `fleet_sync`, `inactive_reconcile`, `backlog_receive`.
 No edit, commit, merge, or PR tools exist in this layer.
 No direct repo mutation paths exist in this layer.
 No teardown that discards work exists in this layer.

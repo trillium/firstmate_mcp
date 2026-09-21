@@ -11,6 +11,7 @@
  *   mail_status, mail_read, mail_check, voice_status, lint_versions,
  *   tool_update_check, vendor_auth_probe, startup_memory, pr_state,
  *   relay_poll, public_followup_pending, public_followup_collect,
+ *   tasks_list, tasks_show, tasks_ready,
  *   receipt_submit, receipt_status — no approval.
  *   (receipt_submit detaches one call past the 30s budget; authority
  *   targets still need their own nested approval string.)
@@ -25,7 +26,7 @@
  *   approval plus relay consent inside the owning scripts.
  * - Forbidden: promote_scout, teardown_crew, arm_pr_check, merge_pr,
  *   merge_local, public_followup_emit, relay_link, fleet_sync,
- *   inactive_reconcile — no tool, refused as unknown.
+ *   inactive_reconcile, backlog_receive — no tool, refused as unknown.
  */
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -89,6 +90,9 @@ export const TOOL_TIERS: Record<string, Tier> = {
   relay_poll: TIER_OPEN,
   public_followup_pending: TIER_OPEN,
   public_followup_collect: TIER_OPEN,
+  tasks_list: TIER_OPEN,
+  tasks_show: TIER_OPEN,
+  tasks_ready: TIER_OPEN,
   receipt_submit: TIER_OPEN,
   receipt_status: TIER_OPEN,
   send_message: TIER_STEER,
@@ -137,6 +141,7 @@ export const TOOL_TIERS: Record<string, Tier> = {
   relay_link: TIER_AUTHORITY,
   fleet_sync: TIER_AUTHORITY,
   inactive_reconcile: TIER_AUTHORITY,
+  backlog_receive: TIER_AUTHORITY,
   mail_send: TIER_EXTERNAL,
   relay_reply: TIER_EXTERNAL,
   relay_dismiss: TIER_EXTERNAL,

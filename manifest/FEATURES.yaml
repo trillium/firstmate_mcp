@@ -615,6 +615,48 @@ features:
         `drain` subcommand only — non-destructively reads staged terminal
         events waiting in outbox. `drop` retires staged events and stays
         firstmate-owned.
+  - id: tasks_list
+    kind: upstream-mirror
+    summary: List tasks in this home's backlog via fm-tasks-axi.sh list.
+    upstream_command: bin/fm-tasks-axi.sh
+    upstream_flags: ["list", "--state", "--repo", "--kind", "--blocked", "--limit", "--fields"]
+    contract: schema/contracts.yaml#tasks_list
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks-axi equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:tasks_list"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Read-only list projection with safe flag subset; queue mutations and
+        file moves stay firstmate-owned.
+  - id: tasks_show
+    kind: upstream-mirror
+    summary: Inspect one task in this home's backlog via fm-tasks-axi.sh show.
+    upstream_command: bin/fm-tasks-axi.sh
+    upstream_flags: ["show", "<id>", "--full"]
+    contract: schema/contracts.yaml#tasks_show
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks-axi equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:tasks_show"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Read-only single-task inspection with slug ID validation; task updates
+        and lifecycle mutations stay firstmate-owned.
+  - id: tasks_ready
+    kind: upstream-mirror
+    summary: List dependency-cleared ready queued tasks via fm-tasks-axi.sh ready.
+    upstream_command: bin/fm-tasks-axi.sh
+    upstream_flags: ["ready", "--repo", "--include-held"]
+    contract: schema/contracts.yaml#tasks_ready
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks-axi equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:tasks_ready"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Read-only dispatchable task listing; task dispatch, start, and queue
+        writes stay firstmate-owned.
   # ---- CHANGED: same owning scripts, narrower surface, per-call approval ----
   - id: lifecycle_interrupt
     kind: upstream-mirror

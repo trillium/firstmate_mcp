@@ -84,6 +84,9 @@ CURRENT_PINS = {
     "grant_status": "mcp-grant.v1",
     "public_followup_pending": "fm-public-followup.pending.v1",
     "public_followup_collect": "fm-public-followup-collect.drain.v1",
+    "tasks_list": "fm-tasks-axi.list.v1",
+    "tasks_show": "fm-tasks-axi.show.v1",
+    "tasks_ready": "fm-tasks-axi.ready.v1",
 }
 
 

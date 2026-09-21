@@ -122,6 +122,43 @@ describe("small-gaps equivalence", () => {
     assert.equal(result.isError, true);
     assert.equal(fx.calls.length, before);
   });
+
+  it("tasks_list matches direct stub", async () => {
+    const direct = directRun(fx, "fm-tasks-axi.sh", ["list"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "tasks_list", {}));
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("tasks_list refuses invalid state without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "tasks_list", { state: "invalid_state" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid state");
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("tasks_show matches direct stub", async () => {
+    const direct = directRun(fx, "fm-tasks-axi.sh", ["show", "task-1"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "tasks_show", { id: "task-1" }));
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("tasks_show refuses invalid id without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "tasks_show", { id: "../escape" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid id");
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("tasks_ready matches direct stub", async () => {
+    const direct = directRun(fx, "fm-tasks-axi.sh", ["ready"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "tasks_ready", {}));
+    assert.equal(result["stdout"], direct.stdout);
+  });
 });
 
 describe("side-effect-free", () => {
@@ -186,6 +223,9 @@ describe("side-effect-free", () => {
     await readOnlyCall(fx, "relay_poll", {});
     await readOnlyCall(fx, "public_followup_pending", {});
     await readOnlyCall(fx, "public_followup_collect", { obligation_id: "ob-1" });
+    await readOnlyCall(fx, "tasks_list", {});
+    await readOnlyCall(fx, "tasks_show", { id: "probe-task" });
+    await readOnlyCall(fx, "tasks_ready", {});
 
     assert.ok(fx.calls.length >= 20);
     const nonRead = fx.calls.filter(

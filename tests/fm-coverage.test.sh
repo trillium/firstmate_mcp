@@ -57,7 +57,8 @@ test_manifest_and_deny_appear() {
     spawn_crew scaffold_brief decision_hold decision_resolve review_decision \
     secondmate_nudge secondmate_restart secondmate_report remote_control handoff_move \
     voice_queue mail_send \
-    relay_reply relay_dismiss relay_followup; do
+    relay_reply relay_dismiss relay_followup \
+    tasks_list tasks_show tasks_ready; do
     case "$(cat "$COVERAGE")" in
       *"$id"*) : ;;
       *) printf 'coverage missing manifest entry: %s\n' "$id" >&2; missing=1 ;;
@@ -66,7 +67,7 @@ test_manifest_and_deny_appear() {
   for name in promote_scout teardown_crew arm_pr_check merge_pr merge_local \
     daemon_start daemon_stop daemon_restart watch_start watch_stop \
     repo_edit repo_commit repo_push repo_merge public_followup_emit relay_link \
-    fleet_sync inactive_reconcile; do
+    fleet_sync inactive_reconcile backlog_receive; do
     case "$(cat "$COVERAGE")" in
       *"$name"*) : ;;
       *) printf 'coverage missing DENY_LIST name: %s\n' "$name" >&2; missing=1 ;;

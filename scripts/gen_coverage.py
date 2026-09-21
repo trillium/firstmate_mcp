@@ -274,6 +274,7 @@ DENY_REASONS = {
     "relay_link": ("fm-x-link.sh", "linking tasks to public relay mentions binds public reply budgets; only fmx-respond skill owns relay linking"),
     "fleet_sync": ("fm-fleet-sync.sh", "refreshing project clones mutates local checkouts and branch tracking; only session start and teardown own fleet sync"),
     "inactive_reconcile": ("fm-inactive-reconcile.sh", "reconciling inactive terminal outcomes mutates terminal outcome records and publishes parent channel/wake updates; only watcher poll and session start own inactive outcome reconciliation"),
+    "backlog_receive": ("fm-backlog-receive.sh", "receiving remote outboxes moves backlog items between homes; only secondmate receipt loops own backlog receipt"),
 }
 
 DENY_LIST = frozenset(DENY_REASONS.keys())

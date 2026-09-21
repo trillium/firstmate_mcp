@@ -65,6 +65,7 @@ DENY_LIST = frozenset(
         "relay_link",
         "fleet_sync",
         "inactive_reconcile",
+        "backlog_receive",
     }
 )
 
@@ -141,6 +142,9 @@ TOOLS = {
     "relay_poll": ("fm-x-poll.sh", None, False),
     "public_followup_pending": ("fm-public-followup.sh", None, False),
     "public_followup_collect": ("fm-public-followup-collect.sh", None, False),
+    "tasks_list": ("fm-tasks-axi.sh", None, False),
+    "tasks_show": ("fm-tasks-axi.sh", None, False),
+    "tasks_ready": ("fm-tasks-axi.sh", None, False),
 }
 
 TOOL_TIERS = {
@@ -156,6 +160,7 @@ TOOL_TIERS = {
     "lint_versions": 1, "tool_update_check": 1, "vendor_auth_probe": 1,
     "startup_memory": 1, "pr_state": 1, "relay_poll": 1,
     "public_followup_pending": 1, "public_followup_collect": 1,
+    "tasks_list": 1, "tasks_show": 1, "tasks_ready": 1,
     "receipt_submit": 1, "receipt_status": 1, "grant_status": 1,
     "decision_verify": 1, "decision_open": 1, "decision_diverged": 1,
     "send_message": 2,
@@ -166,6 +171,7 @@ TOOL_TIERS = {
     "review_decision": 3, "secondmate_nudge": 3, "secondmate_restart": 3,
     "secondmate_report": 3, "remote_control": 3, "handoff_move": 3,
     "voice_queue": 3, "grant_mint": 3, "grant_revoke": 3,
+    "backlog_receive": 3,
     "mail_send": 4, "relay_reply": 4, "relay_dismiss": 4, "relay_followup": 4,
 }
 

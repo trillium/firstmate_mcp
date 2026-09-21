@@ -55,6 +55,9 @@ export const READ_TOOLS: ReadonlySet<string> = new Set([
   "relay_poll",
   "public_followup_pending",
   "public_followup_collect",
+  "tasks_list",
+  "tasks_show",
+  "tasks_ready",
 ]);
 
 // Scripts the suite may execute. Anything else fails closed at the runner.
@@ -90,6 +93,7 @@ export const READ_SCRIPTS: ReadonlySet<string> = new Set([
   "fm-x-poll.sh",
   "fm-public-followup.sh",
   "fm-public-followup-collect.sh",
+  "fm-tasks-axi.sh",
 ]);
 
 export const SNAPSHOT_STUB = `node -e '
@@ -160,6 +164,11 @@ export const PR_STATE_STUB = 'echo "pr-stub:$1"\n';
 export const X_POLL_STUB = 'echo "x-poll stub: empty"\n';
 export const PUBLIC_FOLLOWUP_STUB = 'echo "public-followup-stub:$1"\n';
 export const PUBLIC_FOLLOWUP_COLLECT_STUB = 'echo "public-followup-collect-stub:$1 id=$2"\n';
+export const TASKS_AXI_STUB =
+  'if [ "$1" = "list" ]; then echo "tasks-axi-stub:list"; ' +
+  'elif [ "$1" = "show" ]; then echo "tasks-axi-stub:show id=$2"; ' +
+  'elif [ "$1" = "ready" ]; then echo "tasks-axi-stub:ready"; ' +
+  'else echo "tasks-axi-stub:dashboard"; fi\n';
 export const HOME_SUMMARY_FIXTURE = {
   schema: "fm-secondmate-home-summary.v1",
   generated: "stub",
@@ -223,6 +232,7 @@ export function setup(): Fixture {
   writeStub(path.join(scratch, "bin"), "fm-x-poll.sh", X_POLL_STUB);
   writeStub(path.join(scratch, "bin"), "fm-public-followup.sh", PUBLIC_FOLLOWUP_STUB);
   writeStub(path.join(scratch, "bin"), "fm-public-followup-collect.sh", PUBLIC_FOLLOWUP_COLLECT_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-tasks-axi.sh", TASKS_AXI_STUB);
 
   const savedFmHome = process.env.FM_HOME;
   const savedStateOverride = process.env.FM_STATE_OVERRIDE;
