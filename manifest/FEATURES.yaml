@@ -702,8 +702,76 @@ features:
       status: intentional
       reason: >-
         Per-call "I authorize" approval gate plus the safe resolve-subcommand
-        subset; upstream fm-decision-hold.sh knows no MCP approval string.
-        Same owning script, narrower surface.
+        subset with SAFETY CORE caller authorship enforcement; upstream
+        fm-decision-hold.sh knows no MCP approval string.
+  - id: decision_release
+    kind: upstream-mirror
+    summary: Release one captain hold via fm-decision-hold.sh resolve or fm-captain-hold.sh answer --release with a linked durable decision record.
+    upstream_command: bin/fm-decision-hold.sh
+    upstream_flags: ["resolve", "<origin-id>", "<decision-key>"]
+    contract: ts/src/tools.ts#decision_release (safe resolve/release subset + approval gate + self-holds default)
+    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_release"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate, mandatory non-empty decision record
+        with SHA-256 digest audit logging, and default self-holds-only safety scope
+        requiring explicit per-deploy FM_RELEASE_GRANT for captain-opened holds.
+  - id: decision_complete
+    kind: upstream-mirror
+    summary: Attest the reviewed inventory of captain-held tasks for an origin via fm-captain-hold.sh complete.
+    upstream_command: bin/fm-captain-hold.sh
+    upstream_flags: ["complete", "<origin-id>"]
+    contract: ts/src/tools.ts#decision_complete (attestation write + approval gate)
+    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_complete"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Per-call "I authorize" approval gate on investigation and visual-review
+        completion attestation; upstream fm-captain-hold.sh knows no MCP approval string.
+  - id: decision_verify
+    kind: upstream-mirror
+    summary: Verify that an origin has completed its captain-call inventory and no open keyed decisions remain via fm-captain-hold.sh verify.
+    upstream_command: bin/fm-captain-hold.sh
+    upstream_flags: ["verify", "<origin-id>"]
+    contract: ts/src/tools.ts#decision_verify (open-read attestation query)
+    upstream_test: "ts/tests/server.test.ts (stub-home server proof); read tool with structured status response."
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_verify"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Structured JSON output envelope for attestation status verification.
+  - id: decision_open
+    kind: upstream-mirror
+    summary: Check if a captain-held task is still open, optionally retrieving its lifecycle identity via fm-captain-hold.sh open.
+    upstream_command: bin/fm-captain-hold.sh
+    upstream_flags: ["open", "<task-id>"]
+    contract: ts/src/tools.ts#decision_open (open-read predicate query)
+    upstream_test: "ts/tests/server.test.ts (stub-home server proof); read tool with structured status response."
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_open"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Structured JSON output envelope for captain hold predicate checks.
+  - id: decision_diverged
+    kind: upstream-mirror
+    summary: Check for divergence between status log decisions and durable captain holds via fm-captain-hold.sh diverged.
+    upstream_command: bin/fm-captain-hold.sh
+    upstream_flags: ["diverged"]
+    contract: ts/src/tools.ts#decision_diverged (open-read divergence query)
+    upstream_test: "ts/tests/server.test.ts (stub-home server proof); read tool with structured status response."
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_diverged"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Structured JSON output envelope for hold divergence reporting.
   - id: review_decision
     kind: upstream-mirror
     summary: Record a captain approve, decline, or comment on a captain-held task.
@@ -718,9 +786,10 @@ features:
       reason: >-
         Per-call "I authorize" approval gate plus the closed
         approve/decline/comment verdict set recorded as the captain's words
-        through the answer subcommand only (never --release); upstream
-        fm-captain-hold.sh knows no MCP approval string and no verdict set.
-        Ported off bin/fm-review-decision.sh, removed upstream since the pin.
+        through the answer subcommand with optional --release subject to
+        SAFETY CORE self-holds-only scope; upstream fm-captain-hold.sh knows
+        no MCP approval string and no verdict set. Ported off
+        bin/fm-review-decision.sh, removed upstream since the pin.
   - id: relay_reply
     kind: upstream-mirror
     summary: Send one public reply; inert without relay consent, which lives outside MCP.

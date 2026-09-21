@@ -26,6 +26,9 @@ script's observable output (modulo the envelope wrap).
 - `contributions_pending` — via `fm-contributions.sh` (pinned in schema/contracts.yaml)
 - `contributions_snapshot` — via `fm-contributions.sh` (pinned in schema/contracts.yaml)
 - `crew_state` — via `fm-crew-state.sh` (pinned in schema/contracts.yaml)
+- `decision_diverged` — via `fm-captain-hold.sh` (adapter-native projection)
+- `decision_open` — via `fm-captain-hold.sh` (adapter-native projection)
+- `decision_verify` — via `fm-captain-hold.sh` (adapter-native projection)
 - `fleet_poll` — via `fm-fleet-snapshot.sh` (adapter-native projection)
 - `fleet_snapshot` — via `fm-fleet-snapshot.sh` (pinned in schema/contracts.yaml)
 - `fleet_view` — via `fm-fleet-view.sh` (pinned in schema/contracts.yaml)
@@ -62,7 +65,9 @@ script's observable output (modulo the envelope wrap).
 Same owning scripts, narrower surface: safe flag subsets only,
 revalidated ids/paths/text, explicit per-call approval.
 
+- `decision_complete` — via `fm-captain-hold.sh` (Tier 3 approval, approval required)
 - `decision_hold` — via `fm-decision-hold.sh` (Tier 3 approval, approval required)
+- `decision_release` — via `fm-decision-hold.sh` (Tier 3 approval, approval required)
 - `decision_resolve` — via `fm-decision-hold.sh` (Tier 3 approval, approval required)
 - `handoff_move` — via `fm-backlog-handoff.sh` (Tier 3 approval, approval required)
 - `lifecycle_exit` — via `fm-control.sh` (Tier 3 approval, approval required)
@@ -130,7 +135,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` implements the 58-tool
+- TypeScript sibling — `ts/` implements the 63-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Customizable follow-on actions — `ts/src/followon.ts` provides configurable

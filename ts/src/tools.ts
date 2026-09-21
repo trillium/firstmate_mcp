@@ -25,7 +25,7 @@
  * firstmate behavior. Wire payloads match the Python server exactly so the
  * shared conformance checks are the referee between the two paths.
  */
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -129,6 +129,7 @@ const NEEDS_APPROVAL: ReadonlySet<string> = new Set([
   "lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch",
   "lifecycle_suspend", "lifecycle_resume", "spawn_crew",
   "scaffold_brief", "decision_hold", "decision_resolve",
+  "decision_release", "decision_complete",
   "review_decision", "relay_reply", "relay_dismiss", "relay_followup",
   "secondmate_nudge", "secondmate_restart", "secondmate_report",
   "remote_control", "handoff_move", "voice_queue", "mail_send",
@@ -1311,6 +1312,129 @@ function removeTempFile(tmp: string): void {
   }
 }
 
+/** Compute SHA-256 hex digest for decision text. */
+export function sha256Text(text: string): string {
+  return createHash("sha256").update(text, "utf8").digest("hex");
+}
+
+/** Check if deploy-level release grant is enabled via FM_RELEASE_GRANT. */
+export function isReleaseGrantEnabled(): boolean {
+  const grant = process.env.FM_RELEASE_GRANT;
+  if (!grant) return false;
+  const normalized = grant.trim().toLowerCase();
+  return (
+    normalized === "1" ||
+    normalized === "true" ||
+    normalized === "on" ||
+    normalized === "yes" ||
+    normalized === "all" ||
+    normalized === "enable" ||
+    normalized === "enabled"
+  );
+}
+
+/**
+ * Determine if release of a hold is authorized under the SAFETY CORE:
+ * Default scope permits releasing ONLY holds the calling agent opened itself.
+ * Captain-opened or third-party holds refuse unless explicit deploy release grant is ON.
+ */
+export async function isReleaseAuthorized(
+  callerActor: string,
+  originId: string | undefined,
+  taskId: string | undefined,
+  ctx: ToolContext,
+): Promise<{ authorized: boolean; reason?: string; author?: string | null }> {
+  if (isReleaseGrantEnabled()) {
+    return { authorized: true, author: "(grant-enabled)" };
+  }
+
+  // If originId was provided explicitly:
+  if (originId) {
+    if (callerActor === originId) {
+      return { authorized: true, author: originId };
+    }
+    return {
+      authorized: false,
+      author: originId,
+      reason: `release refused: caller '${callerActor}' did not author hold for origin '${originId}' (default scope permits self-holds only; captain-opened or third-party holds require FM_RELEASE_GRANT=1)`,
+    };
+  }
+
+  // If taskId was provided:
+  if (taskId) {
+    // Check if taskId matches <origin>-decision-<key> format:
+    const match = taskId.match(/^([a-zA-Z0-9._-]+)-decision-[a-zA-Z0-9._-]+$/);
+    if (match) {
+      const author = match[1];
+      if (callerActor === author) {
+        return { authorized: true, author };
+      }
+      return {
+        authorized: false,
+        author,
+        reason: `release refused: caller '${callerActor}' did not author hold '${taskId}' (authored by '${author}'; default scope permits self-holds only; captain-opened or third-party holds require FM_RELEASE_GRANT=1)`,
+      };
+    }
+
+    // Otherwise check if task metadata or task body carries Origin: <origin>
+    // 1. Check if state/<taskId>.meta has origin=
+    const metaPath = path.join(ctx.stateDir, `${taskId}.meta`);
+    try {
+      if (fs.existsSync(metaPath)) {
+        const content = fs.readFileSync(metaPath, "utf8");
+        const originMatch = content.match(/^origin=([a-zA-Z0-9._-]+)/m);
+        if (originMatch) {
+          const author = originMatch[1];
+          if (callerActor === author) {
+            return { authorized: true, author };
+          }
+          return {
+            authorized: false,
+            author,
+            reason: `release refused: caller '${callerActor}' did not author hold '${taskId}' (authored by '${author}'; default scope permits self-holds only; captain-opened or third-party holds require FM_RELEASE_GRANT=1)`,
+          };
+        }
+      }
+    } catch {
+      /* ignore file read error, fall through to task check */
+    }
+
+    // 2. Query task show
+    try {
+      const res = await ctx.run(argv(path.join(ctx.binDir, "fm-tasks-axi.sh"), "show", taskId, "--full"));
+      if (isRunResult(res) && res.exitCode === 0) {
+        const bodyMatch = res.stdout.match(/Origin:\s*([a-zA-Z0-9._-]+)/);
+        if (bodyMatch) {
+          const author = bodyMatch[1];
+          if (callerActor === author) {
+            return { authorized: true, author };
+          }
+          return {
+            authorized: false,
+            author,
+            reason: `release refused: caller '${callerActor}' did not author hold '${taskId}' (authored by '${author}'; default scope permits self-holds only; captain-opened or third-party holds require FM_RELEASE_GRANT=1)`,
+          };
+        }
+      }
+    } catch {
+      /* task query failed */
+    }
+
+    // No origin found -> captain-opened hold
+    return {
+      authorized: false,
+      author: null,
+      reason: `release refused: captain-opened hold '${taskId}' cannot be released by caller '${callerActor}' (default scope permits self-holds only; captain-opened holds require FM_RELEASE_GRANT=1)`,
+    };
+  }
+
+  return {
+    authorized: false,
+    author: null,
+    reason: "release refused: cannot determine hold authorship (origin_id or task id required)",
+  };
+}
+
 async function toolDecisionResolve(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   const originId = args["origin_id"];
   const decisionKey = args["decision_key"];
@@ -1334,14 +1458,25 @@ async function toolDecisionResolve(args: ToolArgs, ctx: ToolContext): Promise<To
       isError: true,
     };
   }
-  if (typeof decisionText !== "string" || decisionText.length < 1 || decisionText.length > 2000) {
+  if (typeof decisionText !== "string" || decisionText.trim().length < 1 || decisionText.length > 2000) {
     return {
       payload: { error: "invalid decision_text", expect: "1..2000 chars" },
       isError: true,
     };
   }
   if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const tmp = writeTempFile(decisionText);
+
+  const callerActor = process.env.FM_ACTOR ?? "local";
+  const auth = await isReleaseAuthorized(callerActor, originId as string, undefined, ctx);
+  if (!auth.authorized) {
+    return {
+      payload: { error: "release unauthorized", detail: auth.reason },
+      isError: true,
+    };
+  }
+
+  const decisionDigest = sha256Text(decisionText as string);
+  const tmp = writeTempFile(decisionText as string);
   try {
     const { payload, isError } = await ownedCall(
       argv(
@@ -1359,7 +1494,12 @@ async function toolDecisionResolve(args: ToolArgs, ctx: ToolContext): Promise<To
     );
     if (!isError) {
       return {
-        payload: { ...payload, origin_id: originId, decision_key: decisionKey },
+        payload: {
+          ...payload,
+          origin_id: originId,
+          decision_key: decisionKey,
+          decision_digest: decisionDigest,
+        },
         isError: false,
       };
     }
@@ -1369,10 +1509,141 @@ async function toolDecisionResolve(args: ToolArgs, ctx: ToolContext): Promise<To
   }
 }
 
+async function toolDecisionRelease(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const originId = args["origin_id"];
+  const decisionKey = args["decision_key"];
+  const taskId = args["id"];
+  const routedTo = args["routed_to"];
+  const decisionText = args["decision_text"];
+
+  // Validate target identification
+  if (originId !== undefined) {
+    if (!validId(originId)) {
+      return {
+        payload: { error: "invalid origin_id", expect: "short task id, no slashes or traversal" },
+        isError: true,
+      };
+    }
+    if (!validId(decisionKey)) {
+      return {
+        payload: { error: "invalid decision_key", expect: "short slug, no slashes or traversal" },
+        isError: true,
+      };
+    }
+  } else if (taskId !== undefined) {
+    if (!validId(taskId)) {
+      return {
+        payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
+        isError: true,
+      };
+    }
+  } else {
+    return {
+      payload: { error: "invalid target", expect: "either id or origin_id + decision_key" },
+      isError: true,
+    };
+  }
+
+  if (routedTo !== undefined && !validId(routedTo)) {
+    return {
+      payload: { error: "invalid routed_to", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+
+  if (typeof decisionText !== "string" || decisionText.trim().length < 1 || decisionText.length > 2000) {
+    return {
+      payload: { error: "invalid decision_text", expect: "1..2000 chars" },
+      isError: true,
+    };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+
+  const callerActor = process.env.FM_ACTOR ?? "local";
+  const auth = await isReleaseAuthorized(
+    callerActor,
+    originId as string | undefined,
+    taskId as string | undefined,
+    ctx,
+  );
+  if (!auth.authorized) {
+    return {
+      payload: { error: "release unauthorized", detail: auth.reason },
+      isError: true,
+    };
+  }
+
+  const decisionDigest = sha256Text(decisionText as string);
+  const tmp = writeTempFile(decisionText as string);
+
+  try {
+    if (originId && decisionKey && routedTo) {
+      // Route through fm-decision-hold.sh resolve
+      const { payload, isError } = await ownedCall(
+        argv(
+          path.join(ctx.binDir, "fm-decision-hold.sh"),
+          "resolve",
+          originId as string,
+          decisionKey as string,
+          "--decision-file",
+          tmp,
+          "--routed-to",
+          routedTo as string,
+        ),
+        "decision release refused or failed",
+        ctx.run,
+      );
+      if (!isError) {
+        return {
+          payload: {
+            ...payload,
+            origin_id: originId,
+            decision_key: decisionKey,
+            decision_digest: decisionDigest,
+          },
+          isError: false,
+        };
+      }
+      return { payload, isError: true };
+    } else {
+      // Direct release via fm-captain-hold.sh answer --release
+      const targetId = (taskId ?? `${originId}-decision-${decisionKey}`) as string;
+      const { payload, isError } = await ownedCall(
+        argv(
+          path.join(ctx.binDir, "fm-captain-hold.sh"),
+          "answer",
+          targetId,
+          "--decision-file",
+          tmp,
+          "--release",
+        ),
+        "decision release refused or failed",
+        ctx.run,
+      );
+      if (!isError) {
+        return {
+          payload: {
+            ...payload,
+            id: targetId,
+            origin_id: originId,
+            decision_key: decisionKey,
+            decision_digest: decisionDigest,
+          },
+          isError: false,
+        };
+      }
+      return { payload, isError: true };
+    }
+  } finally {
+    removeTempFile(tmp);
+  }
+}
+
 async function toolReviewDecision(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   const taskId = args["id"];
   const verdict = args["verdict"];
   const comment = args["comment"] ?? "";
+  const release = args["release"] === true;
   if (!validId(taskId)) {
     return {
       payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
@@ -1397,25 +1668,224 @@ async function toolReviewDecision(args: ToolArgs, ctx: ToolContext): Promise<Too
       isError: true,
     };
   }
+  if (args["release"] !== undefined && typeof args["release"] !== "boolean") {
+    return {
+      payload: { error: "invalid release", expect: "boolean" },
+      isError: true,
+    };
+  }
   if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+
+  // If release is requested, enforce SAFETY CORE
+  if (release) {
+    const callerActor = process.env.FM_ACTOR ?? "local";
+    const auth = await isReleaseAuthorized(callerActor, undefined, taskId as string, ctx);
+    if (!auth.authorized) {
+      return {
+        payload: { error: "release unauthorized", detail: auth.reason },
+        isError: true,
+      };
+    }
+  }
+
   const decisionText =
     typeof comment === "string" && comment.trim() !== ""
       ? `${verdict as string} - ${comment as string}`
       : (verdict as string);
+  const decisionDigest = sha256Text(decisionText);
   const tmp = writeTempFile(decisionText);
   try {
+    const cmdArgs = [
+      path.join(ctx.binDir, "fm-captain-hold.sh"),
+      "answer",
+      taskId as string,
+      "--decision-file",
+      tmp,
+    ];
+    if (release) {
+      cmdArgs.push("--release");
+    }
     const { payload, isError } = await ownedCall(
-      argv(path.join(ctx.binDir, "fm-captain-hold.sh"), "answer", taskId as string, "--decision-file", tmp),
+      argv(...cmdArgs),
       "review decision refused or failed",
       ctx.run,
     );
     if (!isError) {
-      return { payload: { ...payload, id: taskId, verdict }, isError: false };
+      return {
+        payload: {
+          ...payload,
+          id: taskId,
+          verdict,
+          release,
+          decision_digest: decisionDigest,
+        },
+        isError: false,
+      };
     }
     return { payload, isError: true };
   } finally {
     removeTempFile(tmp);
   }
+}
+
+async function toolDecisionComplete(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const originId = args["origin_id"];
+  const none = args["none"];
+  const taskIds = args["task_ids"];
+  if (!validId(originId)) {
+    return {
+      payload: { error: "invalid origin_id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (none !== undefined && typeof none !== "boolean") {
+    return {
+      payload: { error: "invalid none", expect: "boolean" },
+      isError: true,
+    };
+  }
+  if (none === true && taskIds !== undefined && Array.isArray(taskIds) && taskIds.length > 0) {
+    return {
+      payload: { error: "invalid task_ids", expect: "none cannot be combined with task_ids" },
+      isError: true,
+    };
+  }
+  let ids: string[] = [];
+  if (taskIds !== undefined) {
+    const parsed = validIdList(taskIds, 64);
+    if (!parsed) {
+      return {
+        payload: { error: "invalid task_ids", expect: "array of 1..64 valid task ids" },
+        isError: true,
+      };
+    }
+    ids = parsed;
+  }
+  if (none !== true && ids.length === 0) {
+    return {
+      payload: { error: "invalid task_ids", expect: "either none: true or non-empty task_ids required" },
+      isError: true,
+    };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+
+  const cmdArgs = [path.join(ctx.binDir, "fm-captain-hold.sh"), "complete", originId as string];
+  if (none === true) {
+    cmdArgs.push("--none");
+  } else {
+    cmdArgs.push(...ids);
+  }
+
+  const { payload, isError } = await ownedCall(
+    argv(...cmdArgs),
+    "decision complete refused or failed",
+    ctx.run,
+  );
+  if (!isError) {
+    return {
+      payload: { ...payload, origin_id: originId, none: none ?? false, task_ids: ids },
+      isError: false,
+    };
+  }
+  return { payload, isError: true };
+}
+
+async function toolDecisionVerify(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const originId = args["origin_id"];
+  if (!validId(originId)) {
+    return {
+      payload: { error: "invalid origin_id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-captain-hold.sh"), "verify", originId as string),
+    "decision verify refused or failed",
+    ctx.run,
+  );
+  if (!isError) {
+    return { payload: { ...payload, origin_id: originId, verified: true }, isError: false };
+  }
+  return { payload, isError: true };
+}
+
+async function toolDecisionOpen(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["id"];
+  const identity = args["identity"] === true;
+  const distinguishAbsent = args["distinguish_absent"] === true;
+  if (!validId(taskId)) {
+    return {
+      payload: { error: "invalid id", expect: "short task id, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  if (args["identity"] !== undefined && typeof args["identity"] !== "boolean") {
+    return {
+      payload: { error: "invalid identity", expect: "boolean" },
+      isError: true,
+    };
+  }
+  if (args["distinguish_absent"] !== undefined && typeof args["distinguish_absent"] !== "boolean") {
+    return {
+      payload: { error: "invalid distinguish_absent", expect: "boolean" },
+      isError: true,
+    };
+  }
+  const cmdArgs = [path.join(ctx.binDir, "fm-captain-hold.sh"), "open", taskId as string];
+  if (identity) cmdArgs.push("--identity");
+  if (distinguishAbsent) cmdArgs.push("--distinguish-absent");
+
+  const res = await ctx.run(argv(...cmdArgs));
+  if (!isRunResult(res)) {
+    return { payload: res as unknown as Record<string, unknown>, isError: true };
+  }
+  if (res.exitCode === 0) {
+    const out: Record<string, unknown> = { id: taskId, open: true };
+    if (identity && res.stdout.trim()) {
+      out["identity"] = res.stdout.trim();
+    }
+    return { payload: out, isError: false };
+  }
+  if (res.exitCode === 1) {
+    return { payload: { id: taskId, open: false }, isError: false };
+  }
+  if (res.exitCode === 3) {
+    return { payload: { id: taskId, open: false, absent: true }, isError: false };
+  }
+  return {
+    payload: {
+      error: "decision open refused or failed",
+      exitCode: res.exitCode,
+      stderr: res.stderr.trim(),
+    },
+    isError: true,
+  };
+}
+
+async function toolDecisionDiverged(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-captain-hold.sh"), "diverged"),
+    "decision diverged check refused or failed",
+    ctx.run,
+  );
+  if (!isError) {
+    const raw = typeof payload["stdout"] === "string" ? payload["stdout"] : "";
+    const lines = raw.trim() ? raw.trim().split("\n") : [];
+    const records = lines.map((l: string) => {
+      const [id, origin, key, title] = l.split("\t");
+      return { id, origin, key, title };
+    });
+    return {
+      payload: {
+        ...payload,
+        diverged: records.length > 0,
+        count: records.length,
+        records,
+      },
+      isError: false,
+    };
+  }
+  return { payload, isError: true };
 }
 
 async function toolRelayReply(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
@@ -2529,6 +2999,70 @@ export const TOOLS: Record<string, ToolDef> = {
     }),
     handler: toolDecisionResolve,
   },
+  decision_release: {
+    description:
+      "Authority write: release one captain hold via fm-decision-hold.sh resolve or fm-captain-hold.sh answer --release with a durable decision record.",
+    inputSchema: approvalSchema({
+      origin_id: { type: "string", description: "Origin task id for composed hold" },
+      decision_key: { type: "string", description: "Short slug when origin_id is given" },
+      id: { type: "string", description: "Direct task id to release" },
+      routed_to: { type: "string", description: "Task id receiving the decision" },
+      decision_text: { type: "string", description: "Decision record, 1..2000 chars" },
+    }),
+    handler: toolDecisionRelease,
+  },
+  decision_complete: {
+    description:
+      "Authority write: attest the reviewed inventory of captain-held tasks for an origin via fm-captain-hold.sh complete.",
+    inputSchema: approvalSchema({
+      origin_id: { type: "string", description: "Origin task id" },
+      none: { type: "boolean", description: "Explicit attestation that no captain decisions remain" },
+      task_ids: {
+        type: "array",
+        items: { type: "string" },
+        description: "List of captain-held task ids or keys",
+      },
+    }),
+    handler: toolDecisionComplete,
+  },
+  decision_verify: {
+    description:
+      "Open read: verify that an origin has completed its captain-call inventory and no open keyed decisions remain via fm-captain-hold.sh verify.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        origin_id: { type: "string", description: "Origin task id" },
+      },
+      required: ["origin_id"],
+      additionalProperties: false,
+    },
+    handler: toolDecisionVerify,
+  },
+  decision_open: {
+    description:
+      "Open read: check if a captain-held task is still open, optionally retrieving its lifecycle identity via fm-captain-hold.sh open.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Task id" },
+        identity: { type: "boolean", description: "Retrieve lifecycle identity" },
+        distinguish_absent: { type: "boolean", description: "Distinguish absent tasks from not-open tasks" },
+      },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    handler: toolDecisionOpen,
+  },
+  decision_diverged: {
+    description:
+      "Open read: check for divergence between status log decisions and durable captain holds via fm-captain-hold.sh diverged.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+    handler: toolDecisionDiverged,
+  },
   review_decision: {
     description:
       "Authority write: record one captain approve, decline, or comment via fm-captain-hold.sh answer with a decision file.",
@@ -2536,6 +3070,7 @@ export const TOOLS: Record<string, ToolDef> = {
       id: { type: "string" },
       verdict: { type: "string", enum: [...VERDICTS] },
       comment: { type: "string", description: "Optional single-line comment" },
+      release: { type: "boolean", description: "Release hold so held work resumes (tasks-axi unhold) instead of closing task" },
     }),
     handler: toolReviewDecision,
   },
