@@ -154,9 +154,11 @@ describe("expanded surface: 66 tools", () => {
     "mail_status", "mail_read", "mail_check", "voice_status",
     "lint_versions", "tool_update_check", "vendor_auth_probe",
     "startup_memory", "pr_state", "relay_poll",
+    "public_followup_pending", "public_followup_collect",
     "voice_queue", "mail_send",
     "receipt_submit", "receipt_status",
     "promote_scout", "teardown_crew", "arm_pr_check", "merge_pr", "merge_local",
+    "public_followup_emit", "relay_link",
     "repo_edit", "repo_commit", "repo_push", "repo_merge",
     "daemon_start", "daemon_stop", "daemon_restart", "daemon_status",
     "watch_start", "watch_stop",
@@ -164,10 +166,10 @@ describe("expanded surface: 66 tools", () => {
     "grant_mint", "grant_revoke", "grant_status",
   ];
 
-  it("server lists 87 tools", async () => {
+  it("server lists 91 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 87);
+    assert.equal(tools.length, 91);
   });
 
   for (const required of REQUIRED) {
@@ -196,6 +198,7 @@ describe("expanded surface: 66 tools", () => {
       "mail_status", "mail_read", "mail_check", "voice_status",
       "lint_versions", "tool_update_check", "vendor_auth_probe",
       "startup_memory", "pr_state", "relay_poll",
+      "public_followup_pending", "public_followup_collect",
       "receipt_submit", "receipt_status", "daemon_status", "grant_status",
       "decision_verify", "decision_open", "decision_diverged",
     ]);
@@ -973,6 +976,45 @@ describe("expanded surface: 66 tools", () => {
     const resp = await boxed.call("relay_poll", {});
     assert.equal(isError(resp), false);
     assert.ok(String(payload(resp)["stdout"] ?? "").includes("x-poll stub"));
+  });
+  it("public_followup_pending reads open loops without error", async () => {
+    const resp = await boxed.call("public_followup_pending", {});
+    assert.equal(isError(resp), false);
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("public-followup-stub:pending"));
+  });
+  it("public_followup_collect drains staged events with obligation echoed", async () => {
+    const resp = await boxed.call("public_followup_collect", { obligation_id: "ob-1" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["obligation_id"], "ob-1");
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("public-followup-collect-stub:drain id=ob-1"));
+  });
+  it("public_followup_collect rejects traversal obligation id", async () => {
+    assert.equal(isError(await boxed.call("public_followup_collect", { obligation_id: "../escape" })), true);
+  });
+  it("public_followup_emit refuses without approval", async () => {
+    const resp = await boxed.call("public_followup_emit", {
+      obligation_id: "ob-1",
+      relation_id: "rel-1",
+      source_home: "main",
+      work_id: "task-1",
+      generation: 1,
+      outcome: "pr-merged",
+      outcome_text: "done and landed",
+    });
+    assert.equal(isError(resp), true);
+  });
+  it("relay_link refuses without approval", async () => {
+    const resp = await boxed.call("relay_link", {
+      task_id: "task-1",
+      request_id: "req-1",
+    });
+    assert.equal(isError(resp), true);
+  });
+  it("relay_link rejects traversal task_id", async () => {
+    assert.equal(
+      isError(await boxed.call("relay_link", { task_id: "../x", request_id: "req-1", approval: APPROVAL })),
+      true,
+    );
   });
   it("decision_release records decision_digest in audit log", async () => {
     const auditFile = path.join(sandbox, "state", "mcp-audit.jsonl");

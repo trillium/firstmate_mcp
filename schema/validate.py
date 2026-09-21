@@ -82,6 +82,8 @@ CURRENT_PINS = {
     "grant_mint": "mcp-grant.v1",
     "grant_revoke": "mcp-grant.v1",
     "grant_status": "mcp-grant.v1",
+    "public_followup_pending": "fm-public-followup.pending.v1",
+    "public_followup_collect": "fm-public-followup-collect.drain.v1",
 }
 
 

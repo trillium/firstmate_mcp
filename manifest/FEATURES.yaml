@@ -585,6 +585,36 @@ features:
       reason: >-
         No-arg poll only; inert without the FMX pairing token, which
         lives outside MCP. Failures mean no wake this cycle, never a merge.
+  - id: public_followup_pending
+    kind: upstream-mirror
+    summary: Open public-followup loop digest; reports unresolved and delivered public loops without mutating state.
+    upstream_command: bin/fm-public-followup.sh
+    upstream_flags: ["pending"]
+    contract: schema/contracts.yaml#public_followup_pending
+    upstream_test: "ts/tests/conformance-system.test.ts::small-gaps equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:public_followup_pending"]}
+    divergence:
+      status: intentional
+      reason: >-
+        `pending` subcommand only — bounded read of open public commitments
+        for session-start digest. Delivery, registration, rechaining, and
+        retirement write state or post outward to relay and stay firstmate-owned.
+  - id: public_followup_collect
+    kind: upstream-mirror
+    summary: Non-destructively read typed terminal events staged in this home's outbox for an obligation.
+    upstream_command: bin/fm-public-followup-collect.sh
+    upstream_flags: ["drain", "<obligation_id>"]
+    contract: schema/contracts.yaml#public_followup_collect
+    upstream_test: "ts/tests/conformance-system.test.ts::small-gaps equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:public_followup_collect"]}
+    divergence:
+      status: intentional
+      reason: >-
+        `drain` subcommand only — non-destructively reads staged terminal
+        events waiting in outbox. `drop` retires staged events and stays
+        firstmate-owned.
   # ---- CHANGED: same owning scripts, narrower surface, per-call approval ----
   - id: lifecycle_interrupt
     kind: upstream-mirror

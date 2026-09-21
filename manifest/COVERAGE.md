@@ -20,11 +20,11 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Backlog / decisions](#backlog-decisions) | 4 | 0 | 9 |
 | [Secondmates / remotes](#secondmates-remotes) | 7 | 0 | 13 |
 | [PR pipeline](#pr-pipeline) | 2 | 5 | 4 |
-| [Relay](#relay) | 4 | 0 | 4 |
+| [Relay](#relay) | 6 | 2 | 0 |
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 |
 | [Installs](#installs) | 4 | 0 | 19 |
-| **Total** | **46** | **9** | **103** |
+| **Total** | **48** | **11** | **99** |
 
 ## Fleet runs
 
@@ -191,12 +191,12 @@ Public X surface: replies, dismissals, followups, polls, and links.
 
 | Command | Mirror status | Notes |
 | --- | --- | --- |
-| `fm-public-followup-collect.sh` | gap | retire terminal events staged for an owning home |
-| `fm-public-followup-emit.sh` | gap | emit staged public followups |
-| `fm-public-followup.sh` | gap | public followup surface |
+| `fm-public-followup-collect.sh` | mirrored — `public_followup_collect` (ts✔) | retire terminal events staged for an owning home |
+| `fm-public-followup-emit.sh` | denied-by-design — `public_followup_emit` | emit staged public followups. emitting staged terminal events advances public commitments toward delivery; only supervisor/crew workflow owns terminal event staging |
+| `fm-public-followup.sh` | mirrored — `public_followup_pending` (ts✔) | public followup surface |
 | `fm-x-dismiss.sh` | mirrored — `relay_dismiss` (ts✔) | dismiss one public item; same consent gate |
 | `fm-x-followup.sh` | mirrored — `relay_followup` (ts✔) | one public followup; same consent gate |
-| `fm-x-link.sh` | gap | link a task to the mention that triggered it |
+| `fm-x-link.sh` | denied-by-design — `relay_link` | link a task to the mention that triggered it. linking tasks to public relay mentions binds public reply budgets; only fmx-respond skill owns relay linking |
 | `fm-x-poll.sh` | mirrored — `relay_poll` (ts✔) | short-poll the relay connector; inert unless configured |
 | `fm-x-reply.sh` | mirrored — `relay_reply` (ts✔) | one public reply; inert without relay consent |
 
