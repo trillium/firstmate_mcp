@@ -48,6 +48,8 @@ script's observable output (modulo the envelope wrap).
 - `peek` — via `fm-peek.sh` (pinned in schema/contracts.yaml)
 - `pr_state` — via `fm-pr-state.sh` (pinned in schema/contracts.yaml)
 - `project_mode` — via `fm-project-mode.sh` (pinned in schema/contracts.yaml)
+- `public_followup_collect` — via `fm-public-followup-collect.sh` (pinned in schema/contracts.yaml)
+- `public_followup_pending` — via `fm-public-followup.sh` (pinned in schema/contracts.yaml)
 - `relay_poll` — via `fm-x-poll.sh` (pinned in schema/contracts.yaml)
 - `remote_delta` — via `fm-remote-delta-read.sh` (pinned in schema/contracts.yaml)
 - `remote_doctor` — via `fm-remote-doctor.sh` (pinned in schema/contracts.yaml)
@@ -98,6 +100,8 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - `merge_local` (code-forbidden)
 - `merge_pr` (code-forbidden)
 - `promote_scout` (code-forbidden)
+- `public_followup_emit` (out of smarts-only scope)
+- `relay_link` (out of smarts-only scope)
 - `repo_commit` (out of smarts-only scope)
 - `repo_edit` (out of smarts-only scope)
 - `repo_merge` (out of smarts-only scope)
@@ -141,7 +145,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` implements the 64-tool
+- TypeScript sibling — `ts/` implements the 66-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Customizable follow-on actions — `ts/src/followon.ts` provides configurable
@@ -183,7 +187,7 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | Backlog / decisions | 4 | 0 | 9 |
 | Secondmates / remotes | 7 | 0 | 13 |
 | PR pipeline | 2 | 5 | 4 |
-| Relay | 4 | 0 | 4 |
+| Relay | 6 | 2 | 0 |
 | Voice / mail | 4 | 0 | 0 |
 | Digests | 6 | 0 | 0 |
 | Installs | 4 | 0 | 19 |

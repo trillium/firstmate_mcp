@@ -2455,6 +2455,90 @@ async function toolRelayPoll(_args: ToolArgs, ctx: ToolContext): Promise<ToolRes
   return ownedCall(argv(path.join(ctx.binDir, "fm-x-poll.sh")), "relay poll failed", ctx.run);
 }
 
+async function toolPublicFollowupPending(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // Open public-followup loop digest; reports unresolved and delivered public loops without mutating state.
+  return ownedCall(
+    argv(path.join(ctx.binDir, "fm-public-followup.sh"), "pending"),
+    "public followup pending failed",
+    ctx.run,
+  );
+}
+
+async function toolPublicFollowupCollect(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // Non-destructively read typed terminal events staged in this home's outbox.
+  const obligationId = args["obligation_id"];
+  if (!validId(obligationId)) {
+    return {
+      payload: { error: "invalid obligation_id", expect: "short slug, no slashes or traversal" },
+      isError: true,
+    };
+  }
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-public-followup-collect.sh"), "drain", obligationId as string),
+    "public followup collect failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, obligation_id: obligationId }, isError: false };
+  return { payload, isError: true };
+}
+
+export async function toolPublicFollowupEmit(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const obligationId = args["obligation_id"];
+  const relationId = args["relation_id"];
+  const sourceHome = args["source_home"];
+  const workId = args["work_id"];
+  const generation = args["generation"];
+  const outcome = args["outcome"];
+  const outcomeText = args["outcome_text"];
+  if (!validId(obligationId)) {
+    return { payload: { error: "invalid obligation_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  if (!validId(relationId)) {
+    return { payload: { error: "invalid relation_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  if (typeof sourceHome !== "string" || (!sourceHome.startsWith("secondmate:") && sourceHome !== "main")) {
+    return { payload: { error: "invalid source_home", expect: "main or secondmate:<id>" }, isError: true };
+  }
+  if (!validId(workId)) {
+    return { payload: { error: "invalid work_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  if (typeof generation !== "number" || generation < 1 || !Number.isInteger(generation)) {
+    return { payload: { error: "invalid generation", expect: "integer >= 1" }, isError: true };
+  }
+  if (!validId(outcome)) {
+    return { payload: { error: "invalid outcome", expect: "short slug" }, isError: true };
+  }
+  if (typeof outcomeText !== "string" || outcomeText.length < 1 || outcomeText.length > 2000) {
+    return { payload: { error: "invalid outcome_text", expect: "1..2000 chars" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = [
+    path.join(ctx.binDir, "fm-public-followup-emit.sh"),
+    "--obligation", obligationId as string,
+    "--relation", relationId as string,
+    "--source-home", sourceHome as string,
+    "--work-id", workId as string,
+    "--generation", String(generation),
+    "--outcome", outcome as string,
+    "--outcome-text", outcomeText as string,
+  ];
+  return ownedCall(cmd, "public_followup_emit", ctx.run);
+}
+
+export async function toolRelayLink(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  const requestId = args["request_id"];
+  if (!validId(taskId)) {
+    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  if (!validId(requestId)) {
+    return { payload: { error: "invalid request_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = [path.join(ctx.binDir, "fm-x-link.sh"), taskId as string, requestId as string];
+  return ownedCall(cmd, "relay_link", ctx.run);
+}
+
 // --- Registry (schemas match the Python server's tools/list exactly) ---
 
 export interface ToolDef {
@@ -3464,6 +3548,50 @@ export const TOOLS: Record<string, ToolDef> = {
     description: "Read-only short-poll of the relay connector; hard no-op without relay consent.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     handler: toolRelayPoll,
+  },
+  public_followup_pending: {
+    description:
+      "Open public-followup loop digest; reports unresolved and delivered public loops without mutating state.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolPublicFollowupPending,
+  },
+  public_followup_collect: {
+    description:
+      "Non-destructively read typed terminal events staged in this home's outbox for an obligation.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        obligation_id: {
+          type: "string",
+          description: "tasks-axi public-followup obligation id (short slug)",
+        },
+      },
+      required: ["obligation_id"],
+      additionalProperties: false,
+    },
+    handler: toolPublicFollowupCollect,
+  },
+  public_followup_emit: {
+    description:
+      "Authority write: emit a structured terminal event for work bound to a public commitment.",
+    inputSchema: approvalSchema({
+      obligation_id: { type: "string" },
+      relation_id: { type: "string" },
+      source_home: { type: "string" },
+      work_id: { type: "string" },
+      generation: { type: "integer", minimum: 1 },
+      outcome: { type: "string" },
+      outcome_text: { type: "string" },
+    }),
+    handler: toolPublicFollowupEmit,
+  },
+  relay_link: {
+    description: "Authority write: link a task to the relay mention that triggered it.",
+    inputSchema: approvalSchema({
+      task_id: { type: "string" },
+      request_id: { type: "string" },
+    }),
+    handler: toolRelayLink,
   },
   receipt_submit: {
     description:

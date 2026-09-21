@@ -61,6 +61,8 @@ DENY_LIST = frozenset(
         "repo_commit",
         "repo_push",
         "repo_merge",
+        "public_followup_emit",
+        "relay_link",
     }
 )
 
@@ -135,6 +137,8 @@ TOOLS = {
     "startup_memory": ("fm-startup-memory-budget.sh", None, False),
     "pr_state": ("fm-pr-state.sh", None, False),
     "relay_poll": ("fm-x-poll.sh", None, False),
+    "public_followup_pending": ("fm-public-followup.sh", None, False),
+    "public_followup_collect": ("fm-public-followup-collect.sh", None, False),
 }
 
 TOOL_TIERS = {
@@ -149,6 +153,7 @@ TOOL_TIERS = {
     "mail_status": 1, "mail_read": 1, "mail_check": 1, "voice_status": 1,
     "lint_versions": 1, "tool_update_check": 1, "vendor_auth_probe": 1,
     "startup_memory": 1, "pr_state": 1, "relay_poll": 1,
+    "public_followup_pending": 1, "public_followup_collect": 1,
     "receipt_submit": 1, "receipt_status": 1, "grant_status": 1,
     "decision_verify": 1, "decision_open": 1, "decision_diverged": 1,
     "send_message": 2,

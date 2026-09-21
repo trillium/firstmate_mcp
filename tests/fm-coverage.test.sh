@@ -52,7 +52,7 @@ test_manifest_and_deny_appear() {
     harness_detect project_mode lock_status lease_check bearings_board_path \
     inbox_status inbox_list home_summary home_summary_refresh contributions_snapshot contributions_pending \
     mail_status mail_read mail_check voice_status lint_versions tool_update_check vendor_auth_probe \
-    startup_memory pr_state relay_poll \
+    startup_memory pr_state relay_poll public_followup_pending public_followup_collect \
     lifecycle_interrupt lifecycle_exit lifecycle_relaunch lifecycle_suspend lifecycle_resume \
     spawn_crew scaffold_brief decision_hold decision_resolve review_decision \
     secondmate_nudge secondmate_restart secondmate_report remote_control handoff_move \
@@ -65,7 +65,7 @@ test_manifest_and_deny_appear() {
   done
   for name in promote_scout teardown_crew arm_pr_check merge_pr merge_local \
     daemon_start daemon_stop daemon_restart watch_start watch_stop \
-    repo_edit repo_commit repo_push repo_merge; do
+    repo_edit repo_commit repo_push repo_merge public_followup_emit relay_link; do
     case "$(cat "$COVERAGE")" in
       *"$name"*) : ;;
       *) printf 'coverage missing DENY_LIST name: %s\n' "$name" >&2; missing=1 ;;

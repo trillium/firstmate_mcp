@@ -270,6 +270,8 @@ DENY_REASONS = {
     "repo_commit": ("policy: repo-mutation", "project changes belong to workers behind merge authority"),
     "repo_push": ("policy: repo-mutation", "project changes belong to workers behind merge authority"),
     "repo_merge": ("policy: repo-mutation", "project changes belong to workers behind merge authority"),
+    "public_followup_emit": ("fm-public-followup-emit.sh", "emitting staged terminal events advances public commitments toward delivery; only supervisor/crew workflow owns terminal event staging"),
+    "relay_link": ("fm-x-link.sh", "linking tasks to public relay mentions binds public reply budgets; only fmx-respond skill owns relay linking"),
 }
 
 DENY_LIST = frozenset(DENY_REASONS.keys())
