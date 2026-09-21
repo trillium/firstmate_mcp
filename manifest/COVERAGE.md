@@ -131,8 +131,8 @@ Queue mechanics and durable captain decisions: backlog moves, holds, verdicts.
 | `fm-backlog-import-beads.sh` (removed upstream) | gap | one-time backlog.md importer; removed upstream since pin |
 | `fm-backlog-receive.sh` | gap | remote outbox receipt |
 | `fm-bead-stamp.sh` (removed upstream) | gap | bead stamp helper; removed upstream since pin |
-| `fm-captain-hold.sh` | mirrored — `review_decision` (ts✔) | unified held-for-captain mechanics; supersedes review-decision upstream |
-| `fm-decision-hold.sh` | mirrored — `decision_hold` (ts✔), `decision_resolve` (ts✔) | durable captain holds behind approval |
+| `fm-captain-hold.sh` | mirrored — `decision_complete` (ts✔), `decision_verify` (ts✔), `decision_open` (ts✔), `decision_diverged` (ts✔), `review_decision` (ts✔) | unified held-for-captain mechanics; supersedes review-decision upstream |
+| `fm-decision-hold.sh` | mirrored — `decision_hold` (ts✔), `decision_resolve` (ts✔), `decision_release` (ts✔) | durable captain holds behind approval |
 | `fm-groom-json-field.sh` (removed upstream) | gap | groom field helper; removed upstream since pin |
 | `fm-groom.sh` (removed upstream) | gap | idea->brief->dispatch generator; removed upstream since pin |
 | `fm-ledger.sh` (removed upstream) | gap | landed-but-open bead surface; removed upstream since pin |

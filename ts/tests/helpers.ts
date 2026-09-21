@@ -80,8 +80,33 @@ export const STUBS: Record<string, string> = {
   "fm-control.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-spawn.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-brief.sh": "echo 'stub: refused' >&2\nexit 1\n",
-  "fm-decision-hold.sh": "echo 'stub: refused' >&2\nexit 1\n",
-  "fm-captain-hold.sh": "echo \"stub: captain-hold $1 $2\" >&2\nexit 1\n",
+  "fm-decision-hold.sh":
+    'if [ "$1" = "hold" ]; then echo "held: $2-decision-$3"; exit 0; ' +
+    'elif [ "$1" = "resolve" ]; then echo "resolved: $2-decision-$3 -> $7"; exit 0; ' +
+    'elif [ "$1" = "complete" ]; then echo "complete: $2"; exit 0; ' +
+    'elif [ "$1" = "verify" ]; then echo "verified: $2"; exit 0; ' +
+    'else echo "stub: refused" >&2; exit 1; fi\n',
+  "fm-captain-hold.sh":
+    'if [ "$1" = "answer" ]; then ' +
+    'if [ "$4" = "--release" ] || [ "$5" = "--release" ]; then echo "released: $2"; exit 0; ' +
+    'else echo "answered: $2"; exit 0; fi; ' +
+    'elif [ "$1" = "complete" ]; then echo "complete: $2"; exit 0; ' +
+    'elif [ "$1" = "verify" ]; then echo "verified: $2"; exit 0; ' +
+    'elif [ "$1" = "open" ]; then ' +
+    'if [ "$2" = "closed-task" ]; then exit 1; ' +
+    'elif [ "$2" = "absent-task" ]; then exit 3; ' +
+    'elif [ "$3" = "--identity" ]; then echo "2026-09-20T00:00:00Z 1"; exit 0; ' +
+    'else exit 0; fi; ' +
+    'elif [ "$1" = "diverged" ]; then echo "task-1\torigin-1\tk1\tDiverged title"; exit 0; ' +
+    'else echo "stub: captain-hold $1 $2" >&2; exit 1; fi\n',
+  "fm-tasks-axi.sh":
+    'if [ "$1" = "show" ]; then ' +
+    'if [ "$2" = "agent-hold" ]; then echo "  id: agent-hold\n  body: Origin: test-agent\n"; exit 0; ' +
+    'elif [ "$2" = "captain-hold" ]; then echo "  id: captain-hold\n  body: No origin here\n"; exit 0; ' +
+    'else echo "  id: $2\n"; exit 0; fi; ' +
+    'elif [ "$1" = "unblock" ]; then echo "unblocked: $2 by $4"; exit 0; ' +
+    'fi\n' +
+    'echo "tasks-axi-stub: ok"\n',
   "fm-x-reply.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-x-dismiss.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-x-followup.sh": "echo 'stub: refused' >&2\nexit 1\n",

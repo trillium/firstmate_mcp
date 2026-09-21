@@ -16,7 +16,8 @@
  *   targets still need their own nested approval string.)
  * - Tier 2 (reversible steer): send_message — no approval, validated text.
  * - Tier 3 (launch-authorized writes): lifecycle_*, spawn_crew,
- *   scaffold_brief, decision_hold, decision_resolve, review_decision,
+ *   scaffold_brief, decision_hold, decision_resolve, decision_release,
+ *   decision_complete, review_decision,
  *   secondmate_nudge, secondmate_restart, secondmate_report,
  *   remote_control, handoff_move, voice_queue — explicit per-call approval required.
  * - Tier 4 (external sends): relay_reply, relay_dismiss, relay_followup,
@@ -96,6 +97,11 @@ export const TOOL_TIERS: Record<string, Tier> = {
   scaffold_brief: TIER_AUTHORITY,
   decision_hold: TIER_AUTHORITY,
   decision_resolve: TIER_AUTHORITY,
+  decision_release: TIER_AUTHORITY,
+  decision_complete: TIER_AUTHORITY,
+  decision_verify: TIER_OPEN,
+  decision_open: TIER_OPEN,
+  decision_diverged: TIER_OPEN,
   review_decision: TIER_AUTHORITY,
   secondmate_nudge: TIER_AUTHORITY,
   secondmate_restart: TIER_AUTHORITY,
@@ -197,6 +203,7 @@ export const AUDIT_KEYS = [
   "target",
   "duration_ms",
   "transport",
+  "decision_digest",
 ] as const;
 
 export type TransportType = "stdio" | "http";
@@ -213,6 +220,7 @@ export interface AuditLine {
   target: string | null;
   duration_ms: number | null;
   transport: TransportType;
+  decision_digest: string | null;
 }
 
 function utcStamp(date: Date = new Date()): string {
@@ -231,6 +239,7 @@ export function buildLine(
     ts?: string;
     duration_ms?: number | null;
     transport?: TransportType;
+    decision_digest?: string | null;
   } = {},
 ): AuditLine {
   return {
@@ -248,6 +257,7 @@ export function buildLine(
         ? Math.max(0, Math.round(opts.duration_ms))
         : (opts.duration_ms ?? null),
     transport: opts.transport ?? "stdio",
+    decision_digest: opts.decision_digest ?? null,
   };
 }
 

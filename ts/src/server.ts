@@ -149,6 +149,13 @@ const AUDIT_VALIDATION_ERRORS: ReadonlySet<string> = new Set([
   "cannot read receipt",
   "cannot read status log",
   "no status log for id",
+  "invalid task_ids",
+  "invalid none",
+  "invalid identity",
+  "invalid distinguish_absent",
+  "invalid release",
+  "release unauthorized",
+  "release refused",
   "unexpected snapshot schema",
   "snapshot was not JSON",
   "snapshot too large for PoC envelope",
@@ -201,12 +208,19 @@ function auditAppend(
   durationMs: number | null = null,
   transport: TransportType = "stdio",
   actorOverride?: string,
+  decisionDigest: string | null = null,
 ): void {
   try {
     const actor = actorOverride ?? process.env.FM_ACTOR ?? (transport === "http" ? "http-audit" : "local");
     appendAudit(
       auditPath(ctx),
-      buildLine(actor, tool, decision, reason, { approval, target, duration_ms: durationMs, transport }),
+      buildLine(actor, tool, decision, reason, {
+        approval,
+        target,
+        duration_ms: durationMs,
+        transport,
+        decision_digest: decisionDigest,
+      }),
     );
   } catch {
     /* audit is best-effort; never break a tool call */
@@ -227,11 +241,18 @@ export function auditAppendEffect(
   durationMs: number | null = null,
   transport: TransportType = "stdio",
   actorOverride?: string,
+  decisionDigest: string | null = null,
 ): Effect.Effect<void, never, AuditService> {
   return Effect.gen(function* () {
     const audit = yield* AuditService;
     const actor = actorOverride ?? process.env.FM_ACTOR ?? (transport === "http" ? "http-audit" : "local");
-    const line = buildLine(actor, tool, decision, reason, { approval, target, duration_ms: durationMs, transport });
+    const line = buildLine(actor, tool, decision, reason, {
+      approval,
+      target,
+      duration_ms: durationMs,
+      transport,
+      decision_digest: decisionDigest,
+    });
     yield* audit.append(auditPath(ctx), line).pipe(Effect.ignore);
   });
 }
@@ -284,6 +305,10 @@ export async function handleToolsCall(
     isError = true;
   }
   const duration_ms = Math.max(0, Math.round(performance.now() - start));
+  const decisionDigest =
+    typeof payload === "object" && payload !== null && typeof payload["decision_digest"] === "string"
+      ? (payload["decision_digest"] as string)
+      : null;
   {
     const [decision, reason] = auditDecision(args, payload, isError);
     let approval = (args as Record<string, unknown>)["approval"];
@@ -293,7 +318,7 @@ export async function handleToolsCall(
         approval = (nested as Record<string, unknown>)["approval"];
       }
     }
-    auditAppend(ctx, toolLabel, decision, reason, approval, auditTarget(args), duration_ms, transport, actorOverride);
+    auditAppend(ctx, toolLabel, decision, reason, approval, auditTarget(args), duration_ms, transport, actorOverride, decisionDigest);
   }
   const result: Record<string, unknown> = {
     content: [{ type: "text", text: JSON.stringify(payload) }],
@@ -344,7 +369,8 @@ export function handleToolsCallEffect(
       approval: unknown,
       target: string | null,
       durationMs: number | null,
-    ) => auditAppendEffect(ctx, toolLabel, decision, reason, approval, target, durationMs, transport, actorOverride);
+      decisionDigest: string | null = null,
+    ) => auditAppendEffect(ctx, toolLabel, decision, reason, approval, target, durationMs, transport, actorOverride, decisionDigest);
     if (typeof name !== "string" || !(name in TOOLS)) {
       const duration_ms = Math.max(0, Math.round(performance.now() - start));
       yield* append(
@@ -388,6 +414,10 @@ export function handleToolsCallEffect(
       isError = true;
     }
     const duration_ms = Math.max(0, Math.round(performance.now() - start));
+    const decisionDigest =
+      typeof payload === "object" && payload !== null && typeof payload["decision_digest"] === "string"
+        ? (payload["decision_digest"] as string)
+        : null;
     {
       const [decision, reason] = auditDecision(args, payload, isError);
       let approval = (args as Record<string, unknown>)["approval"];
@@ -397,7 +427,7 @@ export function handleToolsCallEffect(
           approval = (nested as Record<string, unknown>)["approval"];
         }
       }
-      yield* append(decision, reason, approval, auditTarget(args), duration_ms);
+      yield* append(decision, reason, approval, auditTarget(args), duration_ms, decisionDigest);
     }
     const result: Record<string, unknown> = {
       content: [{ type: "text", text: JSON.stringify(payload) }],
