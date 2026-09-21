@@ -44,6 +44,7 @@ const TIER1_TOOLS = [
   "lint_versions", "tool_update_check", "vendor_auth_probe",
   "startup_memory", "pr_state", "relay_poll",
   "public_followup_pending", "public_followup_collect",
+  "tasks_list", "tasks_show", "tasks_ready",
   "receipt_submit", "receipt_status", "daemon_status", "grant_status",
   "decision_verify", "decision_open", "decision_diverged",
 ];
@@ -56,7 +57,7 @@ const TIER4_TOOLS = Object.entries(TOOL_TIERS)
 
 describe("tier assignments", () => {
   it("covers every tool", () => {
-    assert.equal(Object.keys(TOOL_TIERS).length, 93);
+    assert.equal(Object.keys(TOOL_TIERS).length, 97);
   });
   it("tier 1 is open reads", () => {
     for (const tool of TIER1_TOOLS) assert.equal(tierOf(tool), TIER_OPEN, tool);
@@ -65,7 +66,7 @@ describe("tier assignments", () => {
     assert.equal(tierOf("send_message"), TIER_STEER);
   });
   it("tier 3 is authority writes", () => {
-    assert.equal(TIER3_TOOLS.length, 42);
+    assert.equal(TIER3_TOOLS.length, 43);
     for (const tool of TIER3_TOOLS) assert.equal(tierOf(tool), TIER_AUTHORITY, tool);
   });
   it("tier 4 is external sends", () => {

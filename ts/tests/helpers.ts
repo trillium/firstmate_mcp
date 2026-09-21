@@ -112,8 +112,11 @@ export const STUBS: Record<string, string> = {
     'elif [ "$2" = "captain-hold" ]; then echo "  id: captain-hold\n  body: No origin here\n"; exit 0; ' +
     'else echo "  id: $2\n"; exit 0; fi; ' +
     'elif [ "$1" = "unblock" ]; then echo "unblocked: $2 by $4"; exit 0; ' +
+    'elif [ "$1" = "list" ]; then echo "tasks-axi-stub: list\n"; exit 0; ' +
+    'elif [ "$1" = "ready" ]; then echo "tasks-axi-stub: ready\n"; exit 0; ' +
     'fi\n' +
     'echo "tasks-axi-stub: ok"\n',
+  "fm-backlog-receive.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-x-reply.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-x-dismiss.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-x-followup.sh": "echo 'stub: refused' >&2\nexit 1\n",

@@ -155,11 +155,13 @@ describe("expanded surface: 66 tools", () => {
     "lint_versions", "tool_update_check", "vendor_auth_probe",
     "startup_memory", "pr_state", "relay_poll",
     "public_followup_pending", "public_followup_collect",
+    "tasks_list", "tasks_show", "tasks_ready",
     "voice_queue", "mail_send",
     "receipt_submit", "receipt_status",
     "promote_scout", "teardown_crew", "arm_pr_check", "merge_pr", "merge_local",
     "public_followup_emit", "relay_link",
     "fleet_sync", "inactive_reconcile",
+    "backlog_receive",
     "repo_edit", "repo_commit", "repo_push", "repo_merge",
     "daemon_start", "daemon_stop", "daemon_restart", "daemon_status",
     "watch_start", "watch_stop",
@@ -167,10 +169,10 @@ describe("expanded surface: 66 tools", () => {
     "grant_mint", "grant_revoke", "grant_status",
   ];
 
-  it("server lists 93 tools", async () => {
+  it("server lists 97 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 93);
+    assert.equal(tools.length, 97);
   });
 
   for (const required of REQUIRED) {
@@ -200,6 +202,7 @@ describe("expanded surface: 66 tools", () => {
       "lint_versions", "tool_update_check", "vendor_auth_probe",
       "startup_memory", "pr_state", "relay_poll",
       "public_followup_pending", "public_followup_collect",
+      "tasks_list", "tasks_show", "tasks_ready",
       "receipt_submit", "receipt_status", "daemon_status", "grant_status",
       "decision_verify", "decision_open", "decision_diverged",
     ]);
@@ -1046,6 +1049,66 @@ describe("expanded surface: 66 tools", () => {
   it("inactive_reconcile acknowledge mode rejects non-hex fingerprint", async () => {
     assert.equal(
       isError(await boxed.call("inactive_reconcile", { mode: "acknowledge", fingerprint: "not-hex!", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("tasks_list returns listing", async () => {
+    const resp = await boxed.call("tasks_list", {});
+    assert.equal(isError(resp), false);
+  });
+  it("tasks_list rejects invalid state", async () => {
+    assert.equal(
+      isError(await boxed.call("tasks_list", { state: "invalid_state" })),
+      true,
+    );
+  });
+  it("tasks_list rejects traversal repo", async () => {
+    assert.equal(
+      isError(await boxed.call("tasks_list", { repo: "../escape" })),
+      true,
+    );
+  });
+  it("tasks_show returns task details", async () => {
+    const resp = await boxed.call("tasks_show", { id: "agent-hold" });
+    assert.equal(isError(resp), false);
+  });
+  it("tasks_show rejects missing or invalid id", async () => {
+    assert.equal(isError(await boxed.call("tasks_show", {})), true);
+    assert.equal(isError(await boxed.call("tasks_show", { id: "../escape" })), true);
+  });
+  it("tasks_ready returns ready tasks", async () => {
+    const resp = await boxed.call("tasks_ready", {});
+    assert.equal(isError(resp), false);
+  });
+  it("backlog_receive refuses without approval", async () => {
+    const resp = await boxed.call("backlog_receive", {});
+    assert.equal(isError(resp), true);
+  });
+  it("backlog_receive rejects invalid path", async () => {
+    assert.equal(
+      isError(
+        await boxed.call("backlog_receive", {
+          path: "data/invalid.md",
+          bytes: 100,
+          sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          generation: 1,
+          approval: APPROVAL,
+        }),
+      ),
+      true,
+    );
+  });
+  it("backlog_receive rejects invalid sha256", async () => {
+    assert.equal(
+      isError(
+        await boxed.call("backlog_receive", {
+          path: "state/handoff/sm1.outbox.md",
+          bytes: 100,
+          sha256: "not-64-hex",
+          generation: 1,
+          approval: APPROVAL,
+        }),
+      ),
       true,
     );
   });

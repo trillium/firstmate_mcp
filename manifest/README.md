@@ -72,6 +72,7 @@ automatic merge.
 | `review_decision` | `bin/fm-captain-hold.sh answer` | adapter safe-verdict subset | ✅ | ✅ | intentional: approval gate + closed verdict set via answer decision file |
 | `relay_reply/dismiss/followup` | `bin/fm-x-*.sh` | adapter + external relay consent | ✅ | ✅ | intentional: approval gate on top of external consent |
 | `public_followup_pending` / `public_followup_collect` | `bin/fm-public-followup.sh pending` / `bin/fm-public-followup-collect.sh drain` | `schema/contracts.yaml#public_followup_pending` | ✅ | ✅ | intentional: pending digest and non-destructive drain only; delivery, emit, drop, and link stay firstmate-owned |
+| `tasks_list` / `tasks_show` / `tasks_ready` | `bin/fm-tasks-axi.sh list` / `show` / `ready` | `schema/contracts.yaml#tasks_list` | ✅ | ✅ | intentional: read-only list, show, and ready queries; queue writes and moves stay firstmate-owned |
 
 Equivalence proof: `tests/conformance/` replays read tools against the
 owning scripts under a scratch home; write tools never dispatch there by
