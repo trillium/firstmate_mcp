@@ -16,6 +16,7 @@ import {
   Client,
   isError,
   makeStubHome,
+  makeTasksStubHome,
   payload,
   removeHome,
 } from "./helpers.js";
@@ -1157,6 +1158,195 @@ describe("expanded surface: 66 tools", () => {
       assert.equal(matching.decision_digest, digest);
     } finally {
       await client.close();
+    }
+  });
+});
+
+describe("paginated fleet reads: fleet_snapshot and backlog", () => {
+  let taskHome: string;
+  let taskClient: Client;
+
+  before(() => {
+    taskHome = makeTasksStubHome(5); // 5 tasks: task-000 .. task-004
+    taskClient = new Client({ FM_HOME: taskHome });
+  });
+
+  after(async () => {
+    await taskClient.close();
+    removeHome(taskHome);
+  });
+
+  it("unpaginated fleet_snapshot returns canonical schema with snapshot_id attached", async () => {
+    const snap = payload(await taskClient.call("fleet_snapshot", {}));
+    assert.equal(snap["schema"], "fm-fleet-snapshot.v1");
+    assert.ok(typeof snap["snapshot_id"] === "string");
+    assert.ok((snap["snapshot_id"] as string).startsWith("snap-"));
+    assert.equal(((snap["tasks"] as unknown[]) ?? []).length, 5);
+  });
+
+  it("paginated fleet_snapshot page 1 returns summary, page slice, next_cursor, truncated", async () => {
+    const resp = await taskClient.call("fleet_snapshot", { limit: 2 });
+    assert.equal(isError(resp), false);
+    const snap = payload(resp);
+    assert.equal(snap["schema"], "fm-fleet-snapshot.v1");
+    assert.ok(typeof snap["snapshot_id"] === "string");
+    const snapId = snap["snapshot_id"] as string;
+
+    const summary = snap["summary"] as Record<string, unknown>;
+    assert.ok(summary, "summary must be present");
+    assert.equal(summary["total"], 5);
+    assert.equal(summary["generated"], "2026-09-21T12:00:00Z");
+    assert.equal(summary["rev"], "rev-test-1");
+    const byState = summary["by_state"] as Record<string, number>;
+    assert.equal(byState["in_flight"], 3);
+    assert.equal(byState["queued"], 2);
+
+    const page = snap["page"] as Array<Record<string, unknown>>;
+    assert.equal(page.length, 2);
+    assert.equal(page[0]!["task_id"], "task-000");
+    assert.equal(page[1]!["task_id"], "task-001");
+
+    assert.equal(snap["next_cursor"], `${snapId}:2`);
+    assert.equal(snap["truncated"], true);
+  });
+
+  it("paginated fleet_snapshot page 2 uses cursor to read from cache without script execution", async () => {
+    // First get page 1 to have the snapshot ID
+    const snap1 = payload(await taskClient.call("fleet_snapshot", { limit: 2 }));
+    const nextCursor = snap1["next_cursor"] as string;
+
+    // Remove the script in the stub home to prove this read is 100% from state cache
+    const scriptPath = path.join(taskHome, "bin", "fm-fleet-snapshot.sh");
+    const savedScript = fs.readFileSync(scriptPath, "utf8");
+    fs.writeFileSync(scriptPath, "#!/bin/sh\nexit 99\n", "utf8");
+
+    try {
+      const resp = await taskClient.call("fleet_snapshot", { cursor: nextCursor, limit: 2 });
+      assert.equal(isError(resp), false);
+      const snap2 = payload(resp);
+      assert.equal(snap2["snapshot_id"], snap1["snapshot_id"]);
+      const page = snap2["page"] as Array<Record<string, unknown>>;
+      assert.equal(page.length, 2);
+      assert.equal(page[0]!["task_id"], "task-002");
+      assert.equal(page[1]!["task_id"], "task-003");
+      assert.equal(snap2["next_cursor"], `${snap1["snapshot_id"]}:4`);
+      assert.equal(snap2["truncated"], true);
+
+      // Page 3: final item
+      const resp3 = await taskClient.call("fleet_snapshot", { cursor: snap2["next_cursor"] as string, limit: 2 });
+      assert.equal(isError(resp3), false);
+      const snap3 = payload(resp3);
+      const page3 = snap3["page"] as Array<Record<string, unknown>>;
+      assert.equal(page3.length, 1);
+      assert.equal(page3[0]!["task_id"], "task-004");
+      assert.equal(snap3["next_cursor"], null);
+      assert.equal(snap3["truncated"], false);
+    } finally {
+      fs.writeFileSync(scriptPath, savedScript, "utf8");
+    }
+  });
+
+  it("fleet_snapshot beyond total offset returns empty page with null next_cursor", async () => {
+    const snap1 = payload(await taskClient.call("fleet_snapshot", { limit: 2 }));
+    const snapId = snap1["snapshot_id"] as string;
+
+    const resp = await taskClient.call("fleet_snapshot", { cursor: `${snapId}:100`, limit: 10 });
+    assert.equal(isError(resp), false);
+    const snap = payload(resp);
+    assert.equal(((snap["page"] as unknown[]) ?? []).length, 0);
+    assert.equal(snap["next_cursor"], null);
+    assert.equal(snap["truncated"], false);
+  });
+
+  it("fleet_snapshot accepts integer cursor with explicit snapshot_id", async () => {
+    const snap1 = payload(await taskClient.call("fleet_snapshot", { limit: 2 }));
+    const snapId = snap1["snapshot_id"] as string;
+
+    const resp = await taskClient.call("fleet_snapshot", { cursor: 2, snapshot_id: snapId, limit: 2 });
+    assert.equal(isError(resp), false);
+    const snap = payload(resp);
+    const page = snap["page"] as Array<Record<string, unknown>>;
+    assert.equal(page.length, 2);
+    assert.equal(page[0]!["task_id"], "task-002");
+  });
+
+  it("fleet_snapshot rejects invalid cursor and limit arguments", async () => {
+    assert.equal(isError(await taskClient.call("fleet_snapshot", { limit: -1 })), true);
+    assert.equal(isError(await taskClient.call("fleet_snapshot", { limit: "bad" })), true);
+    assert.equal(isError(await taskClient.call("fleet_snapshot", { cursor: "bad_cursor" })), true);
+    assert.equal(isError(await taskClient.call("fleet_snapshot", { cursor: 10 })), true); // offset > 0 without snapshot_id
+    assert.equal(isError(await taskClient.call("fleet_snapshot", { cursor: "snap-123:10", snapshot_id: "snap-456" })), true); // mismatch
+    assert.equal(isError(await taskClient.call("fleet_snapshot", { snapshot_id: "../traversal" })), true);
+  });
+
+  it("fleet_snapshot returns structured error for unknown snapshot_id", async () => {
+    const resp = await taskClient.call("fleet_snapshot", { cursor: "snap-0000000000000000:0" });
+    assert.equal(isError(resp), true);
+    assert.equal(payload(resp)["error"], "unknown snapshot");
+  });
+
+  it("unpaginated backlog returns records plus counts and snapshot_id", async () => {
+    const back = payload(await taskClient.call("backlog", {}));
+    assert.ok(typeof back["snapshot_id"] === "string");
+    assert.equal(back["generated"], "2026-09-21T12:00:00Z");
+    assert.ok("backlog" in back && "task_counts" in back);
+    const counts = back["task_counts"] as Record<string, unknown>;
+    assert.equal(counts["total"], 5);
+  });
+
+  it("paginated backlog page 1 returns summary, backlog, task_counts, page slice, next_cursor, truncated", async () => {
+    const resp = await taskClient.call("backlog", { limit: 2 });
+    assert.equal(isError(resp), false);
+    const back = payload(resp);
+    assert.ok(typeof back["snapshot_id"] === "string");
+    const snapId = back["snapshot_id"] as string;
+
+    const summary = back["summary"] as Record<string, unknown>;
+    assert.ok(summary, "summary must be present");
+    assert.equal(summary["total"], 5);
+    assert.equal(summary["generated"], "2026-09-21T12:00:00Z");
+    assert.equal(summary["rev"], "rev-test-1");
+
+    assert.ok("backlog" in back);
+    assert.ok("task_counts" in back);
+
+    const page = back["page"] as Array<Record<string, unknown>>;
+    assert.equal(page.length, 2);
+    assert.equal(page[0]!["task_id"], "task-000");
+    assert.equal(page[1]!["task_id"], "task-001");
+
+    assert.equal(back["next_cursor"], `${snapId}:2`);
+    assert.equal(back["truncated"], true);
+
+    // Follow-up page 2
+    const resp2 = await taskClient.call("backlog", { cursor: back["next_cursor"] as string, limit: 2 });
+    assert.equal(isError(resp2), false);
+    const back2 = payload(resp2);
+    const page2 = back2["page"] as Array<Record<string, unknown>>;
+    assert.equal(page2.length, 2);
+    assert.equal(page2[0]!["task_id"], "task-002");
+    assert.equal(page2[1]!["task_id"], "task-003");
+  });
+
+  it("cross-home isolation: cached snapshots never leak across homes", async () => {
+    const homeA = makeTasksStubHome(3);
+    const homeB = makeStubHome();
+    const clientA = new Client({ FM_HOME: homeA });
+    const clientB = new Client({ FM_HOME: homeB });
+
+    try {
+      const snapA = payload(await clientA.call("fleet_snapshot", { limit: 1 }));
+      const snapIdA = snapA["snapshot_id"] as string;
+
+      // Client B attempts to read snapshot created in home A
+      const respB = await clientB.call("fleet_snapshot", { cursor: `${snapIdA}:0`, limit: 1 });
+      assert.equal(isError(respB), true);
+      assert.equal(payload(respB)["error"], "unknown snapshot");
+    } finally {
+      await clientA.close();
+      await clientB.close();
+      removeHome(homeA);
+      removeHome(homeB);
     }
   });
 });

@@ -48,7 +48,12 @@ import {
   REMOTE_FILE_DEFAULT_MAX_BYTES,
   RESTART_IDS_MAX,
   SEND_TEXT_MAX_CHARS,
+  SNAPSHOT_DEFAULT_LIMIT,
+  SNAPSHOT_DIRNAME,
+  SNAPSHOT_MAX_LIMIT,
+  SNAPSHOT_MIN_LIMIT,
   SNAPSHOT_SCHEMA,
+  SNAPSHOT_TTL_S,
   VERDICTS,
   YOLO,
   binDir as defaultBinDir,
@@ -88,6 +93,8 @@ import {
   validMergeMethod,
   validNonnegInt,
   validNote,
+  validPageLimit,
+  parseSnapshotCursor,
   validPeekLines,
   validProbe,
   validProject,
@@ -394,9 +401,105 @@ function sleepSyncMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// --- SUPPORTED: open reads + the single safe steer ---
+function snapshotDir(ctx: ToolContext): string {
+  return path.join(ctx.stateDir, SNAPSHOT_DIRNAME);
+}
 
-async function toolFleetSnapshot(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+function writeCachedSnapshot(
+  ctx: ToolContext,
+  snapshotId: string,
+  snapshot: Record<string, unknown>,
+): boolean {
+  const dir = snapshotDir(ctx);
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.resolve(dir, `${snapshotId}.json`);
+  if (path.dirname(file) !== path.resolve(dir)) return false;
+  const record: Record<string, unknown> = {
+    snapshot_id: snapshotId,
+    created: utcNow(),
+    created_epoch: Date.now() / 1000,
+    ttl_s: SNAPSHOT_TTL_S,
+    snapshot,
+  };
+  const tmp = `${file}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(record), "utf8");
+  fs.renameSync(tmp, file);
+  return true;
+}
+
+function readCachedSnapshot(
+  ctx: ToolContext,
+  snapshotId: unknown,
+): { snapshot: Record<string, unknown> | null; error: Record<string, unknown> | null } {
+  if (!validId(snapshotId)) {
+    return {
+      snapshot: null,
+      error: {
+        error: "invalid snapshot_id",
+        expect: "short snapshot id, no slashes or traversal",
+      },
+    };
+  }
+  const dir = path.resolve(snapshotDir(ctx));
+  const file = path.resolve(dir, `${snapshotId}.json`);
+  if (path.dirname(file) !== dir) {
+    return {
+      snapshot: null,
+      error: {
+        error: "invalid snapshot_id",
+        expect: "short snapshot id, no slashes or traversal",
+      },
+    };
+  }
+  let record: Record<string, unknown>;
+  try {
+    record = JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>;
+  } catch (exc) {
+    const nodeErr = exc as NodeJS.ErrnoException;
+    if (nodeErr?.code === "ENOENT") {
+      return { snapshot: null, error: { error: "unknown snapshot", snapshot_id: snapshotId } };
+    }
+    return { snapshot: null, error: { error: "cannot read snapshot", detail: String(exc) } };
+  }
+  if (typeof record !== "object" || record === null || record["snapshot_id"] !== snapshotId) {
+    return { snapshot: null, error: { error: "unknown snapshot", snapshot_id: snapshotId } };
+  }
+  const createdEpoch = typeof record["created_epoch"] === "number" ? record["created_epoch"] : NaN;
+  const age = Date.now() / 1000 - createdEpoch;
+  const ttl = typeof record["ttl_s"] === "number" ? record["ttl_s"] : SNAPSHOT_TTL_S;
+  if (!(age <= ttl)) {
+    try {
+      fs.rmSync(file, { force: true });
+    } catch {
+      /* expiry unlink is best-effort */
+    }
+    return {
+      snapshot: null,
+      error: { error: "snapshot expired", snapshot_id: snapshotId, ttl_s: ttl },
+    };
+  }
+  const snap = record["snapshot"];
+  if (typeof snap !== "object" || snap === null) {
+    return { snapshot: null, error: { error: "corrupt snapshot record", snapshot_id: snapshotId } };
+  }
+  return { snapshot: snap as Record<string, unknown>, error: null };
+}
+
+async function getOrFetchSnapshot(
+  ctx: ToolContext,
+  snapshotId: string | null,
+): Promise<
+  | { snapshotId: string; snapshot: Record<string, unknown>; isError: false }
+  | { payload: Record<string, unknown>; isError: true }
+> {
+  if (snapshotId !== null) {
+    const { snapshot, error } = readCachedSnapshot(ctx, snapshotId);
+    if (snapshot === null) {
+      return { payload: error ?? { error: "cannot read snapshot" }, isError: true };
+    }
+    return { snapshotId, snapshot, isError: false };
+  }
+
   const res = await ctx.run([path.join(ctx.binDir, "fm-fleet-snapshot.sh"), "--json"]);
   if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
   if (res.exitCode !== 0) {
@@ -422,24 +525,171 @@ async function toolFleetSnapshot(_args: ToolArgs, ctx: ToolContext): Promise<Too
       isError: true,
     };
   }
-  return { payload: snapshot, isError: false };
+  const newId = `snap-${randomBytes(8).toString("hex")}`;
+  try {
+    writeCachedSnapshot(ctx, newId, snapshot);
+  } catch {
+    /* caching failure is best effort */
+  }
+  return { snapshotId: newId, snapshot, isError: false };
 }
 
-async function toolBacklog(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const { payload: snapshot, isError } = await toolFleetSnapshot({}, ctx);
-  if (isError) return { payload: snapshot, isError: true };
-  const byState: Record<string, number> = {};
+// --- SUPPORTED: open reads + the single safe steer ---
+
+async function toolFleetSnapshot(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const isPaginated =
+    args["cursor"] !== undefined ||
+    args["limit"] !== undefined ||
+    args["snapshot_id"] !== undefined;
+
+  let limit = SNAPSHOT_DEFAULT_LIMIT;
+  if (args["limit"] !== undefined) {
+    const parsedLimit = validPageLimit(args["limit"]);
+    if (parsedLimit === null) {
+      return {
+        payload: {
+          error: "invalid limit",
+          expect: `integer ${SNAPSHOT_MIN_LIMIT}..${SNAPSHOT_MAX_LIMIT}`,
+        },
+        isError: true,
+      };
+    }
+    limit = parsedLimit;
+  }
+
+  const cursorResult = parseSnapshotCursor(args["cursor"], args["snapshot_id"]);
+  if (!cursorResult.ok) {
+    return {
+      payload: { error: cursorResult.error, expect: cursorResult.expect },
+      isError: true,
+    };
+  }
+
+  const snapResult = await getOrFetchSnapshot(ctx, cursorResult.snapshotId);
+  if (snapResult.isError) return { payload: snapResult.payload, isError: true };
+
+  const { snapshotId, snapshot } = snapResult;
   const tasks = (snapshot["tasks"] as Array<Record<string, unknown>>) ?? [];
+
+  if (!isPaginated) {
+    return {
+      payload: {
+        ...snapshot,
+        snapshot_id: snapshotId,
+      },
+      isError: false,
+    };
+  }
+
+  const byState: Record<string, number> = {};
   for (const task of tasks) {
     const current = (task["current_state"] as Record<string, unknown> | undefined) ?? {};
     const state = (current["state"] as string) || "unknown";
     byState[state] = (byState[state] ?? 0) + 1;
   }
+
+  const offset = cursorResult.offset;
+  const page = tasks.slice(offset, offset + limit);
+  const nextOffset = offset + page.length;
+  const hasMore = nextOffset < tasks.length;
+  const nextCursor = hasMore ? `${snapshotId}:${nextOffset}` : null;
+  const truncated = hasMore;
+
   return {
     payload: {
+      schema: SNAPSHOT_SCHEMA,
+      snapshot_id: snapshotId,
       generated: snapshot["generated"],
+      summary: {
+        total: tasks.length,
+        by_state: byState,
+        generated: snapshot["generated"],
+        rev: (snapshot["rev"] ?? snapshot["generation"] ?? null) as string | null,
+      },
+      page,
+      next_cursor: nextCursor,
+      truncated,
+    },
+    isError: false,
+  };
+}
+
+async function toolBacklog(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const isPaginated =
+    args["cursor"] !== undefined ||
+    args["limit"] !== undefined ||
+    args["snapshot_id"] !== undefined;
+
+  let limit = SNAPSHOT_DEFAULT_LIMIT;
+  if (args["limit"] !== undefined) {
+    const parsedLimit = validPageLimit(args["limit"]);
+    if (parsedLimit === null) {
+      return {
+        payload: {
+          error: "invalid limit",
+          expect: `integer ${SNAPSHOT_MIN_LIMIT}..${SNAPSHOT_MAX_LIMIT}`,
+        },
+        isError: true,
+      };
+    }
+    limit = parsedLimit;
+  }
+
+  const cursorResult = parseSnapshotCursor(args["cursor"], args["snapshot_id"]);
+  if (!cursorResult.ok) {
+    return {
+      payload: { error: cursorResult.error, expect: cursorResult.expect },
+      isError: true,
+    };
+  }
+
+  const snapResult = await getOrFetchSnapshot(ctx, cursorResult.snapshotId);
+  if (snapResult.isError) return { payload: snapResult.payload, isError: true };
+
+  const { snapshotId, snapshot } = snapResult;
+  const tasks = (snapshot["tasks"] as Array<Record<string, unknown>>) ?? [];
+
+  const byState: Record<string, number> = {};
+  for (const task of tasks) {
+    const current = (task["current_state"] as Record<string, unknown> | undefined) ?? {};
+    const state = (current["state"] as string) || "unknown";
+    byState[state] = (byState[state] ?? 0) + 1;
+  }
+
+  if (!isPaginated) {
+    return {
+      payload: {
+        snapshot_id: snapshotId,
+        generated: snapshot["generated"],
+        backlog: (snapshot["backlog"] as unknown) ?? {},
+        task_counts: { total: tasks.length, by_state: byState },
+      },
+      isError: false,
+    };
+  }
+
+  const offset = cursorResult.offset;
+  const page = tasks.slice(offset, offset + limit);
+  const nextOffset = offset + page.length;
+  const hasMore = nextOffset < tasks.length;
+  const nextCursor = hasMore ? `${snapshotId}:${nextOffset}` : null;
+  const truncated = hasMore;
+
+  return {
+    payload: {
+      snapshot_id: snapshotId,
+      generated: snapshot["generated"],
+      summary: {
+        total: tasks.length,
+        by_state: byState,
+        generated: snapshot["generated"],
+        rev: (snapshot["rev"] ?? snapshot["generation"] ?? null) as string | null,
+      },
       backlog: (snapshot["backlog"] as unknown) ?? {},
       task_counts: { total: tasks.length, by_state: byState },
+      page,
+      next_cursor: nextCursor,
+      truncated,
     },
     isError: false,
   };
@@ -3159,14 +3409,59 @@ export async function toolGrantStatus(args: ToolArgs, ctx: ToolContext): Promise
 
 export const TOOLS: Record<string, ToolDef> = {
   fleet_snapshot: {
-    description: "Read-only canonical fleet snapshot (backlog plus per-task state).",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    description:
+      "Read-only canonical fleet snapshot (backlog plus per-task state), with optional cursor pagination.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        cursor: {
+          type: "string",
+          description:
+            "Optional pagination cursor (<snapshot_id>:<offset> or integer offset) into a cached snapshot",
+        },
+        limit: {
+          type: "integer",
+          minimum: 1,
+          maximum: 200,
+          default: 50,
+          description: "Maximum task rows per page",
+        },
+        snapshot_id: {
+          type: "string",
+          description:
+            "Optional cached snapshot id to paginate across without re-running the snapshot script",
+        },
+      },
+      additionalProperties: false,
+    },
     handler: toolFleetSnapshot,
   },
   backlog: {
     description:
-      "Read-only backlog records plus per-state task counts, derived from the fleet snapshot.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      "Read-only backlog records plus per-state task counts, derived from the fleet snapshot, with optional cursor pagination.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        cursor: {
+          type: "string",
+          description:
+            "Optional pagination cursor (<snapshot_id>:<offset> or integer offset) into a cached snapshot",
+        },
+        limit: {
+          type: "integer",
+          minimum: 1,
+          maximum: 200,
+          default: 50,
+          description: "Maximum task rows per page",
+        },
+        snapshot_id: {
+          type: "string",
+          description:
+            "Optional cached snapshot id to paginate across without re-running the snapshot script",
+        },
+      },
+      additionalProperties: false,
+    },
     handler: toolBacklog,
   },
   crew_state: {

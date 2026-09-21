@@ -73,6 +73,12 @@ export const RECEIPT_TIMEOUT_S = 180;
  */
 export const RECEIPT_TTL_S = 3600;
 export const RECEIPT_DIRNAME = "mcp-receipts";
+export const SNAPSHOT_DIRNAME = "mcp-snapshots";
+export const SNAPSHOT_TTL_S = 3600;
+export const SNAPSHOT_DEFAULT_LIMIT = 50;
+export const SNAPSHOT_MIN_LIMIT = 1;
+export const SNAPSHOT_MAX_LIMIT = 200;
+export const CURSOR_RE = /^([A-Za-z0-9][A-Za-z0-9_.:-]{0,63}):(\d+)$/;
 export const GRANT_DIRNAME = "mcp-grants";
 export const GRANT_DEFAULT_TTL_S = 3600;
 export const GRANT_MAX_TTL_S = 2592000;
