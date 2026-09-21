@@ -63,6 +63,8 @@ DENY_LIST = frozenset(
         "repo_merge",
         "public_followup_emit",
         "relay_link",
+        "fleet_sync",
+        "inactive_reconcile",
     }
 )
 

@@ -18,7 +18,7 @@ Default path: MCP tool -> TS handler -> real operation.
 
 The server may shell to an owning script with a safe flag subset.
 It may not reimplement script behavior, invent flags, touch repos directly, control daemons, or reach any surface in `DENY_LIST`.
-`DENY_LIST` covers code-writing and landing tools (`promote_scout`, `teardown_crew`, `arm_pr_check`, `merge_pr`, `merge_local`), daemon and supervision control (`daemon_start/stop/restart`, `watch_start/stop`), direct repo mutation (`repo_edit/commit/push/merge`), and un-gated public relay emission and linking (`public_followup_emit`, `relay_link`).
+`DENY_LIST` covers code-writing and landing tools (`promote_scout`, `teardown_crew`, `arm_pr_check`, `merge_pr`, `merge_local`), daemon and supervision control (`daemon_start/stop/restart`, `watch_start/stop`), direct repo mutation (`repo_edit/commit/push/merge`), un-gated public relay emission and linking (`public_followup_emit`, `relay_link`), and fleet synchronization and inactive outcome reconciliation (`fleet_sync`, `inactive_reconcile`).
 Denied and unknown tools are refused before any process starts, and validation rejections fire before any side effect.
 `runScript` additionally refuses any script outside the registry allow-list, so a bad table entry fails closed.
 Denied argv flags (`--key`, `--raw`, `--force`, `--yes`, `--force-with-lease`) can never be emitted by a builder.

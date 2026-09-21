@@ -24,7 +24,8 @@
  *   mail_send —
  *   approval plus relay consent inside the owning scripts.
  * - Forbidden: promote_scout, teardown_crew, arm_pr_check, merge_pr,
- *   merge_local, public_followup_emit, relay_link — no tool, refused as unknown.
+ *   merge_local, public_followup_emit, relay_link, fleet_sync,
+ *   inactive_reconcile — no tool, refused as unknown.
  */
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -134,6 +135,8 @@ export const TOOL_TIERS: Record<string, Tier> = {
   reconcile_upstream: TIER_AUTHORITY,
   public_followup_emit: TIER_AUTHORITY,
   relay_link: TIER_AUTHORITY,
+  fleet_sync: TIER_AUTHORITY,
+  inactive_reconcile: TIER_AUTHORITY,
   mail_send: TIER_EXTERNAL,
   relay_reply: TIER_EXTERNAL,
   relay_dismiss: TIER_EXTERNAL,

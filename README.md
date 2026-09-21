@@ -97,6 +97,8 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - `daemon_restart` (out of smarts-only scope)
 - `daemon_start` (out of smarts-only scope)
 - `daemon_stop` (out of smarts-only scope)
+- `fleet_sync` (out of smarts-only scope)
+- `inactive_reconcile` (out of smarts-only scope)
 - `merge_local` (code-forbidden)
 - `merge_pr` (code-forbidden)
 - `promote_scout` (code-forbidden)
@@ -188,7 +190,7 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 
 | Area | Mirrored | Denied | Gap |
 | --- | --- | --- | --- |
-| Fleet runs | 3 | 0 | 5 |
+| Fleet runs | 3 | 2 | 3 |
 | Supervision | 8 | 4 | 28 |
 | Sessions | 4 | 0 | 21 |
 | Backlog / decisions | 4 | 0 | 9 |
