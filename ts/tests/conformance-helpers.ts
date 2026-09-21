@@ -40,6 +40,7 @@ export const READ_TOOLS: ReadonlySet<string> = new Set([
   "inbox_status",
   "inbox_list",
   "home_summary",
+  "home_summary_refresh",
   "contributions_snapshot",
   "contributions_pending",
   "mail_status",
@@ -72,6 +73,7 @@ export const READ_SCRIPTS: ReadonlySet<string> = new Set([
   "fm-lease.sh",
   "fm-bearings-board.sh",
   "fm-inbox.sh",
+  "fm-home-summary-refresh.sh",
   "fm-contributions.sh",
   "fm-mail.sh",
   "fm_voice_records.py",
@@ -131,6 +133,7 @@ export const LEASE_STUB =
   "exit 2\n";
 export const BEARINGS_BOARD_STUB = 'echo "$FM_HOME/.lavish/bearings-board.html"\n';
 export const INBOX_STUB = 'echo "inbox-stub:$1"\n';
+export const HOME_SUMMARY_REFRESH_STUB = 'echo "home-summary-refresh-stub:$1"\n';
 export const CONTRIBUTIONS_STUB = 'if [ "$1" = "pending" ]; then echo "[]"; else cat "$2"; fi\n';
 export const MAIL_STUB =
   'if [ "$1" = "status" ]; then echo "mail-stub:status"; ' +
@@ -197,6 +200,7 @@ export function setup(): Fixture {
   writeStub(path.join(scratch, "bin"), "fm-lease.sh", LEASE_STUB);
   writeStub(path.join(scratch, "bin"), "fm-bearings-board.sh", BEARINGS_BOARD_STUB);
   writeStub(path.join(scratch, "bin"), "fm-inbox.sh", INBOX_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-home-summary-refresh.sh", HOME_SUMMARY_REFRESH_STUB);
   writeStub(path.join(scratch, "bin"), "fm-contributions.sh", CONTRIBUTIONS_STUB);
   writeStub(path.join(scratch, "bin"), "fm-mail.sh", MAIL_STUB);
   writeStub(path.join(scratch, "bin"), "fm_voice_records.py", VOICE_RECORDS_STUB);

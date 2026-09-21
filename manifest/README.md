@@ -62,6 +62,7 @@ automatic merge.
 | `bearings_board_path` | `bin/fm-bearings-board.sh path` | `schema/contracts.yaml#bearings_board_path` | ✅ | ✅ | intentional: path only, build/arm stays agent-owned |
 | `inbox_status` / `inbox_list` | `bin/fm-inbox.sh status` / `list` | `schema/contracts.yaml#inbox_status` | ✅ | ✅ | intentional: durable-record reads only, no wake, no model call |
 | `home_summary` | `state/home-summary.json` file | `schema/contracts.yaml#home_summary` | ✅ | ✅ | intentional: ledger read, refresh stays firstmate-owned |
+| `home_summary_refresh` | `bin/fm-home-summary-refresh.sh` | `schema/contracts.yaml#home_summary_refresh` | ✅ | ✅ | intentional: atomic ledger refresh, best-effort flag support |
 | `contributions_snapshot` / `contributions_pending` | `bin/fm-contributions.sh snapshot` / `pending` | `schema/contracts.yaml#contributions_snapshot` | ✅ | ✅ | intentional: read-only projection, no forge reads, no record writes |
 | `lifecycle_interrupt/exit/relaunch/suspend/resume` | `bin/fm-control.sh` verbs | adapter safe-verb subset | ✅ | ✅ | intentional: per-call `I authorize` approval gate |
 | `spawn_crew` | `bin/fm-spawn.sh` | `schema/contracts.yaml#spawn_crew` | ✅ | ✅ | intentional: approval gate + safe flag subset |

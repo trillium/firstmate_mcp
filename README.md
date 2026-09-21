@@ -33,6 +33,7 @@ script's observable output (modulo the envelope wrap).
 - `handoff_status` — via `native (no owning script)` (pinned in schema/contracts.yaml)
 - `harness_detect` — via `fm-harness.sh` (pinned in schema/contracts.yaml)
 - `home_summary` — via `native (no owning script)` (pinned in schema/contracts.yaml)
+- `home_summary_refresh` — via `fm-home-summary-refresh.sh` (pinned in schema/contracts.yaml)
 - `inbox_list` — via `fm-inbox.sh` (pinned in schema/contracts.yaml)
 - `inbox_status` — via `fm-inbox.sh` (pinned in schema/contracts.yaml)
 - `lease_check` — via `fm-lease.sh` (pinned in schema/contracts.yaml)
@@ -129,7 +130,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` implements the 57-tool
+- TypeScript sibling — `ts/` implements the 58-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Customizable follow-on actions — `ts/src/followon.ts` provides configurable
@@ -172,7 +173,7 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | PR pipeline | 2 | 5 | 4 |
 | Relay | 4 | 0 | 4 |
 | Voice / mail | 3 | 0 | 1 |
-| Digests | 5 | 0 | 1 |
+| Digests | 6 | 0 | 0 |
 | Installs | 4 | 0 | 19 |
 
 Mirrored names the MCP tool; `stale` flags an owning script upstream removed

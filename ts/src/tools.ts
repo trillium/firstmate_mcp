@@ -999,6 +999,18 @@ async function toolHomeSummary(_args: ToolArgs, ctx: ToolContext): Promise<ToolR
   return { payload: summary, isError: false };
 }
 
+async function toolHomeSummaryRefresh(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const bestEffort = args["best_effort"] ?? false;
+  if (typeof bestEffort !== "boolean") {
+    return { payload: { error: "invalid best_effort", expect: "boolean" }, isError: true };
+  }
+  const cmd = argv(path.join(ctx.binDir, "fm-home-summary-refresh.sh"));
+  if (bestEffort) cmd.push("--best-effort");
+  const { payload, isError } = await ownedCall(cmd, "home summary refresh failed", ctx.run);
+  if (!isError) return { payload: { ...payload, best_effort: bestEffort }, isError: false };
+  return { payload, isError: true };
+}
+
 async function contributionInput(
   ctx: ToolContext,
 ): Promise<{ staged: string | null; error: Record<string, unknown> | null }> {
@@ -2389,6 +2401,22 @@ export const TOOLS: Record<string, ToolDef> = {
     description: "Read-only published home-summary ledger; refresh stays firstmate-owned.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     handler: toolHomeSummary,
+  },
+  home_summary_refresh: {
+    description:
+      "Atomically refresh and publish state/home-summary.json for this FM_HOME.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        best_effort: {
+          type: "boolean",
+          description: "Log failures to .home-summary-refresh.log and exit 0",
+          default: false,
+        },
+      },
+      additionalProperties: false,
+    },
+    handler: toolHomeSummaryRefresh,
   },
   contributions_snapshot: {
     description:

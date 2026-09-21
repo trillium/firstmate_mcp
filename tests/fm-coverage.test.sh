@@ -50,7 +50,7 @@ test_manifest_and_deny_appear() {
     peek fleet_view review_diff bearings_snapshot wake_drain guard_check \
     remote_doctor remote_file remote_delta handoff_status \
     harness_detect project_mode lock_status lease_check bearings_board_path \
-    inbox_status inbox_list home_summary contributions_snapshot contributions_pending \
+    inbox_status inbox_list home_summary home_summary_refresh contributions_snapshot contributions_pending \
     mail_status mail_read voice_status lint_versions tool_update_check vendor_auth_probe \
     startup_memory pr_state relay_poll \
     lifecycle_interrupt lifecycle_exit lifecycle_relaunch lifecycle_suspend lifecycle_resume \
