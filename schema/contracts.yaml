@@ -167,6 +167,54 @@ contracts:
       header: fm_mcp_server.py:tool_receipt_status
       doc: INVENTORY.md
     notes: Local envelope mechanic; receipts are confined to the serving home's state dir and expire after RECEIPT_TTL_S.
+  - name: grant_mint
+    command: "native: standing grant store (state/mcp-grants/)"
+    flags: ["<grantee>", "tier_limit=1..4", "tools=[...]", "projects=[...]", "ttl_s=1..2592000", "max_uses=int", "note=str", "<approval>"]
+    output:
+      format: json
+      schema_id: mcp-grant.v1
+      fields: ["grant_id", "grant_ref", "token", "issuer", "grantee", "tier_limit", "tools", "projects", "created_at", "expires_at", "ttl_s", "max_uses", "note"]
+    exits:
+      zero: mints new scoped standing approval grant; returns secret token once
+      nonzero: invalid arguments, forbidden tools in grant, or missing approval
+    stability: experimental
+    pinned: mcp-grant.v1
+    evidence:
+      header: ts/src/grants.ts:mintGrant
+      doc: AUTH.md
+    notes: Local standing approval primitive for autonomous workflows; hash stored on disk, token never logged.
+  - name: grant_revoke
+    command: "native: standing grant store (state/mcp-grants/)"
+    flags: ["<grant_id>", "reason=str", "<approval>"]
+    output:
+      format: json
+      schema_id: mcp-grant.v1
+      fields: ["status", "grant_id", "grant_ref", "revoked_at", "reason"]
+    exits:
+      zero: revokes standing approval grant immediately
+      nonzero: unknown grant_id, bad arguments, or missing approval
+    stability: experimental
+    pinned: mcp-grant.v1
+    evidence:
+      header: ts/src/grants.ts:revokeGrant
+      doc: AUTH.md
+    notes: Local standing approval revocation; revoked grants fail closed immediately.
+  - name: grant_status
+    command: "native: standing grant store (state/mcp-grants/)"
+    flags: ["grant_id=str", "grantee=str"]
+    output:
+      format: json
+      schema_id: mcp-grant.v1
+      fields: ["grant_id", "grant_ref", "issuer", "grantee", "tier_limit", "tools", "projects", "created_at", "expires_at", "is_expired", "revoked_at", "is_revoked", "use_count", "max_uses", "is_valid", "note"]
+    exits:
+      zero: safe metadata inspection of standing approval grants (never exposes secrets)
+      nonzero: unknown grant_id
+    stability: experimental
+    pinned: mcp-grant.v1
+    evidence:
+      header: ts/src/grants.ts:getGrantStatus
+      doc: AUTH.md
+    notes: Local standing approval read inspection; confined to safe metadata without secret tokens or hashes.
   - name: peek
     command: bin/fm-peek.sh
     flags: ["<target>", "lines=1..100"]

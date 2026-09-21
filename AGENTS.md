@@ -15,7 +15,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
 
 - Server proof: `cd ts && bun test` (or `pnpm test`) is the full standalone
   proof of the TypeScript MCP server (validators, envelope, auth with duration_ms timing and decision_digest audit logging,
-  82-tool server suite, and conformance fixtures); run it before shipping server changes.
+  standing approval grants, 85-tool server suite, and conformance fixtures); run it before shipping server changes.
   It includes fixtures covering >30s timeout kill, >128KB snapshots, and receipt lifecycle.
   Other suites: `bash tests/mcp-adapter.test.sh`, `tests/fm-mcp-authz.test.sh`,
   `tests/mcp-schema.test.sh`, `tests/drift-check.test.sh`,
@@ -68,6 +68,10 @@ When updating this file, preserve this bar for all agents and keep entries conci
   and hash-skipping on byte-identical inputs. CI parallelizes shards across matrix jobs
   (`ts-conformance`), while `.github/workflows/mcp-nightly.yml` runs scheduled full uncached
   proofs across both runtimes.
+- Standing approval (`ts/src/grants.ts`, contract `AUTH.md`):
+  scoped standing grants (mint/store/revoke in `state/mcp-grants/`) for autonomous loops;
+  hashes on disk, plaintext tokens never logged; satisfies approval gate within stated scope;
+  preserves default-deny, tier bounds, fail-closed expiry, and explicit-grant-only captain-hold release.
 - Follow-on actions (`ts/src/followon.ts`, design `docs/FOLLOWON_DESIGN.md`):
   generalized hook engine for MCP actions; auth tiers enforced per action
   (never launders authority from open reads to Tier 3/4 writes), bounded

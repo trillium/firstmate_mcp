@@ -1019,6 +1019,46 @@ features:
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:toolReceiptStatus", "ts/src/auth.ts:receipt_status"]}
     divergence: {status: not-applicable, reason: ""}
+  - id: grant_mint
+    kind: local
+    summary: Mint scoped standing approval grants with tier limits, tool allowlists, project scopes, expiry TTL, usage caps, and instant revocability.
+    local_path: ts/src/grants.ts
+    contract: schema/contracts.yaml#grant_mint
+    upstream_test: "n/a (local) — proof: ts/tests/grants.test.ts + ts/tests/server.test.ts"
+    readme_anchor: Standing approval grants
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/grants.ts:mintGrant", "ts/src/tools.ts:toolGrantMint", "ts/src/auth.ts:grant_mint"]}
+    divergence: {status: not-applicable, reason: ""}
+  - id: grant_revoke
+    kind: local
+    summary: Revoke an active standing approval grant immediately, causing subsequent matching authority calls to fail closed.
+    local_path: ts/src/grants.ts
+    contract: schema/contracts.yaml#grant_revoke
+    upstream_test: "n/a (local) — proof: ts/tests/grants.test.ts + ts/tests/server.test.ts"
+    readme_anchor: Standing approval grants
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/grants.ts:revokeGrant", "ts/src/tools.ts:toolGrantRevoke", "ts/src/auth.ts:grant_revoke"]}
+    divergence: {status: not-applicable, reason: ""}
+  - id: grant_status
+    kind: local
+    summary: Read-only inspection of standing approval grants (safe metadata only, secret tokens never exposed).
+    local_path: ts/src/grants.ts
+    contract: schema/contracts.yaml#grant_status
+    upstream_test: "n/a (local) — proof: ts/tests/grants.test.ts + ts/tests/server.test.ts"
+    readme_anchor: Standing approval grants
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/grants.ts:getGrantStatus", "ts/src/tools.ts:toolGrantStatus", "ts/src/auth.ts:grant_status"]}
+    divergence: {status: not-applicable, reason: ""}
+  - id: standing_approval
+    kind: local
+    summary: Standing approval primitive for autonomous MCP autonomy loops; checks tier boundaries, tool allowlists, project scopes, expiry, and usage limits while preserving default-deny and captain-hold release gates.
+    local_path: ts/src/grants.ts
+    contract: ts/src/grants.ts (StandingGrant + verifyGrant + checkAuthorization)
+    upstream_test: "n/a (local) — proof: ts/tests/grants.test.ts (11 invariant proofs) via bun run test:bun and npm test"
+    readme_anchor: Standing approval primitive
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/grants.ts:verifyGrant", "ts/src/grants.ts:checkAuthorization"]}
+    divergence: {status: not-applicable, reason: ""}
   - id: auth_tiers
     kind: local
     summary: Every tool carries a code-assigned tier; the audit log records authority use; authority tools refuse without an authorization string.

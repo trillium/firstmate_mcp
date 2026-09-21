@@ -3,13 +3,13 @@ First Mate MCP authorization tiers (smarts-only)
 Trillium is the sole authorizer under the owner-ordered smarts-only line of 2026-09-13.
 Every authority-bearing or externally visible tool takes an explicit `approval` string starting with `I authorize` and refuses without it.
 Reads stay open because they change nothing.
-Tier 1 - open reads (no approval): `fleet_snapshot`, `backlog`, `crew_state`, `status_tail`, `fleet_poll`, `peek`, `fleet_view`, `review_diff`, `bearings_snapshot`, `wake_drain`, `guard_check`, `remote_doctor`, `remote_file`, `remote_delta`, `handoff_status`, `harness_detect`, `project_mode`, `lock_status`, `lease_check`, `bearings_board_path`, `inbox_status`, `inbox_list`, `home_summary`, `home_summary_refresh`, `contributions_snapshot`, `contributions_pending`, `mail_status`, `mail_read`, `mail_check`, `voice_status`, `lint_versions`, `tool_update_check`, `vendor_auth_probe`, `startup_memory`, `pr_state`, `relay_poll`, `receipt_submit`, `receipt_status`, `decision_verify`, `decision_open`, `decision_diverged`.
+Tier 1 - open reads (no approval): `fleet_snapshot`, `backlog`, `crew_state`, `status_tail`, `fleet_poll`, `peek`, `fleet_view`, `review_diff`, `bearings_snapshot`, `wake_drain`, `guard_check`, `remote_doctor`, `remote_file`, `remote_delta`, `handoff_status`, `harness_detect`, `project_mode`, `lock_status`, `lease_check`, `bearings_board_path`, `inbox_status`, `inbox_list`, `home_summary`, `home_summary_refresh`, `contributions_snapshot`, `contributions_pending`, `mail_status`, `mail_read`, `mail_check`, `voice_status`, `lint_versions`, `tool_update_check`, `vendor_auth_probe`, `startup_memory`, `pr_state`, `relay_poll`, `receipt_submit`, `receipt_status`, `grant_status`, `decision_verify`, `decision_open`, `decision_diverged`.
 `remote_doctor` runs check mode only (no `--fix`); `remote_file` is get-only with a bounded byte cap; `remote_delta` clamps its wait to 10s; `handoff_status` reads staged outbox files only.
 `harness_detect` runs a closed detection-mode subset (no ancestry walks); `project_mode` reports the mapped mode+yolo pair (no `--raw`); `lock_status` and `lease_check` are status reads only (no acquire, claim, release, or sweep); `bearings_board_path` prints the stable board path (no build/arm); `inbox_status`/`inbox_list` read durable records only (no queue, wake, or model call); `home_summary` reads the published ledger (no refresh); `contributions_snapshot`/`contributions_pending` never contact a forge and mutate nothing.
 `mail_status` prints config plus cursor (no network, no wake); `mail_read` is a BODY.PEEK digest that never marks mail seen; `mail_check` runs the bounded inbound received-mail check (arm/disarm mutate watcher trust state and stay out); all stay inert without mail credentials, which live outside MCP in the home `.env` and never cross tool args or logs; `voice_status` reads durable records only (counts by default, no record free text; full only via the captain's own read-scope, deny list enforced inside the helper; no mic, no Bedrock, no audio); `lint_versions` prints the required ShellCheck/actionlint pins only; `tool_update_check` reports only (repairs/installs nothing); `vendor_auth_probe` runs one bounded probe from the closed allowlist and prints one sanitized line (raw vendor output never leaves the script); `startup_memory` reads the validated budget or local estimate (never creates config); `pr_state` is a one-shot blockers read over a validated GitHub PR URL (never posts); `relay_poll` is a short bounded poll that is a hard no-op without relay consent.
 `receipt_submit` detaches one tool call past the 30s fail-closed budget and returns a pending receipt; authority targets still need their own nested approval string. `receipt_status` reports running/done/failed for one receipt.
 Tier 2 - reversible steers (no approval, validated text): `send_message` wraps only the plain-text `fm-send.sh` path with a 500-char single-line cap and a slash-command refusal.
-Tier 3 - launch-authorized writes (approval required): `lifecycle_interrupt`, `lifecycle_exit`, `lifecycle_relaunch`, `lifecycle_suspend`, `lifecycle_resume`, `spawn_crew`, `scaffold_brief`, `decision_hold`, `decision_resolve`, `decision_release`, `decision_complete`, `review_decision`, `secondmate_nudge`, `secondmate_restart`, `secondmate_report`, `remote_control`, `handoff_move`, `voice_queue`.
+Tier 3 - launch-authorized writes (approval required): `lifecycle_interrupt`, `lifecycle_exit`, `lifecycle_relaunch`, `lifecycle_suspend`, `lifecycle_resume`, `spawn_crew`, `scaffold_brief`, `decision_hold`, `decision_resolve`, `decision_release`, `decision_complete`, `review_decision`, `secondmate_nudge`, `secondmate_restart`, `secondmate_report`, `remote_control`, `handoff_move`, `voice_queue`, `grant_mint`, `grant_revoke`.
 Lifecycle verbs are launch control only: they drive agent lifecycle and never touch repos directly.
 Decision-closing verbs (`decision_resolve`, `decision_release`, `review_decision` with `--release`, and `decision_complete`) enforce the SAFETY CORE:
 - Default scope: allows releasing/resolving ONLY holds the calling agent opened itself (matching invoking actor to hold author/origin metadata).
@@ -45,6 +45,28 @@ An additive Streamable HTTP transport exists alongside stdio so external audit s
    - Programmatic audit clients, proxies, and monitoring systems natively support Authorization headers.
 4. MCP Spec Session handling: `Mcp-Session-Id` header lifecycle, session store with TTL expiry, and `DELETE /mcp` termination.
 5. Auth Tier Parity: Does not widen any write permissions. The exact same tiers, per-action `I authorize` approvals, and deny posture apply identically over HTTP.
+
+Standing approval grants (AUTONOMY control plane):
+To enable autonomous worker loops without human stall at every authorization gate while strictly preserving refusal-biased safety invariants, a scoped standing approval primitive is implemented in `ts/src/grants.ts`:
+1. Minting & Scoped Grants (`grant_mint`):
+   - Authority-gated Tier 3 write requiring explicit per-action approval ("I authorize ...").
+   - Mints a scoped standing grant with tier limits (1..4, default 3), tool allowlists, project scopes, expiry TTL (`ttl_s`), and optional usage limits (`max_uses`).
+   - Generates high-entropy secret token (`sg_<hex>`) returned ONCE at mint time.
+   - On-disk storage (`state/mcp-grants/<grant_id>.json`) stores only `token_hash` (SHA-256) and `grant_ref` (16-hex short hash). Plaintext tokens are NEVER stored on disk, logged in audit files, or exposed.
+2. Presentation & Authorization Flow:
+   - Callers can provide standing grant tokens via `args.grant`, `args.approval` (starts with `sg_` or `grant:`), or ambient `FM_STANDING_GRANT` environment variable.
+   - If a valid grant is provided within its allowed scope (tier, tool, project, non-expired, non-revoked, non-exhausted), the call passes the approval gate without per-action approval strings.
+   - `args._grant_ref` is captured and recorded as `approval_ref` (16 hex chars hash) in the audit log.
+3. Revocation & Inspection (`grant_revoke`, `grant_status`):
+   - `grant_revoke`: Tier 3 authority write to immediately revoke a grant by `grant_id` or `grant_ref`. Revoked grants fail closed immediately.
+   - `grant_status`: Tier 1 open read to inspect grant metadata (validity, expiry, usage count, scopes). Strictly returns safe metadata; never reveals secret tokens or hashes.
+4. Refusal-Biased Security Invariants:
+   - Default-Deny: Calls without approval strings and without valid standing grants are strictly refused (`approval required`).
+   - Captain-Hold Release Protection: Wildcard grants (`tools: null` or `tools: ["*"]`) NEVER authorize captain-hold release tools (`review_decision`, `decision_resolve`). Releasing a captain-held task requires an explicit per-deploy grant specifically naming the tool in its allowlist.
+   - Deny-List Preservation: Code-forbidden tools (`promote_scout`, `teardown_crew`, `arm_pr_check`, `merge_pr`, `merge_local`, `repo_*`, `daemon_start/stop/restart`, `watch_start/stop`) remain refused as unknown tools and can never be granted.
+   - Tier Boundaries: Grants never widen tiers (e.g. a Tier 3 grant attempting a Tier 4 external send is strictly refused with `grant-tier-exceeded`).
+   - Fail-Closed Expiry & Revocation: Expired, revoked, and exhausted grants fail closed immediately.
+   - Cross-Home Isolation: Grants live under `FM_HOME/state/mcp-grants/` and never leak across home sandboxes.
 
 Safety notes that survive the smarts-only trim.
 The MCP layer never reimplements policy: every tool shells to the owning `bin/` script and the script still fails closed.

@@ -52,6 +52,9 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | scaffold_brief | bin/fm-brief.sh | evolving | task, repo, mode/scout | dispatch writes |
 | receipt_submit | native: receipt store (state/mcp-receipts/) | experimental | <tool> <arguments> | detach long calls past the 30s budget |
 | receipt_status | native: receipt store (state/mcp-receipts/) | experimental | <receipt_id> | running/done/failed checks with result on completion |
+| grant_mint | native: standing grant store (state/mcp-grants/) | experimental | <grantee>, tier_limit, tools, projects, ttl_s, max_uses, note, <approval> | scoped standing approval grant minting |
+| grant_revoke | native: standing grant store (state/mcp-grants/) | experimental | <grant_id>, reason, <approval> | standing approval grant revocation |
+| grant_status | native: standing grant store (state/mcp-grants/) | experimental | grant_id, grantee | standing approval safe metadata inspection reads |
 
 ## How to use this view
 

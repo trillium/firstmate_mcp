@@ -166,7 +166,7 @@ const AUDIT_VALIDATION_ERRORS: ReadonlySet<string> = new Set([
 function auditTarget(args: unknown): string | null {
   if (typeof args !== "object" || args === null || Array.isArray(args)) return null;
   const record = args as Record<string, unknown>;
-  for (const key of ["id", "target", "task_id", "origin_id", "request_id", "receipt_id", "tool", "path", "log", "project"]) {
+  for (const key of ["id", "target", "task_id", "origin_id", "request_id", "receipt_id", "grant_id", "grantee", "tool", "path", "log", "project"]) {
     const value = record[key];
     if (typeof value === "string" && value !== "") return value;
   }
@@ -183,7 +183,7 @@ function auditDecision(
   if (error === "approval required") {
     const approval =
       typeof args === "object" && args !== null && !Array.isArray(args)
-        ? (args as Record<string, unknown>)["approval"]
+        ? ((args as Record<string, unknown>)["approval"] ?? (args as Record<string, unknown>)["grant"])
         : undefined;
     if (approval === undefined || approval === null) return ["refuse", "approval-required"];
     return ["refuse", "approval-invalid"];
@@ -209,6 +209,7 @@ function auditAppend(
   transport: TransportType = "stdio",
   actorOverride?: string,
   decisionDigest: string | null = null,
+  grantRef?: string | null,
 ): void {
   try {
     const actor = actorOverride ?? process.env.FM_ACTOR ?? (transport === "http" ? "http-audit" : "local");
@@ -216,6 +217,7 @@ function auditAppend(
       auditPath(ctx),
       buildLine(actor, tool, decision, reason, {
         approval,
+        grant_ref: grantRef,
         target,
         duration_ms: durationMs,
         transport,
@@ -242,12 +244,14 @@ export function auditAppendEffect(
   transport: TransportType = "stdio",
   actorOverride?: string,
   decisionDigest: string | null = null,
+  grantRef?: string | null,
 ): Effect.Effect<void, never, AuditService> {
   return Effect.gen(function* () {
     const audit = yield* AuditService;
     const actor = actorOverride ?? process.env.FM_ACTOR ?? (transport === "http" ? "http-audit" : "local");
     const line = buildLine(actor, tool, decision, reason, {
       approval,
+      grant_ref: grantRef,
       target,
       duration_ms: durationMs,
       transport,
@@ -318,7 +322,8 @@ export async function handleToolsCall(
         approval = (nested as Record<string, unknown>)["approval"];
       }
     }
-    auditAppend(ctx, toolLabel, decision, reason, approval, auditTarget(args), duration_ms, transport, actorOverride, decisionDigest);
+    const grantRef = (args as Record<string, unknown>)["_grant_ref"] as string | undefined;
+    auditAppend(ctx, toolLabel, decision, reason, approval, auditTarget(args), duration_ms, transport, actorOverride, decisionDigest, grantRef);
   }
   const result: Record<string, unknown> = {
     content: [{ type: "text", text: JSON.stringify(payload) }],
@@ -370,7 +375,8 @@ export function handleToolsCallEffect(
       target: string | null,
       durationMs: number | null,
       decisionDigest: string | null = null,
-    ) => auditAppendEffect(ctx, toolLabel, decision, reason, approval, target, durationMs, transport, actorOverride, decisionDigest);
+      grantRef?: string | null,
+    ) => auditAppendEffect(ctx, toolLabel, decision, reason, approval, target, durationMs, transport, actorOverride, decisionDigest, grantRef);
     if (typeof name !== "string" || !(name in TOOLS)) {
       const duration_ms = Math.max(0, Math.round(performance.now() - start));
       yield* append(
@@ -427,7 +433,8 @@ export function handleToolsCallEffect(
           approval = (nested as Record<string, unknown>)["approval"];
         }
       }
-      yield* append(decision, reason, approval, auditTarget(args), duration_ms, decisionDigest);
+      const grantRef = (args as Record<string, unknown>)["_grant_ref"] as string | undefined;
+      yield* append(decision, reason, approval, auditTarget(args), duration_ms, decisionDigest, grantRef);
     }
     const result: Record<string, unknown> = {
       content: [{ type: "text", text: JSON.stringify(payload) }],

@@ -122,6 +122,11 @@ Refused by the adapter deny-list (no tool, answered unknown):
   budget and returns a pending receipt; `receipt_status` reports
   running/done/failed with the result attached, TTL expiry, and
   per-home confinement so receipts never leak across homes.
+- Standing approval grants — `grant_mint`, `grant_revoke`, and `grant_status`
+  allow autonomous callers to mint, inspect, and revoke scoped standing approval grants.
+- Standing approval primitive — `ts/src/grants.ts` provides scoped standing approval
+  for autonomous MCP loops with tier boundaries, tool allowlists, project scopes,
+  expiry TTL, usage caps, and instant revocability while preserving default-deny and captain-hold release gates.
 - Auth tiers in code — `ts/src/auth.ts` assigns every tool a tier,
   writes the JSON-lines audit log; every authority-bearing tool
   refuses without an `I authorize` string.
@@ -162,6 +167,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   - `ts/tests/conformance-system.test.ts`
   - `ts/tests/auth.test.ts`
   - `ts/tests/followon.test.ts`
+  - `ts/tests/grants.test.ts`
 
 ### Support-coverage view (per upstream command area)
 
