@@ -1,6 +1,6 @@
 # CUTOVER-PROOF — live fleet through firstmate_mcp
 
-Generated 2026-09-19T21:17:06Z by `python3 scripts/cutover_prove.py` against a
+Generated 2026-09-21T06:33:29Z by `python3 scripts/cutover_prove.py` against a
 scratch home only (`/tmp/fm-mcp-cutover-proof`). The live fleet
 was never touched.
 
@@ -15,7 +15,7 @@ TS banner: `fm-mcp-launch: home=/tmp/fm-mcp-cutover-proof server=ts audit=/tmp/f
 
 | tool | approval | result | detail |
 |---|---|---|---|
-| `initialize/tools/list` | n/a | **ok** | 77 tools, server firstmate-mcp-poc 0.3.0 |
+| `initialize/tools/list` | n/a | **ok** | 87 tools, server firstmate-mcp-poc 0.3.0 |
 | `fleet_snapshot` | none (Tier 1) | **ok** | schema=fm-fleet-snapshot.v1 tasks=2 |
 | `backlog` | none (Tier 1) | **ok** | total=2 |
 | `crew_state` | none (Tier 1) | **ok** | state=running |
@@ -54,16 +54,16 @@ Decisions in order: allow/ok, allow/ok, allow/ok, allow/ok, allow/ok, allow/ok, 
 the token text never appears in the log (hash only). Full lines:
 
 ```json
-{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":224,"reason":"ok","target":null,"tier":1,"tool":"fleet_snapshot","transport":"stdio","ts":"2026-09-19T21:17:06Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":6,"reason":"ok","target":null,"tier":1,"tool":"backlog","transport":"stdio","ts":"2026-09-19T21:17:06Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":193,"reason":"ok","target":"demo-1","tier":1,"tool":"crew_state","transport":"stdio","ts":"2026-09-19T21:17:06Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":0,"reason":"ok","target":"demo-1","tier":1,"tool":"status_tail","transport":"stdio","ts":"2026-09-19T21:17:06Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":6,"reason":"ok","target":null,"tier":1,"tool":"fleet_poll","transport":"stdio","ts":"2026-09-19T21:17:06Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"allow","duration_ms":192,"reason":"ok","target":"demo-1","tier":2,"tool":"send_message","transport":"stdio","ts":"2026-09-19T21:17:06Z","v":1}
-{"actor":"cutover-proof","approval_ref":"f036c0f72b3af1ea","decision":"allow","duration_ms":199,"reason":"ok","target":"demo-1","tier":3,"tool":"lifecycle_interrupt","transport":"stdio","ts":"2026-09-19T21:17:06Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"refuse","duration_ms":0,"reason":"approval-required","target":"demo-1","tier":3,"tool":"lifecycle_interrupt","transport":"stdio","ts":"2026-09-19T21:17:06Z","v":1}
-{"actor":"cutover-proof","approval_ref":"2cd3c30d309da9d6","decision":"allow","duration_ms":195,"reason":"ok","target":"req-1","tier":4,"tool":"relay_reply","transport":"stdio","ts":"2026-09-19T21:17:06Z","v":1}
-{"actor":"cutover-proof","approval_ref":null,"decision":"refuse","duration_ms":0,"reason":"unknown-tool","target":null,"tier":null,"tool":"unadmitted_tool","transport":"stdio","ts":"2026-09-19T21:17:06Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","decision_digest":null,"duration_ms":207,"reason":"ok","target":null,"tier":1,"tool":"fleet_snapshot","transport":"stdio","ts":"2026-09-21T06:33:29Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","decision_digest":null,"duration_ms":5,"reason":"ok","target":null,"tier":1,"tool":"backlog","transport":"stdio","ts":"2026-09-21T06:33:29Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","decision_digest":null,"duration_ms":178,"reason":"ok","target":"demo-1","tier":1,"tool":"crew_state","transport":"stdio","ts":"2026-09-21T06:33:29Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","decision_digest":null,"duration_ms":0,"reason":"ok","target":"demo-1","tier":1,"tool":"status_tail","transport":"stdio","ts":"2026-09-21T06:33:29Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","decision_digest":null,"duration_ms":5,"reason":"ok","target":null,"tier":1,"tool":"fleet_poll","transport":"stdio","ts":"2026-09-21T06:33:29Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"allow","decision_digest":null,"duration_ms":186,"reason":"ok","target":"demo-1","tier":2,"tool":"send_message","transport":"stdio","ts":"2026-09-21T06:33:29Z","v":1}
+{"actor":"cutover-proof","approval_ref":"f036c0f72b3af1ea","decision":"allow","decision_digest":null,"duration_ms":187,"reason":"ok","target":"demo-1","tier":3,"tool":"lifecycle_interrupt","transport":"stdio","ts":"2026-09-21T06:33:29Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"refuse","decision_digest":null,"duration_ms":0,"reason":"approval-required","target":"demo-1","tier":3,"tool":"lifecycle_interrupt","transport":"stdio","ts":"2026-09-21T06:33:29Z","v":1}
+{"actor":"cutover-proof","approval_ref":"2cd3c30d309da9d6","decision":"allow","decision_digest":null,"duration_ms":188,"reason":"ok","target":"req-1","tier":4,"tool":"relay_reply","transport":"stdio","ts":"2026-09-21T06:33:29Z","v":1}
+{"actor":"cutover-proof","approval_ref":null,"decision":"refuse","decision_digest":null,"duration_ms":0,"reason":"unknown-tool","target":null,"tier":null,"tool":"unadmitted_tool","transport":"stdio","ts":"2026-09-21T06:33:29Z","v":1}
 ```
 
 ## Residual risks
