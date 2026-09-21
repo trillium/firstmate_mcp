@@ -60,6 +60,20 @@ Conformance shards (parallelizable across CI jobs):
 `tests/server.test.ts` covers the smarts server surface (handshake, 57 tools, schema, refusals).
 `tests/timeout.test.ts` and `tests/receipt.test.ts` cover live timing, envelope, process-group kill, and receipt lifecycle (NEVER-cached).
 `tests/conformance-*.test.ts` mirrors upstream conformance hermetically with per-runtime input hashing and hash-skipping on byte-identical inputs.
+`tests/proof-cache.test.ts` verifies AST normalization, semantic change invalidation, and proof-manifest lifecycle.
+
+## AST-Based Unit-Test Proof Caching
+
+The TypeScript tree includes an AST-based proof cache (`src/proof/`, `proof-cache/`):
+
+```sh
+pnpm run proof:check    # check AST proof status across all contracts
+pnpm run proof:explain  # explain fingerprints for a specific test file
+pnpm run proof:bench    # benchmark compile vs validation vs execution timing
+pnpm run proof:update   # repin passing proofs into proof-cache/manifest.json
+```
+
+See `docs/PROOF_CACHE.md` for full design and contract specifications.
 
 Cross-path wire parity (same stub home, same calls, diffed payloads)
 lives in the shared suite: `bash tests/conformance/ts-parity.sh`.
