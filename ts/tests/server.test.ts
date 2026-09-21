@@ -9,6 +9,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   APPROVAL,
@@ -932,6 +933,29 @@ describe("expanded surface: 66 tools", () => {
     assert.equal(isError(resp), false);
     assert.equal(payload(resp)["shellcheck"], "0.11.0");
     assert.equal(payload(resp)["actionlint"], "1.7.12");
+  });
+  it("lint_versions degrades when the workflows probe script is retired", async () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "fm-mcp-ts-nolintwf-"));
+    fs.mkdirSync(path.join(home, "bin"));
+    fs.writeFileSync(
+      path.join(home, "bin", "fm-lint.sh"),
+      '#!/bin/sh\nif [ "$1" = "--required-version" ]; then echo "0.11.0"; else exit 1; fi\n',
+      { mode: 0o755 },
+    );
+    fs.mkdirSync(path.join(home, "state"));
+    const thin = new Client({ FM_HOME: home });
+    try {
+      const resp = await thin.call("lint_versions", {});
+      assert.equal(isError(resp), false);
+      assert.equal(payload(resp)["shellcheck"], "0.11.0");
+      assert.equal(
+        (payload(resp)["actionlint"] as Record<string, unknown>)["error"],
+        "unsupported probe",
+      );
+    } finally {
+      await thin.close();
+      removeHome(home);
+    }
   });
   it("tool_update_check reports without repairing", async () => {
     const resp = await boxed.call("tool_update_check", {});
