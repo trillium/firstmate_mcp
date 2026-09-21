@@ -64,6 +64,7 @@ automatic merge.
 | `home_summary` | `state/home-summary.json` file | `schema/contracts.yaml#home_summary` | ✅ | ✅ | intentional: ledger read, refresh stays firstmate-owned |
 | `home_summary_refresh` | `bin/fm-home-summary-refresh.sh` | `schema/contracts.yaml#home_summary_refresh` | ✅ | ✅ | intentional: atomic ledger refresh, best-effort flag support |
 | `contributions_snapshot` / `contributions_pending` | `bin/fm-contributions.sh snapshot` / `pending` | `schema/contracts.yaml#contributions_snapshot` | ✅ | ✅ | intentional: read-only projection, no forge reads, no record writes |
+| `mail_status` / `mail_read` / `mail_check` | `bin/fm-mail.sh status` / `read` / `bin/fm-mail-check.sh check` | `schema/contracts.yaml#mail_status` | ✅ | ✅ | intentional: config+cursor, BODY.PEEK digest, and bounded inbound check only; poll/arm/disarm stay firstmate-owned |
 | `lifecycle_interrupt/exit/relaunch/suspend/resume` | `bin/fm-control.sh` verbs | adapter safe-verb subset | ✅ | ✅ | intentional: per-call `I authorize` approval gate |
 | `spawn_crew` | `bin/fm-spawn.sh` | `schema/contracts.yaml#spawn_crew` | ✅ | ✅ | intentional: approval gate + safe flag subset |
 | `scaffold_brief` | `bin/fm-brief.sh` | `schema/contracts.yaml#scaffold_brief` | ✅ | ✅ | intentional: approval gate + safe flag subset |

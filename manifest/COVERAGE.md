@@ -21,10 +21,10 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Secondmates / remotes](#secondmates-remotes) | 7 | 0 | 13 |
 | [PR pipeline](#pr-pipeline) | 2 | 5 | 4 |
 | [Relay](#relay) | 4 | 0 | 4 |
-| [Voice / mail](#voice-mail) | 3 | 0 | 1 |
+| [Voice / mail](#voice-mail) | 4 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 |
 | [Installs](#installs) | 4 | 0 | 19 |
-| **Total** | **45** | **9** | **104** |
+| **Total** | **46** | **9** | **103** |
 
 ## Fleet runs
 
@@ -208,7 +208,7 @@ Out-of-band planes: mail reads/sends; voice helpers are non-command modules.
 | --- | --- | --- |
 | `bin/fm_voice_records.py` | mirrored — `voice_status` (ts✔) | Voice-agent status answer from durable records; no mic, no Bedrock, no audio. |
 | `bin/fm_voice_records.py` | mirrored — `voice_queue` (ts✔) | Hand one request to firstmate through the voice handover queue. |
-| `fm-mail-check.sh` | gap | inbound mail check |
+| `fm-mail-check.sh` | mirrored — `mail_check` (ts✔) | inbound mail check |
 | `fm-mail.sh` | mirrored — `mail_status` (ts✔), `mail_read` (ts✔), `mail_send` (ts✔) | IMAP read / SMTP send plane |
 
 ## Digests

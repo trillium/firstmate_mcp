@@ -465,6 +465,23 @@ features:
         Read subcommand only with a never-marks-seen warning echoed;
         BODY.PEEK is owned by the script. Credentials live outside MCP
         in the home .env and never cross args or logs; inert without them.
+  - id: mail_check
+    kind: upstream-mirror
+    summary: Bounded inbound received-mail check; reports new mail and misconfiguration without arming.
+    upstream_command: bin/fm-mail-check.sh
+    upstream_flags: ["check"]
+    contract: schema/contracts.yaml#mail_check
+    upstream_test: "ts/tests/conformance-remote.test.ts::mail equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:mail_check"]}
+    divergence:
+      status: intentional
+      reason: >-
+        `check` subcommand only — the bounded poll that prints a wake line
+        for new mail or a misconfiguration and stays silent on a proven
+        no-op. `arm`/`disarm` write and bind watcher trust state, so they
+        stay firstmate-owned and have no tool. Inert without mail
+        credentials, which live outside MCP in the home .env.
   - id: voice_status
     kind: upstream-mirror
     summary: Voice-agent status answer from durable records; no mic, no Bedrock, no audio.

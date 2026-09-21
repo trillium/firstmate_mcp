@@ -8,7 +8,7 @@
  *   handoff_status, harness_detect, project_mode, lock_status,
  *   lease_check, bearings_board_path, inbox_status, inbox_list,
  *   home_summary, home_summary_refresh, contributions_snapshot, contributions_pending,
- *   mail_status, mail_read, voice_status, lint_versions,
+ *   mail_status, mail_read, mail_check, voice_status, lint_versions,
  *   tool_update_check, vendor_auth_probe, startup_memory, pr_state,
  *   relay_poll,
  *   receipt_submit, receipt_status — no approval.
@@ -78,6 +78,7 @@ export const TOOL_TIERS: Record<string, Tier> = {
   contributions_pending: TIER_OPEN,
   mail_status: TIER_OPEN,
   mail_read: TIER_OPEN,
+  mail_check: TIER_OPEN,
   voice_status: TIER_OPEN,
   lint_versions: TIER_OPEN,
   tool_update_check: TIER_OPEN,
