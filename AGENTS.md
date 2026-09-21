@@ -100,6 +100,7 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Coverage provenance outside `bin/fm-*.sh` (e.g. `bin/fm_voice_records.py`)
   needs a `bin/` key in `scripts/gen_coverage.py` COMMAND_AREAS; it renders
   via the special-rows path, never the upstream `.sh` enumeration.
+- Supervised deployment (`docs/DEPLOYMENT.md`): launchd unit template (`deploy/com.firstmate.mcp.plist.template`), fail-closed stdio smoke gate (`scripts/fm-mcp-smoke.sh`, `tests/fm-mcp-smoke.test.sh`), plist renderer (`scripts/fm-mcp-render-plist.sh`, `tests/fm-mcp-deploy.test.sh`), and copytruncate log rotation (`scripts/fm-mcp-logrotate.sh`, `tests/fm-mcp-logrotate.test.sh`).
 - Commit hooks: `bash scripts/setup-hooks.sh` configures `core.hooksPath = .githooks`
   (enforcing conventional commits `feat|fix|chore|docs|refactor|test|ci|perf|build|revert|style`
   matching observed history, shared across checkouts and linked worktrees; escape hatch `--no-verify`

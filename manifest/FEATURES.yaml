@@ -1139,6 +1139,22 @@ features:
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/followon.ts:FollowOnService", "ts/src/followon.ts:executeFollowOnsEffect", "ts/tests/followon.test.ts:describe"]}
     divergence: {status: not-applicable, reason: ""}
+  - id: supervised_deployment
+    kind: local
+    summary: launchd user agent supervisor, fail-closed smoke gate, and audit log rotation for firstmate_mcp.
+    local_path: deploy/
+    contract: docs/DEPLOYMENT.md (supervised deployment package, launchd agent template, smoke gate, and log rotation)
+    upstream_test: "n/a (local) — proof: tests/fm-mcp-deploy.test.sh + tests/fm-mcp-smoke.test.sh + tests/fm-mcp-logrotate.test.sh"
+    readme_anchor: Supervised deployment
+    py: {status: retired}
+    ts:
+      status: implemented
+      evidence:
+        - "deploy/com.firstmate.mcp.plist.template:<plist"
+        - "scripts/fm-mcp-smoke.sh:read_line_with_timeout"
+        - "scripts/fm-mcp-logrotate.sh:rotate_file"
+        - "docs/DEPLOYMENT.md:Supervised Deployment"
+    divergence: {status: not-applicable, reason: ""}
   # ---- FORK DELTAS: trillium/firstmate behavior changes vs upstream kunchenguid ----
   - id: brief_herdr_lab_safety
     kind: fork

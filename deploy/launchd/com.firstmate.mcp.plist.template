@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>{{LABEL}}</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{FM_MCP_LAUNCH_SCRIPT}}</string>
+        <string>--home</string>
+        <string>{{FM_HOME}}</string>
+        <string>--server</string>
+        <string>ts</string>
+        <string>--runtime</string>
+        <string>{{FM_MCP_RUNTIME}}</string>
+        <string>--audit-log</string>
+        <string>{{FM_AUDIT_LOG}}</string>
+        <string>--actor</string>
+        <string>{{FM_ACTOR}}</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>{{FIRSTMATE_MCP_DIR}}</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>FM_HOME</key>
+        <string>{{FM_HOME}}</string>
+        <key>FM_MCP_SERVER</key>
+        <string>ts</string>
+        <key>FM_MCP_RUNTIME</key>
+        <string>{{FM_MCP_RUNTIME}}</string>
+        <key>FM_AUDIT_LOG</key>
+        <string>{{FM_AUDIT_LOG}}</string>
+        <key>FM_ACTOR</key>
+        <string>{{FM_ACTOR}}</string>
+        <key>PATH</key>
+        <string>{{PATH}}</string>
+        {{EXTRA_ENV_VARS}}
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>ProcessType</key>
+    <string>Standard</string>
+
+    <key>StandardErrorPath</key>
+    <string>{{STDERR_LOG}}</string>
+
+    <key>StandardOutPath</key>
+    <string>{{STDOUT_LOG}}</string>
+</dict>
+</plist>
