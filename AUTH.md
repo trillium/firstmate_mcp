@@ -62,6 +62,24 @@ To enable autonomous worker loops without human stall at every authorization gat
 3. Revocation & Inspection (`grant_revoke`, `grant_status`):
    - `grant_revoke`: Tier 3 authority write to immediately revoke a grant by `grant_id` or `grant_ref`. Revoked grants fail closed immediately.
    - `grant_status`: Tier 1 open read to inspect grant metadata (validity, expiry, usage count, scopes). Strictly returns safe metadata; never reveals secret tokens or hashes.
+Grant issuance policy (owner-delegated 2026-09-22):
+
+The owner delegates issuance to the agent (AGENTS.md, "Posture (owner-set)").
+There is no separate human ceremony for routine loops; the minting agent records
+what it minted, for whom, with what scope, and why, in the grant `note`.
+
+- Bootstrap: the first grant in a home is minted with an explicit approval
+  string, because no grant exists yet that could authorize minting. That single
+  use of the human channel is the ceremony; afterwards loops carry tokens.
+- Least privilege: name the tools the loop actually needs (`tools`), keep
+  `tier_limit` at the lowest tier that works (3 for landing and test writes,
+  never 4 unless an external send is the point), and bound both `ttl_s` (one hour
+  for a first grant) and `max_uses`.
+- No escalation: a grant never exceeds the minting grant's tier, tool allowlist,
+  or remaining TTL, and never widens its own scope.
+- Kill switch: `grant_revoke` is immediate and fail-closed; every mint, use, and
+  revoke is audited with `approval_ref` = the 16-hex `grant_ref`, never a token.
+
 4. Refusal-Biased Security Invariants:
    - Default-Deny: Calls without approval strings and without valid standing grants are strictly refused (`approval required`).
    - Captain-Hold Release Protection: Wildcard grants (`tools: null` or `tools: ["*"]`) NEVER authorize captain-hold release tools (`review_decision`, `decision_resolve`). Releasing a captain-held task requires an explicit per-deploy grant specifically naming the tool in its allowlist.
