@@ -10,7 +10,7 @@
  * home_summary_refresh, contributions_snapshot, contributions_pending,
  * mail_status, mail_read, mail_check,
  * voice_status, lint_versions, tool_update_check, vendor_auth_probe,
- * startup_memory, pr_state, relay_poll,
+ * startup_memory, pr_state, pr_poll, relay_poll,
  * plus receipt_submit/receipt_status, the fail-closed async receipts).
  * CHANGED (approval-gated): decision_hold, decision_resolve,
  * lifecycle_interrupt/exit/relaunch/suspend/resume, relay_reply/dismiss/
@@ -41,6 +41,7 @@ import {
   HOME_SUMMARY_SCHEMA,
   MAX_OUTPUT_BYTES,
   MODES,
+  PR_URL_RE,
   RECEIPT_DIRNAME,
   RECEIPT_TIMEOUT_S,
   RECEIPT_TTL_S,
@@ -2461,6 +2462,45 @@ async function toolPrState(args: ToolArgs, ctx: ToolContext): Promise<ToolResult
   return { payload, isError: true };
 }
 
+async function toolPrPoll(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const url = args["url"];
+  if (!validPrUrl(url)) {
+    return {
+      payload: {
+        error: "invalid url",
+        expect: "https://github.com/<owner>/<repo>/pull/<number>",
+      },
+      isError: true,
+    };
+  }
+  const match = PR_URL_RE.exec(url as string);
+  if (!match) {
+    return {
+      payload: {
+        error: "invalid url",
+        expect: "https://github.com/<owner>/<repo>/pull/<number>",
+      },
+      isError: true,
+    };
+  }
+  const owner = match[1];
+  const repo = match[2];
+  const number = match[3];
+
+  const cmd = [
+    path.join(ctx.binDir, "fm-pr-poll.sh"),
+    "--validated",
+    "github",
+    url as string,
+    "github.com",
+    `${owner}/${repo}`,
+    number,
+  ];
+  const { payload, isError } = await ownedCall(cmd, "pr poll failed", ctx.run);
+  if (!isError) return { payload: { ...payload, url }, isError: false };
+  return { payload, isError: true };
+}
+
 async function toolRelayPoll(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   // Short bounded poll; hard no-op without relay consent (FMX token).
   return ownedCall(argv(path.join(ctx.binDir, "fm-x-poll.sh")), "relay poll failed", ctx.run);
@@ -3711,6 +3751,18 @@ export const TOOLS: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolPrState,
+  },
+  pr_poll: {
+    description: "Read-only static merge-poll watcher check source; returns merged when merged, silent otherwise.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "https://github.com/<owner>/<repo>/pull/<number>" },
+      },
+      required: ["url"],
+      additionalProperties: false,
+    },
+    handler: toolPrPoll,
   },
   relay_poll: {
     description: "Read-only short-poll of the relay connector; hard no-op without relay consent.",

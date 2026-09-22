@@ -807,6 +807,22 @@ contracts:
       header: bin/fm-pr-state.sh:1-30
       doc: INVENTORY.md
     notes: One-shot read-only blockers read over a validated GitHub PR URL; never posts, requests, approves, or merges.
+  - name: pr_poll
+    command: bin/fm-pr-poll.sh
+    flags: ["--validated", "github", "<pr-url>", "github.com", "<path>", "<number>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["url", "stdout"]
+    exits:
+      zero: merged when PR is merged, or silence when pending/unmerged; exits 0
+      nonzero: unreadable PR or invalid arguments; stderr carries the reason
+    stability: stable
+    pinned: fm-pr-poll.v1
+    evidence:
+      header: bin/fm-pr-poll.sh:1-30
+      doc: INVENTORY.md
+    notes: Read-only static watcher check source; returns merged when merged, silent otherwise.
   - name: relay_poll
     command: bin/fm-x-poll.sh
     flags: ["<none>"]

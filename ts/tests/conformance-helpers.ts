@@ -52,6 +52,7 @@ export const READ_TOOLS: ReadonlySet<string> = new Set([
   "vendor_auth_probe",
   "startup_memory",
   "pr_state",
+  "pr_poll",
   "relay_poll",
   "public_followup_pending",
   "public_followup_collect",
@@ -90,6 +91,7 @@ export const READ_SCRIPTS: ReadonlySet<string> = new Set([
   "fm-vendor-auth-probe.sh",
   "fm-startup-memory-budget.sh",
   "fm-pr-state.sh",
+  "fm-pr-poll.sh",
   "fm-x-poll.sh",
   "fm-public-followup.sh",
   "fm-public-followup-collect.sh",
@@ -161,6 +163,7 @@ export const TOOL_UPDATE_STUB = 'echo "tool-update-stub:check"\n';
 export const VENDOR_PROBE_STUB = 'echo "probe=$1 status=unauthenticated version=none versionVerified=none"\n';
 export const STARTUP_MEMORY_STUB = 'echo "memory-stub:$1"\n';
 export const PR_STATE_STUB = 'echo "pr-stub:$1"\n';
+export const PR_POLL_STUB = 'echo "poll-stub:$1 $2 $3 $4 $5 $6"\n';
 export const X_POLL_STUB = 'echo "x-poll stub: empty"\n';
 export const PUBLIC_FOLLOWUP_STUB = 'echo "public-followup-stub:$1"\n';
 export const PUBLIC_FOLLOWUP_COLLECT_STUB = 'echo "public-followup-collect-stub:$1 id=$2"\n';
@@ -229,6 +232,7 @@ export function setup(): Fixture {
   writeStub(path.join(scratch, "bin"), "fm-vendor-auth-probe.sh", VENDOR_PROBE_STUB);
   writeStub(path.join(scratch, "bin"), "fm-startup-memory-budget.sh", STARTUP_MEMORY_STUB);
   writeStub(path.join(scratch, "bin"), "fm-pr-state.sh", PR_STATE_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-pr-poll.sh", PR_POLL_STUB);
   writeStub(path.join(scratch, "bin"), "fm-x-poll.sh", X_POLL_STUB);
   writeStub(path.join(scratch, "bin"), "fm-public-followup.sh", PUBLIC_FOLLOWUP_STUB);
   writeStub(path.join(scratch, "bin"), "fm-public-followup-collect.sh", PUBLIC_FOLLOWUP_COLLECT_STUB);
