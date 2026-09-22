@@ -30,6 +30,7 @@ script's observable output (modulo the envelope wrap).
 - `decision_open` — via `fm-captain-hold.sh` (adapter-native projection)
 - `decision_verify` — via `fm-captain-hold.sh` (adapter-native projection)
 - `dispatch_resolve` — via `fm-dispatch-resolve.sh` (pinned in schema/contracts.yaml)
+- `doc_audience_check` — via `fm-doc-audience-check.sh` (pinned in schema/contracts.yaml)
 - `extension_inspect` — via `fm-extension.sh` (pinned in schema/contracts.yaml)
 - `extension_list` — via `fm-extension.sh` (pinned in schema/contracts.yaml)
 - `fleet_poll` — via `fm-fleet-snapshot.sh` (adapter-native projection)
@@ -38,6 +39,7 @@ script's observable output (modulo the envelope wrap).
 - `guard_check` — via `fm-guard.sh` (pinned in schema/contracts.yaml)
 - `handoff_status` — via `native (no owning script)` (pinned in schema/contracts.yaml)
 - `harness_detect` — via `fm-harness.sh` (pinned in schema/contracts.yaml)
+- `home_seed_validate` — via `fm-home-seed.sh` (pinned in schema/contracts.yaml)
 - `home_summary` — via `native (no owning script)` (pinned in schema/contracts.yaml)
 - `home_summary_refresh` — via `fm-home-summary-refresh.sh` (pinned in schema/contracts.yaml)
 - `inbox_list` — via `fm-inbox.sh` (pinned in schema/contracts.yaml)
@@ -62,10 +64,14 @@ script's observable output (modulo the envelope wrap).
 - `send_message` — via `fm-send.sh` (pinned in schema/contracts.yaml)
 - `sessionstart_nudge` — via `fm-sessionstart-nudge.sh` (pinned in schema/contracts.yaml)
 - `startup_memory` — via `fm-startup-memory-budget.sh` (pinned in schema/contracts.yaml)
+- `startup_network_report` — via `fm-startup-network.sh` (pinned in schema/contracts.yaml)
 - `status_tail` — via `native (no owning script)` (pinned in schema/contracts.yaml)
+- `stow_cascade` — via `fm-stow-cascade.sh` (pinned in schema/contracts.yaml)
 - `tasks_list` — via `fm-tasks-axi.sh` (pinned in schema/contracts.yaml)
 - `tasks_ready` — via `fm-tasks-axi.sh` (pinned in schema/contracts.yaml)
 - `tasks_show` — via `fm-tasks-axi.sh` (pinned in schema/contracts.yaml)
+- `test_isolation_list` — via `fm-test-isolation-proof.sh` (pinned in schema/contracts.yaml)
+- `test_run_list` — via `fm-test-run.sh` (pinned in schema/contracts.yaml)
 - `tool_update_check` — via `fm-tool-update-check.sh` (pinned in schema/contracts.yaml)
 - `vendor_auth_probe` — via `fm-vendor-auth-probe.sh` (pinned in schema/contracts.yaml)
 - `voice_status` — via `fm_voice_records.py` (pinned in schema/contracts.yaml)
@@ -101,10 +107,14 @@ revalidated ids/paths/text, explicit per-call approval.
 
 Refused by the adapter deny-list (no tool, answered unknown):
 
+- `agents_md_ensure` (out of smarts-only scope)
 - `agy_trust` (out of smarts-only scope)
 - `arm_pr_check` (code-forbidden)
 - `backend_select` (out of smarts-only scope)
 - `backlog_receive` (out of smarts-only scope)
+- `bootstrap` (out of smarts-only scope)
+- `check_register` (out of smarts-only scope)
+- `check_unregister` (out of smarts-only scope)
 - `claude_stop_autoarm` (out of smarts-only scope)
 - `claude_trust` (out of smarts-only scope)
 - `config_push` (out of smarts-only scope)
@@ -118,6 +128,10 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - `herdr_workspace_move` (out of smarts-only scope)
 - `inactive_reconcile` (out of smarts-only scope)
 - `inherit_push` (out of smarts-only scope)
+- `install_actionlint` (out of smarts-only scope)
+- `install_herdr` (out of smarts-only scope)
+- `install_shellcheck` (out of smarts-only scope)
+- `install_treehouse` (out of smarts-only scope)
 - `merge_local` (code-forbidden)
 - `merge_pr` (code-forbidden)
 - `on_execute` (out of smarts-only scope)
@@ -140,8 +154,10 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - `sessionstart_cursor` (out of smarts-only scope)
 - `sessionstart_run` (out of smarts-only scope)
 - `teardown_crew` (code-forbidden)
+- `update` (out of smarts-only scope)
 - `watch_start` (out of smarts-only scope)
 - `watch_stop` (out of smarts-only scope)
+- `workflow_lint` (out of smarts-only scope)
 
 ### NEW Trillium features (exist only in this layer)
 
@@ -178,7 +194,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` implements the 74-tool
+- TypeScript sibling — `ts/` implements the 80-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Customizable follow-on actions — `ts/src/followon.ts` provides configurable
@@ -230,7 +246,7 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | Relay | 6 | 2 | 0 |
 | Voice / mail | 4 | 0 | 0 |
 | Digests | 6 | 0 | 0 |
-| Installs | 4 | 0 | 19 |
+| Installs | 10 | 10 | 3 |
 
 Mirrored names the MCP tool; `stale` flags an owning script upstream removed
 after the pin (the tool still dispatches the old name). Denied names the

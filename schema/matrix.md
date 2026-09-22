@@ -58,6 +58,12 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | tasks_ready | bin/fm-tasks-axi.sh | evolving | ready, --repo, --include-held | dispatchable ready queued task reads |
 | dispatch_resolve | bin/fm-dispatch-resolve.sh | evolving | <brief>, --project | dispatch plan reads (never launches) |
 | sessionstart_nudge | bin/fm-sessionstart-nudge.sh | evolving | <none> | session-start nudge reads |
+| startup_network_report | bin/fm-startup-network.sh | evolving | report | deferred startup-network stage report reads |
+| doc_audience_check | bin/fm-doc-audience-check.sh | evolving | --root | docs inventory + local-link validation reads |
+| home_seed_validate | bin/fm-home-seed.sh | evolving | validate | secondmate-registry validation reads |
+| stow_cascade | bin/fm-stow-cascade.sh | evolving | <none> | stow cascade enumeration reads |
+| test_isolation_list | bin/fm-test-isolation-proof.sh | evolving | --list, --pool | isolation-proof topology reads |
+| test_run_list | bin/fm-test-run.sh | evolving | --list-families | test-runner topology reads |
 | spawn_crew | bin/fm-spawn.sh | evolving | task, project, mode, yolo | dispatch writes |
 | scaffold_brief | bin/fm-brief.sh | evolving | task, repo, mode/scout | dispatch writes |
 | receipt_submit | native: receipt store (state/mcp-receipts/) | experimental | <tool> <arguments> | detach long calls past the 30s budget |

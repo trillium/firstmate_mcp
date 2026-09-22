@@ -297,6 +297,16 @@ DENY_REASONS = {
     "remote_inherit": ("fm-remote-inherit.sh", "the inherit apply path atomically replaces files and quarantines divergent records inside a home; only the remote entrypoint's propagation run owns inherit writes"),
     "reap_orphans": ("fm-remote-job-reap-orphans.sh", "reaping signals TERM then KILL across worker process trees; only the launch supervisor owns worker lifecycle"),
     "remote_worker": ("fm-remote-job-worker.sh", "the worker claims staged records and executes tracked commands as a daemon; only the LaunchAgent and restart supervisor own worker lifecycle"),
+    "bootstrap": ("fm-bootstrap.sh", "running the home bootstrap refreshes and prunes fleet checkouts, nudges secondmates, and respawns agents; only session start owns bootstrap sweeps"),
+    "check_register": ("fm-check-register.sh", "registering a custom watcher check writes its trust binding into state; only the watcher owner that staged the check file owns registration"),
+    "check_unregister": ("fm-check-unregister.sh", "unregistering removes the check and its trust binding from state; only the watcher owner owns retirement"),
+    "agents_md_ensure": ("fm-ensure-agents-md.sh", "ensuring the memory-file convention creates, promotes, or converts AGENTS.md/CLAUDE.md in a worktree; only the worktree-owning crewmate owns memory-file writes"),
+    "install_actionlint": ("fm-install-actionlint.sh", "installing downloads a release archive and writes a binary; only CI provisioning owns installs"),
+    "install_herdr": ("fm-install-herdr.sh", "installing downloads a release asset and writes a binary; only CI provisioning owns installs"),
+    "install_shellcheck": ("fm-install-shellcheck.sh", "installing downloads a release archive and writes a binary; only CI provisioning owns installs"),
+    "install_treehouse": ("fm-install-treehouse.sh", "installing downloads a release archive and writes a binary; only CI provisioning owns installs"),
+    "update": ("fm-update.sh", "updating fast-forwards the running repo and every secondmate home and restarts live agents; only the captain's own update run owns fleet updates"),
+    "workflow_lint": ("fm-lint-workflows.sh", "running the workflow lint executes the actionlint binary over the repo; only the lint lane owns runs; the required-version pin probe is served via lint_versions"),
 }
 
 DENY_LIST = frozenset(DENY_REASONS.keys())
