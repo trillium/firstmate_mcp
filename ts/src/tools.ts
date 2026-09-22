@@ -11,7 +11,9 @@
  * home_summary_refresh, contributions_snapshot, contributions_pending,
  * mail_status, mail_read, mail_check, dispatch_resolve, sessionstart_nudge,
  * voice_status, lint_versions, tool_update_check, vendor_auth_probe,
- * startup_memory, pr_state, pr_poll, relay_poll,
+ * startup_memory, startup_network_report, doc_audience_check,
+ * home_seed_validate, stow_cascade, test_isolation_list, test_run_list,
+ * pr_state, pr_poll, relay_poll,
  * plus receipt_submit/receipt_status, the fail-closed async receipts).
  * CHANGED (approval-gated): decision_hold, decision_resolve,
  * lifecycle_interrupt/exit/relaunch/suspend/resume, relay_reply/dismiss/
@@ -27,7 +29,9 @@
  * (the sourced backend-provider library and its backends/*.sh adapters),
  * on_execute, config_push, remote_entrypoint, remote_herdr_guard,
  * remote_provision, remote_seed, inherit_push, remote_inherit,
- * reap_orphans, remote_worker.
+ * reap_orphans, remote_worker, bootstrap, check_register,
+ * check_unregister, agents_md_ensure, install_actionlint, install_herdr,
+ * install_shellcheck, install_treehouse, update, workflow_lint.
  *
  * Every tool shells to its owning bin/fm-*.sh script and never reimplements
  * firstmate behavior. Wire payloads match the Python server exactly so the
@@ -113,6 +117,9 @@ import {
   validSha256,
   validStartupMode,
   validStatusLines,
+  validTestIsolationMode,
+  validTestRunListMode,
+  validIsolationPool,
   validVoiceQueueText,
   validVoiceScope,
 } from "./validators.js";
@@ -2726,6 +2733,137 @@ async function toolStartupMemory(args: ToolArgs, ctx: ToolContext): Promise<Tool
   return { payload, isError: true };
 }
 
+// --- Installs gap area: setup/hygiene reads ---
+//
+// Every installer, seeder, bootstrapper, updater, and test-runner verb
+// stays OUT of doorway ownership: approval-gated Tier-3 names with no
+// handler (refused as unknown even with approval; see the deny-list
+// comment on the registry below). The six reads here expose only the
+// genuinely read-only, bounded modes: a deferred-network report, a docs
+// inventory check, a home-seed registry validation, a stow-cascade
+// enumeration, and the test topology lists. Runs, installs, seeds,
+// bootstraps, and updates never dispatch.
+
+async function toolStartupNetworkReport(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // report only: prints the current state plus the last run's per-step
+  // timings without changing anything. start/run/harvest/wait stay out:
+  // start detaches a worker, run executes sweeps, harvest writes the
+  // delivered acknowledgement, and wait blocks past the envelope.
+  return ownedCall(
+    argv(path.join(ctx.binDir, "fm-startup-network.sh"), "report"),
+    "startup network report failed",
+    ctx.run,
+  );
+}
+
+async function toolDocAudienceCheck(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // Structure-only docs inventory + local-link validation against one
+  // home-confined repo root (default: this home, which is the checkout
+  // in the default deployment). The inventory path stays at the
+  // upstream default (docs/documentation-audiences.json under root).
+  const root = args["root"];
+  let resolved: string;
+  if (root === undefined) {
+    resolved = homeRoot(ctx);
+  } else {
+    if (!validRelpath(root)) {
+      return {
+        payload: { error: "invalid root", expect: "home-relative path, no traversal" },
+        isError: true,
+      };
+    }
+    const confined = confineHomePath(ctx, root as string);
+    if (confined === null) {
+      return {
+        payload: { error: "invalid root", expect: "home-relative path, no traversal" },
+        isError: true,
+      };
+    }
+    resolved = confined;
+  }
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-doc-audience-check.sh"), "--root", resolved),
+    "doc audience check failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, root: resolved }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolHomeSeedValidate(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // validate only: refuses secondmate-registry records that operational
+  // consumers cannot parse. Provisioning (clones, markers, registry
+  // writes, treehouse leases) stays out.
+  return ownedCall(
+    argv(path.join(ctx.binDir, "fm-home-seed.sh"), "validate"),
+    "home seed validation failed",
+    ctx.run,
+  );
+}
+
+async function toolStowCascade(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // Read-only cascade enumeration: one key=value stanza per registered
+  // secondmate home with its budget report and transport judgement.
+  // Curation itself stays with the /stow skill; remote homes that do not
+  // answer inside the subprocess envelope surface as a typed timeout.
+  return ownedCall(
+    argv(path.join(ctx.binDir, "fm-stow-cascade.sh")),
+    "stow cascade failed",
+    ctx.run,
+  );
+}
+
+async function toolTestIsolationList(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const mode = args["mode"] ?? "candidates";
+  if (!validTestIsolationMode(mode)) {
+    return {
+      payload: { error: "invalid mode", expect: "one of candidates, exclusions" },
+      isError: true,
+    };
+  }
+  const pool = args["pool"] ?? "portable";
+  if (!validIsolationPool(pool)) {
+    return {
+      payload: { error: "invalid pool", expect: "portable or a test-runner family name" },
+      isError: true,
+    };
+  }
+  // List modes only: proven candidates or kept-serial exclusions.
+  // Proof runs (concurrent workers, timing artifacts) stay out.
+  const flag = mode === "exclusions" ? "--list-exclusions" : "--list";
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-test-isolation-proof.sh"), flag, "--pool", pool as string),
+    "test isolation list failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, mode, pool }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolTestRunList(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const mode = args["mode"] ?? "families";
+  if (!validTestRunListMode(mode)) {
+    return {
+      payload: { error: "invalid mode", expect: "one of families, lanes, concurrent_safe, coverage" },
+      isError: true,
+    };
+  }
+  // Selection-list reads only: family/lane topology and the parallel
+  // coverage guard. Suite runs (minutes-long, log-writing) stay out.
+  const flag =
+    mode === "lanes" ? "--list-lanes"
+    : mode === "concurrent_safe" ? "--list-concurrent-safe-families"
+    : mode === "coverage" ? "--check-coverage"
+    : "--list-families";
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-test-run.sh"), flag),
+    "test run list failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, mode }, isError: false };
+  return { payload, isError: true };
+}
+
 async function toolPrState(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   const url = args["url"];
   if (!validPrUrl(url)) {
@@ -4352,6 +4490,55 @@ export const TOOLS: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolStartupMemory,
+  },
+  startup_network_report: {
+    description: "Read-only deferred startup-network stage report (state + last-run timings); start/run/harvest/wait stay out.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolStartupNetworkReport,
+  },
+  doc_audience_check: {
+    description: "Read-only docs audience-inventory + local-link validation for one home-confined repo root (default: this home).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        root: { type: "string", description: "Home-relative repo root to check" },
+      },
+      additionalProperties: false,
+    },
+    handler: toolDocAudienceCheck,
+  },
+  home_seed_validate: {
+    description: "Read-only secondmate-registry validation; provisioning (clones, markers, leases) stays out.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolHomeSeedValidate,
+  },
+  stow_cascade: {
+    description: "Read-only /stow cascade enumeration: per-home budget report + transport judgement; curation stays with the skill.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolStowCascade,
+  },
+  test_isolation_list: {
+    description: "Read-only isolation-proof topology: proven concurrent candidates or kept-serial exclusions; proof runs stay out.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["candidates", "exclusions"], default: "candidates" },
+        pool: { type: "string", description: "Candidate pool: portable or a test-runner family name", default: "portable" },
+      },
+      additionalProperties: false,
+    },
+    handler: toolTestIsolationList,
+  },
+  test_run_list: {
+    description: "Read-only test-runner topology: families, lanes, concurrent-safe families, or the parallel coverage guard; suite runs stay out.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["families", "lanes", "concurrent_safe", "coverage"], default: "families" },
+      },
+      additionalProperties: false,
+    },
+    handler: toolTestRunList,
   },
   pr_state: {
     description: "Read-only blockers on one GitHub pull request; never posts, requests, or merges.",

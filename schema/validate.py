@@ -92,6 +92,12 @@ CURRENT_PINS = {
     "tasks_ready": "fm-tasks-axi.ready.v1",
     "dispatch_resolve": "fm-dispatch-resolve.v1",
     "sessionstart_nudge": "fm-sessionstart-nudge.v1",
+    "startup_network_report": "fm-startup-network.report.v1",
+    "doc_audience_check": "fm-doc-audience-check.v1",
+    "home_seed_validate": "fm-home-seed.validate.v1",
+    "stow_cascade": "fm-stow-cascade.v1",
+    "test_isolation_list": "fm-test-isolation-proof.list.v1",
+    "test_run_list": "fm-test-run.list.v1",
 }
 
 

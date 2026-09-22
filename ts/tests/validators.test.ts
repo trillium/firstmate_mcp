@@ -25,6 +25,7 @@ import {
   validPageLimit,
   parseSnapshotCursor,
   validPeekLines,
+  validIsolationPool,
   validProbe,
   validProject,
   validPrUrl,
@@ -34,6 +35,8 @@ import {
   validSingleLine,
   validStartupMode,
   validStatusLines,
+  validTestIsolationMode,
+  validTestRunListMode,
   validSteerText,
   validVoiceQueueText,
   validVoiceScope,
@@ -240,6 +243,22 @@ describe("wave-4 validators", () => {
     assert.equal(validStartupMode("read"), true);
     assert.equal(validStartupMode("report"), true);
     assert.equal(validStartupMode("boot"), false);
+  });
+  it("accepts isolation list modes and pools", () => {
+    assert.equal(validTestIsolationMode("candidates"), true);
+    assert.equal(validTestIsolationMode("exclusions"), true);
+    assert.equal(validTestIsolationMode("run"), false);
+    assert.equal(validIsolationPool("portable"), true);
+    assert.equal(validIsolationPool("watcher"), true);
+    assert.equal(validIsolationPool("../escape"), false);
+    assert.equal(validIsolationPool(""), false);
+  });
+  it("accepts test-run list modes", () => {
+    assert.equal(validTestRunListMode("families"), true);
+    assert.equal(validTestRunListMode("lanes"), true);
+    assert.equal(validTestRunListMode("concurrent_safe"), true);
+    assert.equal(validTestRunListMode("coverage"), true);
+    assert.equal(validTestRunListMode("all"), false);
   });
   it("validates mail recipients, subjects, bodies", () => {
     assert.equal(validMailTo("a@example.com"), true);

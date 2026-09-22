@@ -23,8 +23,8 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Relay](#relay) | 6 | 2 | 0 |
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 |
-| [Installs](#installs) | 4 | 0 | 19 |
-| **Total** | **53** | **41** | **64** |
+| [Installs](#installs) | 10 | 10 | 3 |
+| **Total** | **59** | **51** | **48** |
 
 ## Fleet runs
 
@@ -230,28 +230,28 @@ Setup and hygiene: installers, seeds, linters, tests, probes, registry checks.
 
 | Command | Mirror status | Notes |
 | --- | --- | --- |
-| `fm-bootstrap.sh` | gap | home bootstrap |
-| `fm-check-register.sh` | gap | custom check registration |
-| `fm-check-unregister.sh` | gap | custom check removal |
-| `fm-doc-audience-check.sh` | gap | docs audience + link check |
-| `fm-ensure-agents-md.sh` | gap | agent-memory file bootstrap |
+| `fm-bootstrap.sh` | denied-by-design — `bootstrap` | home bootstrap. running the home bootstrap refreshes and prunes fleet checkouts, nudges secondmates, and respawns agents; only session start owns bootstrap sweeps |
+| `fm-check-register.sh` | denied-by-design — `check_register` | custom check registration. registering a custom watcher check writes its trust binding into state; only the watcher owner that staged the check file owns registration |
+| `fm-check-unregister.sh` | denied-by-design — `check_unregister` | custom check removal. unregistering removes the check and its trust binding from state; only the watcher owner owns retirement |
+| `fm-doc-audience-check.sh` | mirrored — `doc_audience_check` (ts✔) | docs audience + link check |
+| `fm-ensure-agents-md.sh` | denied-by-design — `agents_md_ensure` | agent-memory file bootstrap. ensuring the memory-file convention creates, promotes, or converts AGENTS.md/CLAUDE.md in a worktree; only the worktree-owning crewmate owns memory-file writes |
 | `fm-fix-no-mistakes-fork-mapping.sh` (removed upstream) | gap | fork-mapping fix helper; removed upstream since pin |
 | `fm-fork-origin-check.sh` (removed upstream) | gap | fork-origin advisory scan; removed upstream since pin |
-| `fm-home-seed.sh` | gap | home seeding |
-| `fm-install-actionlint.sh` | gap | actionlint installer |
-| `fm-install-herdr.sh` | gap | Herdr installer |
-| `fm-install-shellcheck.sh` | gap | shellcheck installer |
-| `fm-install-treehouse.sh` | gap | treehouse installer |
-| `fm-lint-workflows.sh` | gap | workflow lint run (probe served via lint_versions; run stays out) |
+| `fm-home-seed.sh` | mirrored — `home_seed_validate` (ts✔) | home seeding |
+| `fm-install-actionlint.sh` | denied-by-design — `install_actionlint` | actionlint installer. installing downloads a release archive and writes a binary; only CI provisioning owns installs |
+| `fm-install-herdr.sh` | denied-by-design — `install_herdr` | Herdr installer. installing downloads a release asset and writes a binary; only CI provisioning owns installs |
+| `fm-install-shellcheck.sh` | denied-by-design — `install_shellcheck` | shellcheck installer. installing downloads a release archive and writes a binary; only CI provisioning owns installs |
+| `fm-install-treehouse.sh` | denied-by-design — `install_treehouse` | treehouse installer. installing downloads a release archive and writes a binary; only CI provisioning owns installs |
+| `fm-lint-workflows.sh` | denied-by-design — `workflow_lint` | workflow lint run (probe served via lint_versions; run stays out). running the workflow lint executes the actionlint binary over the repo; only the lint lane owns runs; the required-version pin probe is served via lint_versions |
 | `fm-lint.sh` | mirrored — `lint_versions` (ts✔) | repo lint (required-version probe mirrored; runs stay out) |
 | `fm-startup-memory-budget.sh` | mirrored — `startup_memory` (ts✔) | startup memory budget |
-| `fm-startup-network.sh` | gap | startup network probe |
-| `fm-stow-cascade.sh` | gap | stow cascade |
+| `fm-startup-network.sh` | mirrored — `startup_network_report` (ts✔) | startup network probe |
+| `fm-stow-cascade.sh` | mirrored — `stow_cascade` (ts✔) | stow cascade |
 | `fm-test-affected.sh` (removed upstream) | gap | test-impact selector; removed upstream since pin |
-| `fm-test-isolation-proof.sh` | gap | isolation proof |
-| `fm-test-run.sh` | gap | test runner |
+| `fm-test-isolation-proof.sh` | mirrored — `test_isolation_list` (ts✔) | isolation proof |
+| `fm-test-run.sh` | mirrored — `test_run_list` (ts✔) | test runner |
 | `fm-tool-update-check.sh` | mirrored — `tool_update_check` (ts✔) | tool update check |
-| `fm-update.sh` | gap | firstmate update |
+| `fm-update.sh` | denied-by-design — `update` | firstmate update. updating fast-forwards the running repo and every secondmate home and restarts live agents; only the captain's own update run owns fleet updates |
 | `fm-vendor-auth-probe.sh` | mirrored — `vendor_auth_probe` (ts✔) | vendor auth probe |
 
 ## Definitions

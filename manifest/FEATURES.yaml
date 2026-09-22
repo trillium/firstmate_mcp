@@ -622,6 +622,96 @@ features:
       reason: >-
         Read/report modes only; absent or invalid config is a typed
         error, never an inferred default. Bootstrap owns materialization.
+  - id: startup_network_report
+    kind: upstream-mirror
+    summary: Deferred startup-network stage report (state + last-run timings); changes nothing.
+    upstream_command: bin/fm-startup-network.sh
+    upstream_flags: ["report"]
+    contract: schema/contracts.yaml#startup_network_report
+    upstream_test: "ts/tests/conformance-system.test.ts::installs equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:startup_network_report"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Report mode only: prints the current state plus the last run's
+        per-step timings without changing anything. start detaches a
+        worker, run executes sweeps, harvest writes the delivered
+        acknowledgement, and wait blocks past the envelope; all stay out.
+  - id: doc_audience_check
+    kind: upstream-mirror
+    summary: Docs audience-inventory + local-link validation for one home-confined repo root.
+    upstream_command: bin/fm-doc-audience-check.sh
+    upstream_flags: ["--root"]
+    contract: schema/contracts.yaml#doc_audience_check
+    upstream_test: "ts/tests/conformance-system.test.ts::installs equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:doc_audience_check"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Structure-only validation against a home-confined root (default
+        this home); the inventory path stays at the upstream default
+        under root. Arbitrary --inventory argv stays out so the check
+        can never be pointed outside this home.
+  - id: home_seed_validate
+    kind: upstream-mirror
+    summary: Secondmate-registry validation; refuses records operational consumers cannot parse.
+    upstream_command: bin/fm-home-seed.sh
+    upstream_flags: ["validate"]
+    contract: schema/contracts.yaml#home_seed_validate
+    upstream_test: "ts/tests/conformance-system.test.ts::installs equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:home_seed_validate"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Validate subcommand only. Provisioning (project clones, home
+        markers, registry writes, treehouse leases) stays out.
+  - id: stow_cascade
+    kind: upstream-mirror
+    summary: Stow cascade enumeration (per-home budget report + transport judgement); curation stays with the skill.
+    upstream_command: bin/fm-stow-cascade.sh
+    upstream_flags: []
+    contract: schema/contracts.yaml#stow_cascade
+    upstream_test: "ts/tests/conformance-system.test.ts::installs equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:stow_cascade"]}
+    divergence:
+      status: intentional
+      reason: >-
+        No-arg enumeration only: one key=value stanza per registered
+        secondmate home. Remote homes that do not answer inside the
+        subprocess envelope surface as a typed timeout, never as silence.
+  - id: test_isolation_list
+    kind: upstream-mirror
+    summary: Isolation-proof topology (proven candidates or kept-serial exclusions) for one pool.
+    upstream_command: bin/fm-test-isolation-proof.sh
+    upstream_flags: ["--list", "--pool"]
+    contract: schema/contracts.yaml#test_isolation_list
+    upstream_test: "ts/tests/conformance-system.test.ts::installs equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:test_isolation_list"]}
+    divergence:
+      status: intentional
+      reason: >-
+        List modes only with a closed mode enum and a strict pool slug
+        (upstream re-validates the family). Proof runs with concurrent
+        workers and timing artifacts stay out.
+  - id: test_run_list
+    kind: upstream-mirror
+    summary: Test-runner topology (families, lanes, concurrent-safe families, coverage guard); runs stay out.
+    upstream_command: bin/fm-test-run.sh
+    upstream_flags: ["--list-families"]
+    contract: schema/contracts.yaml#test_run_list
+    upstream_test: "ts/tests/conformance-system.test.ts::installs equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:test_run_list"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Selection-list reads only behind a closed mode enum.
+        Minutes-long log-writing suite runs stay out.
   - id: pr_state
     kind: upstream-mirror
     summary: Visible blockers on one GitHub pull request; never posts or merges.

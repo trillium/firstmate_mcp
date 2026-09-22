@@ -75,6 +75,12 @@ automatic merge.
 | `tasks_list` / `tasks_show` / `tasks_ready` | `bin/fm-tasks-axi.sh list` / `show` / `ready` | `schema/contracts.yaml#tasks_list` | ✅ | ✅ | intentional: read-only list, show, and ready queries; queue writes and moves stay firstmate-owned |
 | `dispatch_resolve` / `sessionstart_nudge` | `bin/fm-dispatch-resolve.sh <brief>` / `bin/fm-sessionstart-nudge.sh` | `schema/contracts.yaml#dispatch_resolve` | ✅ | ✅ | intentional: dispatch plan and nudge reads that never launch; bootstrap, trust, cleanup, lab, event, and backend verbs stay firstmate-owned (deny-listed) |
 | `extension_list` / `extension_inspect` | `bin/fm-extension.sh list` / `inspect` | `schema/contracts.yaml#extension_list` | ✅ | ✅ | intentional: home-local binding reads only; bind, retire, verify, process-event, and remote-bind stay firstmate-owned |
+| `startup_network_report` | `bin/fm-startup-network.sh report` | `schema/contracts.yaml#startup_network_report` | ✅ | ✅ | intentional: deferred-stage state + timings read only; start, run, harvest, and wait stay out |
+| `doc_audience_check` | `bin/fm-doc-audience-check.sh --root` | `schema/contracts.yaml#doc_audience_check` | ✅ | ✅ | intentional: structure-only validation of a home-confined root; arbitrary inventory argv stays out |
+| `home_seed_validate` | `bin/fm-home-seed.sh validate` | `schema/contracts.yaml#home_seed_validate` | ✅ | ✅ | intentional: registry validation only; provisioning (clones, markers, leases) stays out |
+| `stow_cascade` | `bin/fm-stow-cascade.sh` | `schema/contracts.yaml#stow_cascade` | ✅ | ✅ | intentional: enumeration only; curation stays with the /stow skill |
+| `test_isolation_list` | `bin/fm-test-isolation-proof.sh --list` | `schema/contracts.yaml#test_isolation_list` | ✅ | ✅ | intentional: candidate/exclusion lists only; proof runs stay out |
+| `test_run_list` | `bin/fm-test-run.sh --list-families` | `schema/contracts.yaml#test_run_list` | ✅ | ✅ | intentional: topology lists only; suite runs stay out |
 
 Equivalence proof: `tests/conformance/` replays read tools against the
 owning scripts under a scratch home; write tools never dispatch there by

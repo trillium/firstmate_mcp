@@ -20,6 +20,7 @@ import {
   HANDOFF_LINES_MAX,
   HANDOFF_LINES_MIN,
   ID_RE,
+  ISOLATION_POOL_RE,
   MAIL_BODY_MAX_CHARS,
   MAIL_SUBJECT_MAX_CHARS,
   MAIL_TO_MAX_CHARS,
@@ -34,6 +35,8 @@ import {
   SNAPSHOT_MAX_LIMIT,
   SNAPSHOT_MIN_LIMIT,
   STARTUP_MEMORY_MODES,
+  TEST_ISOLATION_LIST_MODES,
+  TEST_RUN_LIST_MODES,
   VENDOR_AUTH_PROBES,
   VOICE_QUEUE_MAX_CHARS,
   VOICE_SCOPES,
@@ -356,6 +359,21 @@ export function validVoiceScope(value: unknown): value is string {
 /** Startup-memory mode: read (budget) or report (estimate). */
 export function validStartupMode(value: unknown): value is string {
   return typeof value === "string" && (STARTUP_MEMORY_MODES as readonly string[]).includes(value);
+}
+
+/** Test isolation-proof list mode: proven candidates or kept-serial exclusions. */
+export function validTestIsolationMode(value: unknown): value is string {
+  return typeof value === "string" && (TEST_ISOLATION_LIST_MODES as readonly string[]).includes(value);
+}
+
+/** Test-runner list mode: families, lanes, concurrent-safe families, or coverage. */
+export function validTestRunListMode(value: unknown): value is string {
+  return typeof value === "string" && (TEST_RUN_LIST_MODES as readonly string[]).includes(value);
+}
+
+/** Isolation pool: portable or a test-runner family name (upstream re-validates). */
+export function validIsolationPool(value: unknown): value is string {
+  return typeof value === "string" && ISOLATION_POOL_RE.test(value);
 }
 
 /** SMTP recipient: single line, no whitespace, must contain @. */
