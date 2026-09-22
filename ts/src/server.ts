@@ -16,7 +16,7 @@ import {
   SERVER_VERSION,
   SUPPORTED_PROTOCOL_VERSIONS,
 } from "./constants.js";
-import { AuditService, appendAudit, buildLine, type TransportType } from "./auth.js";
+import { AuditService, appendAudit, buildLine, TIER_FORBIDDEN, tierOf, type TransportType } from "./auth.js";
 import { checkAuthorization } from "./grants.js";
 import { FollowOnService, FollowOnLive } from "./followon.js";
 import { TOOLS, liveContext, missingContractScript, type ToolContext } from "./tools.js";
@@ -116,11 +116,18 @@ export function handleToolsList(
     jsonrpc: "2.0",
     id: msgId ?? null,
     result: {
-      tools: Object.entries(TOOLS).map(([name, def]) => ({
-        name,
-        description: def.description,
-        inputSchema: def.inputSchema,
-      })),
+      // Code-forbidden tools are not advertised. They are registered (so the
+      // dispatcher can refuse them by name with `forbidden`), but a client that
+      // builds a tool picker from this list should never be offered a lever the
+      // server will always refuse: 27 of the 128 registered surfaces could only
+      // ever answer `forbidden`. The dispatcher still refuses them either way.
+      tools: Object.entries(TOOLS)
+        .filter(([name]) => tierOf(name) !== TIER_FORBIDDEN)
+        .map(([name, def]) => ({
+          name,
+          description: def.description,
+          inputSchema: def.inputSchema,
+        })),
     },
   });
 }
