@@ -11,6 +11,30 @@ Do not repeat what the codebase already shows; point to the authoritative file o
 Prefer rewriting or pruning existing entries over appending new ones.
 When updating this file, preserve this bar for all agents and keep entries concise.
 
+## Posture (owner-set, 2026-09-22)
+
+Personal software, one owner, no external users. Standing owner instruction:
+
+- **Yolo forward on AI choice.** When a decision is not the owner's (policy,
+  taste, reversibility trade-off), pick the option you would recommend and
+  execute it in the same turn. Do not hand a decision back with "say the word",
+  and do not ask permission for reversible work.
+- **Never hold a green PR for the CI matrix.** `main` is not branch-protected
+  and nothing blocks a merge; the full matrix (`ts-slow`, `upstream
+  preservation`, conformance shards) takes ~3 minutes and is **advisory**.
+  Merge on your own judgment once the local proof you can actually run is
+  green, then verify live. `gh pr merge --squash --delete-branch` merges
+  immediately; `--auto` is unavailable (`allow_auto_merge: false`) and is not
+  the posture anyway.
+- **We test things live.** A red advisory job is a to-do, not a stop sign — but
+  state what you verified and what you merged past, so the red is owned rather
+  than buried (see the `drift-baseline freshness` incident below).
+- **Reversible = recoverable; stalling is not.** Delete dead branches, rewrite
+  your own work, repin pins — record the before-state (SHAs, original config)
+  so it can be undone.
+- The doorway's own safety core is the exception: default-deny, tier bounds, and
+  audit logging stay load-bearing regardless of this posture.
+
 ## Beads and the store registry
 
 - "Beads" (the captain's word for issues) are the `bd`-backed stores, but they
