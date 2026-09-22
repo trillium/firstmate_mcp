@@ -95,10 +95,19 @@ for path, needle, replacement in edits:
 print(f"provenance pins updated: {old[:12]} -> {new[:12]}")
 PY
 
-git add sources/firstmate || fail "could not stage the submodule gitlink" 2
+python3 scripts/gen_coverage.py >/dev/null || fail "coverage regeneration failed" 2
+
+# Stage EVERYTHING this cycle wrote. Both provenance files and the regenerated
+# coverage view are updated with plain writes, and leaving one unstaged once put a
+# stale pin on main that its own provenance gate rejected (contracts said the old
+# sha while the manifest said the new one).
+git add sources/firstmate manifest/FEATURES.yaml schema/contracts.yaml manifest/COVERAGE.md \
+  || fail "could not stage the repin changes" 2
 STAGED="$(git ls-files -s -- sources/firstmate | awk '{print $2}')"
 [ "$STAGED" = "$UPSTREAM" ] || fail "staged gitlink $STAGED does not match upstream $UPSTREAM" 2
-python3 scripts/gen_coverage.py >/dev/null || fail "coverage regeneration failed" 2
+# Guard, not hope: nothing this script wrote may be left unstaged before the gates run.
+leftover="$(git diff --name-only -- sources/firstmate manifest/FEATURES.yaml schema/contracts.yaml manifest/COVERAGE.md)"
+[ -z "$leftover" ] || fail "repin left unstaged changes: $leftover" 2
 
 if [ "$RUN_GATES" -eq 1 ]; then
   failures=0

@@ -11,7 +11,7 @@ provenance:
   upstream:
     repo: https://github.com/kunchenguid/firstmate.git
     submodule: sources/firstmate
-    gitlink: 884d76bdbd4721310dcc3d4f7ad6b8a028756605
+    gitlink: 39f4c2af3a73d282b69ce5d7fde3dbb838f3494c
     baseline: drift/baseline.json
     baseline_rev: aaf67489
     baseline_surfaces: 163
