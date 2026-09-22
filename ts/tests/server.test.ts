@@ -20,6 +20,7 @@ import {
   payload,
   removeHome,
 } from "./helpers.js";
+import { TOOLS } from "../src/tools.js";
 
 describe("handshake and reads", () => {
   let client: Client;
@@ -181,10 +182,13 @@ describe("expanded surface: 66 tools", () => {
     "grant_mint", "grant_revoke", "grant_status",
   ];
 
-  it("server lists 125 tools", async () => {
+  it("server lists every registered tool", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 125);
+    // Derived, not a literal: the surface grows with each mirrored gap, and a
+    // hardcoded count turns every tool addition into an unrelated failure.
+    assert.equal(tools.length, Object.keys(TOOLS).length);
+    assert.equal(new Set(tools.map((t) => t.name)).size, tools.length, "tool names must be unique");
   });
 
   for (const required of REQUIRED) {
