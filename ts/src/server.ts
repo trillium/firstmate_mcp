@@ -17,6 +17,7 @@ import {
   SUPPORTED_PROTOCOL_VERSIONS,
 } from "./constants.js";
 import { AuditService, appendAudit, buildLine, type TransportType } from "./auth.js";
+import { checkAuthorization } from "./grants.js";
 import { FollowOnService, FollowOnLive } from "./followon.js";
 import { TOOLS, liveContext, type ToolContext } from "./tools.js";
 import { MainLive } from "./layers.js";
@@ -173,6 +174,35 @@ function auditTarget(args: unknown): string | null {
   return null;
 }
 
+/**
+ * Central authorization gate for tools/call.
+ *
+ * Approval used to be enforced only inside the handlers that remembered to ask
+ * (`requireAuth`), so 19 of the 50 live Tier-3 tools — repo_edit, repo_commit,
+ * repo_push, repo_merge, merge_pr, promote_scout, teardown_crew and pr_open
+ * among them — ran with no approval string at all. Proven 2026-09-22 by
+ * calling pr_open through the mcpjungle group endpoint with no approval: the
+ * handler executed and tried to spawn gh. The gate lives here now, so a new
+ * tool cannot ship unguarded by omission, and the per-handler requireAuth calls
+ * stay for the detached receipt/follow-on paths that bypass this dispatcher.
+ * checkAuthorization is pure (it only records _grant_ref), so a handler asking
+ * a second time consumes nothing.
+ */
+async function authorizeOrRefuse(
+  name: string,
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<Record<string, unknown> | null> {
+  const auth = await checkAuthorization(name, args, ctx);
+  if (auth.ok) return null;
+  return (
+    auth.payload ?? {
+      error: "approval required",
+      expect: "explicit approval string starting with 'I authorize'",
+    }
+  );
+}
+
 function auditDecision(
   args: unknown,
   payload: Record<string, unknown>,
@@ -302,11 +332,19 @@ export async function handleToolsCall(
   }
   let payload: Record<string, unknown>;
   let isError: boolean;
-  try {
-    ({ payload, isError } = await TOOLS[name].handler(args, ctx));
-  } catch (exc) {
-    payload = { error: "tool crashed", detail: String(exc) };
+  // Central gate: every tool is authorized here, not only the handlers that
+  // remember to call requireAuth (see authorizeOrRefuse).
+  const refusal = await authorizeOrRefuse(name, args, ctx);
+  if (refusal !== null) {
+    payload = refusal;
     isError = true;
+  } else {
+    try {
+      ({ payload, isError } = await TOOLS[name].handler(args, ctx));
+    } catch (exc) {
+      payload = { error: "tool crashed", detail: String(exc) };
+      isError = true;
+    }
   }
   const duration_ms = Math.max(0, Math.round(performance.now() - start));
   const decisionDigest =
@@ -405,19 +443,27 @@ export function handleToolsCallEffect(
       });
       return;
     }
-    const outcome = yield* Effect.promise(() =>
-      TOOLS[name].handler(args, ctx).then(
-        (ok) => ({ ok: true as const, value: ok }),
-        (exc) => ({ ok: false as const, error: exc }),
-      ),
-    );
     let payload: Record<string, unknown>;
     let isError: boolean;
-    if (outcome.ok) {
-      ({ payload, isError } = outcome.value);
-    } else {
-      payload = { error: "tool crashed", detail: String(outcome.error) };
+    // Same central gate as the legacy path: an approval-gated tool must not
+    // execute just because its handler forgot to ask.
+    const refusal = yield* Effect.promise(() => authorizeOrRefuse(name, args, ctx));
+    if (refusal !== null) {
+      payload = refusal;
       isError = true;
+    } else {
+      const outcome = yield* Effect.promise(() =>
+        TOOLS[name].handler(args, ctx).then(
+          (ok) => ({ ok: true as const, value: ok }),
+          (exc) => ({ ok: false as const, error: exc }),
+        ),
+      );
+      if (outcome.ok) {
+        ({ payload, isError } = outcome.value);
+      } else {
+        payload = { error: "tool crashed", detail: String(outcome.error) };
+        isError = true;
+      }
     }
     const duration_ms = Math.max(0, Math.round(performance.now() - start));
     const decisionDigest =

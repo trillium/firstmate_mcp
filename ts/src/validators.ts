@@ -27,6 +27,8 @@ import {
   PROJECT_RE,
   PR_URL_RE,
   POLICY_COMMAND_MAX_CHARS,
+  PR_BODY_MAX_BYTES,
+  PR_TITLE_MAX_CHARS,
   QUOTA_CANDIDATE_RE,
   QUOTA_CANDIDATES_MAX,
   QUOTA_SNAPSHOT_MAX_CHARS,
@@ -516,6 +518,39 @@ export function validBranchName(value: unknown): value is string {
   if (typeof value !== "string") return false;
   if (value.length < 1 || value.length > 100) return false;
   if (value === "main" || value === "master") return false;
+  if (!/^[a-zA-Z0-9._/-]+$/.test(value)) return false;
+  if (value.includes("..") || value.startsWith("/") || value.endsWith("/")) return false;
+  return true;
+}
+
+/**
+ * A PR title: one line, non-empty, bounded. Multi-line titles break the
+ * one-line commit/PR convention this repo enforces by hook.
+ */
+export function validPrTitle(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 1 || value.length > PR_TITLE_MAX_CHARS) return false;
+  return !/[\r\n]/.test(value);
+}
+
+/**
+ * A PR body: non-empty and bounded. The doorway never opens a bodyless PR —
+ * the rationale is the artifact a reviewer actually reads — and passing a body
+ * also keeps `gh pr create` from opening an editor.
+ */
+export function validPrBody(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 1) return false;
+  return byteLength(value) <= PR_BODY_MAX_BYTES;
+}
+
+/**
+ * A PR base branch. Unlike validBranchName (which guards repo_push against
+ * pushing to the default branch) the default branch is a legitimate target.
+ */
+export function validBaseBranch(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 1 || value.length > 100) return false;
   if (!/^[a-zA-Z0-9._/-]+$/.test(value)) return false;
   if (value.includes("..") || value.startsWith("/") || value.endsWith("/")) return false;
   return true;
