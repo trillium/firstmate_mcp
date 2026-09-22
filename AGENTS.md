@@ -97,6 +97,16 @@ When updating this file, preserve this bar for all agents and keep entries conci
   state filesystem, then rename, so a killed refresh leaves the prior complete
   document. Sharp edge: the served line's document carries no `generated_epoch`
   (a declared field), so freshness has to come from `generated`.
+- Warm-cache orientation (`latestCachedSnapshotId`): `fleet_snapshot` and
+  `backlog` serve the newest unexpired cached snapshot when the caller names
+  none (measured 7-18ms live; the same calls were envelope-killed at 30s an
+  hour earlier) and report `from_cache`. A snapshot is only cached by a call
+  that can finish, so warm it out of band: `receipt_submit(fleet_snapshot)`
+  (95s against the 180s budget), then paginate with `limit`/`cursor`. An
+  explicitly named id still fails loudly rather than silently serving a
+  different snapshot, and an expired cache is skipped so the caller recomputes.
+  Orientation recipe: `home_summary` for the O(1) ledger, receipt-warm then
+  paginate for ground truth.
 - Envelope (ts/src/constants.ts): `SUBPROCESS_TIMEOUT_S=30`, `MAX_OUTPUT_BYTES=1MB`.
   No call blocks past 30s: `runScript` starts children in their own session
   and kills the whole process group on timeout, auditing a typed timeout
