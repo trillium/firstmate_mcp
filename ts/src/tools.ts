@@ -517,11 +517,58 @@ function readCachedSnapshot(
   return { snapshot: snap as Record<string, unknown>, error: null };
 }
 
+/**
+ * Newest unexpired cached snapshot id, or null when there is none.
+ *
+ * Pagination needs a snapshot_id, but a snapshot is only cached by a call that
+ * can finish — and on a real home the whole-fleet computation (measured 95-110s)
+ * exceeds the 30s envelope, so the only way to warm the cache is
+ * receipt_submit(fleet_snapshot). Without this lookup the warmed cache was
+ * unreachable to any caller that did not already hold the id, so every
+ * paginated read recomputed and was killed by the envelope (measured 35s on a
+ * home whose cache was already warm).
+ */
+function latestCachedSnapshotId(ctx: ToolContext): string | null {
+  const dir = path.resolve(snapshotDir(ctx));
+  let names: string[];
+  try {
+    names = fs.readdirSync(dir);
+  } catch {
+    return null;
+  }
+  const suffix = ".json";
+  let bestId: string | null = null;
+  let bestEpoch = -Infinity;
+  for (const name of names) {
+    if (!name.startsWith("snap-") || !name.endsWith(suffix)) continue;
+    const id = name.slice(0, -suffix.length);
+    if (!validId(id)) continue;
+    let record: Record<string, unknown>;
+    try {
+      record = JSON.parse(fs.readFileSync(path.join(dir, name), "utf8")) as Record<
+        string,
+        unknown
+      >;
+    } catch {
+      continue;
+    }
+    const epoch = typeof record["created_epoch"] === "number" ? record["created_epoch"] : NaN;
+    if (!Number.isFinite(epoch)) continue;
+    const ttl = typeof record["ttl_s"] === "number" ? record["ttl_s"] : SNAPSHOT_TTL_S;
+    if (!(Date.now() / 1000 - epoch <= ttl)) continue;
+    if (epoch > bestEpoch) {
+      bestEpoch = epoch;
+      bestId = id;
+    }
+  }
+  return bestId;
+}
+
 async function getOrFetchSnapshot(
   ctx: ToolContext,
   snapshotId: string | null,
 ): Promise<
-  | { snapshotId: string; snapshot: Record<string, unknown>; isError: false }
+  | { snapshotId: string; snapshot: Record<string, unknown>; isError: false; fromCache: boolean }
   | { payload: Record<string, unknown>; isError: true }
 > {
   if (snapshotId !== null) {
@@ -529,7 +576,21 @@ async function getOrFetchSnapshot(
     if (snapshot === null) {
       return { payload: error ?? { error: "cannot read snapshot" }, isError: true };
     }
-    return { snapshotId, snapshot, isError: false };
+    return { snapshotId, snapshot, isError: false, fromCache: true };
+  }
+
+  // No id requested: serve the newest warm snapshot instead of recomputing. An
+  // explicitly requested id still fails loudly rather than silently serving a
+  // different snapshot, and an expired cache is skipped so the caller recomputes.
+  const latest = latestCachedSnapshotId(ctx);
+  if (latest !== null) {
+    const { snapshot, error } = readCachedSnapshot(ctx, latest);
+    if (snapshot !== null) {
+      return { snapshotId: latest, snapshot, isError: false, fromCache: true };
+    }
+    if (error !== null && error["error"] !== "snapshot expired") {
+      return { payload: error, isError: true };
+    }
   }
 
   const res = await ctx.run([path.join(ctx.binDir, "fm-fleet-snapshot.sh"), "--json"]);
@@ -563,7 +624,7 @@ async function getOrFetchSnapshot(
   } catch {
     /* caching failure is best effort */
   }
-  return { snapshotId: newId, snapshot, isError: false };
+  return { snapshotId: newId, snapshot, isError: false, fromCache: false };
 }
 
 // --- SUPPORTED: open reads + the single safe steer ---
@@ -600,7 +661,7 @@ async function toolFleetSnapshot(args: ToolArgs, ctx: ToolContext): Promise<Tool
   const snapResult = await getOrFetchSnapshot(ctx, cursorResult.snapshotId);
   if (snapResult.isError) return { payload: snapResult.payload, isError: true };
 
-  const { snapshotId, snapshot } = snapResult;
+  const { snapshotId, snapshot, fromCache } = snapResult;
   const tasks = (snapshot["tasks"] as Array<Record<string, unknown>>) ?? [];
 
   if (!isPaginated) {
@@ -608,6 +669,7 @@ async function toolFleetSnapshot(args: ToolArgs, ctx: ToolContext): Promise<Tool
       payload: {
         ...snapshot,
         snapshot_id: snapshotId,
+        from_cache: fromCache,
       },
       isError: false,
     };
@@ -631,6 +693,7 @@ async function toolFleetSnapshot(args: ToolArgs, ctx: ToolContext): Promise<Tool
     payload: {
       schema: SNAPSHOT_SCHEMA,
       snapshot_id: snapshotId,
+      from_cache: fromCache,
       generated: snapshot["generated"],
       summary: {
         total: tasks.length,
@@ -678,7 +741,7 @@ async function toolBacklog(args: ToolArgs, ctx: ToolContext): Promise<ToolResult
   const snapResult = await getOrFetchSnapshot(ctx, cursorResult.snapshotId);
   if (snapResult.isError) return { payload: snapResult.payload, isError: true };
 
-  const { snapshotId, snapshot } = snapResult;
+  const { snapshotId, snapshot, fromCache } = snapResult;
   const tasks = (snapshot["tasks"] as Array<Record<string, unknown>>) ?? [];
 
   const byState: Record<string, number> = {};
@@ -692,6 +755,7 @@ async function toolBacklog(args: ToolArgs, ctx: ToolContext): Promise<ToolResult
     return {
       payload: {
         snapshot_id: snapshotId,
+        from_cache: fromCache,
         generated: snapshot["generated"],
         backlog: (snapshot["backlog"] as unknown) ?? {},
         task_counts: { total: tasks.length, by_state: byState },
@@ -710,6 +774,7 @@ async function toolBacklog(args: ToolArgs, ctx: ToolContext): Promise<ToolResult
   return {
     payload: {
       snapshot_id: snapshotId,
+      from_cache: fromCache,
       generated: snapshot["generated"],
       summary: {
         total: tasks.length,
