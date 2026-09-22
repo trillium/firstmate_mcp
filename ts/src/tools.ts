@@ -84,6 +84,7 @@ import {
 import { ownedCall, runScript, truncate, byteLength, isRunResult } from "./runner.js";
 import {
   tierOf,
+  requiresApproval,
   TIER_FORBIDDEN,
   FORBIDDEN_TOOLS,
   type Tier,
@@ -181,21 +182,6 @@ export function liveContext(): ToolContext {
 // so they never leak across homes.
 
 /** Tools whose schemas carry a required per-call approval string. */
-const NEEDS_APPROVAL: ReadonlySet<string> = new Set([
-  "lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch",
-  "lifecycle_suspend", "lifecycle_resume", "spawn_crew",
-  "scaffold_brief", "decision_hold", "decision_resolve",
-  "session_start", "sessionstart_run", "sessionstart_cursor",
-  "herdr_lab", "herdr_ci_cleanup", "session_cleanup",
-  "claude_trust", "agy_trust", "claude_stop_autoarm",
-  "herdr_eventwait", "herdr_workspace_move",
-  "decision_release", "decision_complete",
-  "review_decision", "relay_reply", "relay_dismiss", "relay_followup",
-  "secondmate_nudge", "secondmate_restart", "secondmate_report",
-  "remote_control", "handoff_move", "voice_queue", "mail_send",
-  "grant_mint", "grant_revoke",
-]);
-
 function receiptDir(ctx: ToolContext): string {
   return path.join(ctx.stateDir, RECEIPT_DIRNAME);
 }
@@ -305,7 +291,13 @@ async function toolReceiptSubmit(args: ToolArgs, ctx: ToolContext): Promise<Tool
   if (!(target in TOOLS) || target === "receipt_submit") {
     return { payload: { error: "unknown tool", tool: target }, isError: true };
   }
-  if (NEEDS_APPROVAL.has(target)) {
+  // Derived from the tier table, never a hand-maintained list: this set used to
+  // hold 35 entries and miss 25 of the 60 live tier-3/4 tools, so
+  // receipt_submit(repo_push | merge_pr | promote_scout | pr_open | ...) ran the
+  // detached call with no approval at all — on the very path an autonomous loop
+  // uses. requiresApproval() reads TOOL_TIERS, so a new tool is gated by
+  // construction.
+  if (requiresApproval(target)) {
     const auth = await requireAuth(target, nested as ToolArgs, ctx);
     if (!auth.ok) return auth.result;
   }
