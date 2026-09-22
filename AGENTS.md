@@ -272,11 +272,15 @@ Personal software, one owner, no external users. Standing owner instruction:
 - Test runner: `pnpm run test:dev` selectively reruns
   recorded failing test files during local development, while CI and PR
   always run the full suite (`bun test` / `pnpm test`).
-- Never run a build or a test in this worktree while a suite is running in it: the
-  compiled tests live in `ts/testbuild/` and `bun test` writes there, so a
-  concurrent `pnpm run build:tests` makes the running suite report
-  `NotImplementedError: describe() inside another test()` and spurious
-  "tool present" failures (three times now). Serialize: one suite at a time.
+- A cascade of `NotImplementedError: describe() inside another test()` across many
+  test files means **one earlier file failed**, not a concurrency problem — I got
+  this wrong once and wrote the wrong cause here. Bun's node:test compatibility
+  layer mis-attributes every later file's `describe()` after a file in the same run
+  has an unsettled failure, and the run aborts early (measured 2026-09-22: one real
+  conformance-fixture failure surfaced as "486 pass, 16 fail" with 15 describe
+  errors across files that were never touched). Fix the first real failure above
+  the cascade; then the counts return to normal. Corollary: serialising suites is
+  still good hygiene, but it was never the cause of this.
 - Never gate on the exit status of a *piped* command: `pnpm test 2>&1 | tail -n`
   reports tail's status, so a failing suite can surface as exit 0 (observed
   2026-09-22: a background run reported exit 0 while its own output said
