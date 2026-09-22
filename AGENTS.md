@@ -34,6 +34,24 @@ Personal software, one owner, no external users. Standing owner instruction:
   so it can be undone.
 - The doorway's own safety core is the exception: default-deny, tier bounds, and
   audit logging stay load-bearing regardless of this posture.
+- **Standing loop (infinite directive, 2026-09-22): "repin upstream, eval
+  features, yolo forward."** Repeat indefinitely. One cycle is:
+  1. `scripts/fm-mcp-repin.sh --check` — fetches upstream main, reports the
+     shift, exits 1 when the pin is behind.
+  2. `scripts/fm-mcp-repin.sh --apply` — bumps `gitlink_at_seed` and
+     `provenance.upstream.gitlink`, stages the gitlink, regenerates
+     `manifest/COVERAGE.md`, and runs every gate CI runs (including the
+     `drift-baseline freshness` snippet, extracted from the workflow so it
+     cannot drift from CI).
+  3. **Evaluate** the radar's "Depended-on surfaces that moved" list: port what a
+     contract actually depends on, call the rest noise, and write that judgement
+     into the commit message next to the diff it explains.
+  4. Merge immediately (see the posture above); the daily `mcp-shift-schedule`
+     job also opens an issue on a shift, so a cycle can start from that too.
+  A wrapper-only contract needs no code port — the pin bump carries the fix
+  (verified 2026-09-22 with `fm-crew-state.sh`). The pin of record is the
+  **parent repo's gitlink**, never the submodule checkout: comparing the checkout
+  reports phantom shifts (and `fm-mcp-repin.sh` says so when they disagree).
 
 ## Beads and the store registry
 
