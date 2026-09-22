@@ -183,6 +183,16 @@ Personal software, one owner, no external users. Standing owner instruction:
   `unavailable on this home` naming the script, before approval is considered, on
   both the dispatch and receipt paths, instead of letting a handler report a raw
   ENOENT. 31 of 81 are dead on the served fork line; `doctor` reports the count.
+- Cached whole-home reads (`state/mcp-artifacts/`, helpers in `ts/src/tools.ts`):
+  `fleet_view` and `bearings_snapshot` are projections of the same snapshot the
+  doorway caches, but they re-run the 110s walk inside their own scripts and
+  `fm-fleet-snapshot.sh` has no cache-reuse flag (its env knobs cap *scope*, not
+  caching). So the doorway caches the projection: one successful run — direct, or
+  via `receipt_submit` where the 180s budget fits — warms it, later reads answer in
+  ~20ms with `from_cache`/`stale`/`snapshot_age_s`, and a cold read returns
+  `long_running` plus the receipt hint instead of a bare timeout. Measured live:
+  cold 35.6s, receipt warm ~50s, warm read 20ms. Deliberately not a TypeScript
+  reimplementation of either projection — the scripts own that semantics.
 - `doctor` (Tier 1, `ts/src/tools.ts`): one read that reports whether the doorway
   can actually work on *this* home — contract resolution parsed from
   `schema/matrix.md` (dependency-free; ts has no YAML parser), envelope budgets,

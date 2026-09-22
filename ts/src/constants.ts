@@ -99,6 +99,9 @@ export const RECEIPT_TTL_S = 3600;
 export const RECEIPT_DIRNAME = "mcp-receipts";
 export const SNAPSHOT_DIRNAME = "mcp-snapshots";
 export const SNAPSHOT_TTL_S = 3600;
+// Cached whole-home reads (fleet_view, bearings_snapshot): same TTL as snapshots.
+export const ARTIFACT_DIRNAME = "mcp-artifacts";
+export const ARTIFACT_TTL_S = 3600;
 export const SNAPSHOT_DEFAULT_LIMIT = 50;
 export const SNAPSHOT_MIN_LIMIT = 1;
 export const SNAPSHOT_MAX_LIMIT = 200;
