@@ -74,6 +74,31 @@ describe("secondmate-remote-read equivalence", () => {
     assert.equal(fx.calls.length, before);
   });
 
+  it("extension_list matches direct stub", async () => {
+    const direct = directRun(fx, "fm-extension.sh", ["list"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "extension_list", {}));
+    assert.equal((result["stdout"] as string).trim(), direct.stdout.trim());
+  });
+
+  it("extension_inspect matches direct stub with id echoed", async () => {
+    const direct = directRun(fx, "fm-extension.sh", ["inspect", "org.example.probe"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "extension_inspect", { id: "org.example.probe" }));
+    assert.equal(result["id"], "org.example.probe");
+    assert.equal((result["stdout"] as string).trim(), direct.stdout.trim());
+  });
+
+  it("extension_inspect refuses bad ids without spawn", async () => {
+    const before = fx.calls.length;
+    for (const id of ["../escape", "UPPER", "trailing.", "", "a".repeat(129)]) {
+      const result = await readOnlyCall(fx, "extension_inspect", { id });
+      assert.equal(result.isError, true, String(id));
+      assert.equal(result.payload["error"], "invalid id", String(id));
+    }
+    assert.equal(fx.calls.length, before);
+  });
+
   it("handoff_status lists staged outboxes", async () => {
     const handoff = path.join(fx.scratch, "data", "handoff");
     fs.mkdirSync(handoff, { recursive: true });

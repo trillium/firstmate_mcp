@@ -12,6 +12,7 @@
  *   tool_update_check, vendor_auth_probe, startup_memory, pr_state,
  *   pr_poll, relay_poll, public_followup_pending, public_followup_collect,
  *   tasks_list, tasks_show, tasks_ready, dispatch_resolve, sessionstart_nudge,
+ *   extension_list, extension_inspect,
  *   receipt_submit, receipt_status — no approval.
  *   (receipt_submit detaches one call past the 30s budget; authority
  *   targets still need their own nested approval string.)
@@ -32,7 +33,10 @@
  *   inactive_reconcile, backlog_receive, session_start, sessionstart_run,
  *   sessionstart_cursor, herdr_lab, herdr_ci_cleanup, session_cleanup,
  *   claude_trust, agy_trust, claude_stop_autoarm, herdr_eventwait,
- *   herdr_workspace_move, backend_select — no tool, refused as unknown.
+ *   herdr_workspace_move, backend_select, on_execute, config_push,
+ *   remote_entrypoint, remote_herdr_guard, remote_provision, remote_seed,
+ *   inherit_push, remote_inherit, reap_orphans, remote_worker — no tool,
+ *   refused as unknown.
  */
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -102,6 +106,8 @@ export const TOOL_TIERS: Record<string, Tier> = {
   tasks_ready: TIER_OPEN,
   dispatch_resolve: TIER_OPEN,
   sessionstart_nudge: TIER_OPEN,
+  extension_list: TIER_OPEN,
+  extension_inspect: TIER_OPEN,
   receipt_submit: TIER_OPEN,
   receipt_status: TIER_OPEN,
   send_message: TIER_STEER,
@@ -162,6 +168,16 @@ export const TOOL_TIERS: Record<string, Tier> = {
   claude_stop_autoarm: TIER_AUTHORITY,
   herdr_eventwait: TIER_AUTHORITY,
   herdr_workspace_move: TIER_AUTHORITY,
+  on_execute: TIER_AUTHORITY,
+  config_push: TIER_AUTHORITY,
+  remote_entrypoint: TIER_AUTHORITY,
+  remote_herdr_guard: TIER_AUTHORITY,
+  remote_provision: TIER_AUTHORITY,
+  remote_seed: TIER_AUTHORITY,
+  inherit_push: TIER_AUTHORITY,
+  remote_inherit: TIER_AUTHORITY,
+  reap_orphans: TIER_AUTHORITY,
+  remote_worker: TIER_AUTHORITY,
   mail_send: TIER_EXTERNAL,
   relay_reply: TIER_EXTERNAL,
   relay_dismiss: TIER_EXTERNAL,

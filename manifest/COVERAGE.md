@@ -18,13 +18,13 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Supervision](#supervision) | 8 | 4 | 28 |
 | [Sessions](#sessions) | 6 | 17 | 2 |
 | [Backlog / decisions](#backlog-decisions) | 5 | 1 | 7 |
-| [Secondmates / remotes](#secondmates-remotes) | 7 | 0 | 13 |
+| [Secondmates / remotes](#secondmates-remotes) | 8 | 10 | 2 |
 | [PR pipeline](#pr-pipeline) | 3 | 5 | 3 |
 | [Relay](#relay) | 6 | 2 | 0 |
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 |
 | [Installs](#installs) | 4 | 0 | 19 |
-| **Total** | **52** | **31** | **75** |
+| **Total** | **53** | **41** | **64** |
 
 ## Fleet runs
 
@@ -147,20 +147,20 @@ Persistent secondmates and remote homes: launch, control, reconcile, inherit.
 | Command | Mirror status | Notes |
 | --- | --- | --- |
 | `fm-beads-remote-backup.sh` (removed upstream) | gap | off-box Dolt backup verify/repair; removed upstream since pin |
-| `fm-config-push.sh` | gap | push inherited local material to live homes |
-| `fm-extension.sh` | gap | tracked entrypoint for fm-on extension bindings |
-| `fm-on.sh` | gap | run one tracked command in a remote home |
+| `fm-config-push.sh` | denied-by-design — `config_push` | push inherited local material to live homes. pushing inherited material writes into live homes including remote SSH routes; only bootstrap and session start own home convergence |
+| `fm-extension.sh` | mirrored — `extension_list` (ts✔), `extension_inspect` (ts✔) | tracked entrypoint for fm-on extension bindings |
+| `fm-on.sh` | denied-by-design — `on_execute` | run one tracked command in a remote home. executing a tracked command in a remote home reaches another machine over SSH; only a crew operating that home's own session owns remote execution |
 | `fm-remote-delta-read.sh` | mirrored — `remote_delta` (ts✔) | bounded remote delta reads |
 | `fm-remote-doctor.sh` | mirrored — `remote_doctor` (ts✔) | remote home diagnostics |
-| `fm-remote-entrypoint.sh` | gap | remote-end launch entrypoint |
+| `fm-remote-entrypoint.sh` | denied-by-design — `remote_entrypoint` | remote-end launch entrypoint. the fixed remote-end staging entrypoint executes jobs on the remote host; it is only meaningful on that host, never through the doorway |
 | `fm-remote-file.sh` | mirrored — `remote_file` (ts✔) | remote file reads |
-| `fm-remote-herdr-guard.sh` | gap | fm-remote Herdr server login-session guard |
-| `fm-remote-home-provision.sh` | gap | remote home provisioning |
-| `fm-remote-home-seed.sh` | gap | remote home seeding |
-| `fm-remote-inherit-push.sh` | gap | push inherited local material out |
-| `fm-remote-inherit.sh` | gap | remote config inherit |
-| `fm-remote-job-reap-orphans.sh` | gap | reap orphaned remote jobs |
-| `fm-remote-job-worker.sh` | gap | remote job worker |
+| `fm-remote-herdr-guard.sh` | denied-by-design — `remote_herdr_guard` | fm-remote Herdr server login-session guard. the login-session guard stops foreign Herdr servers and execs replacements, closing panes; only the launchd agent owns server ownership |
+| `fm-remote-home-provision.sh` | denied-by-design — `remote_provision` | remote home provisioning. provisioning clones a code root and publishes home markers on another host; only seeding owns remote home creation |
+| `fm-remote-home-seed.sh` | denied-by-design — `remote_seed` | remote home seeding. seeding registers registry rows and sends provisioning manifests over SSH; only the captain's own provisioning run owns remote home creation |
+| `fm-remote-inherit-push.sh` | denied-by-design — `inherit_push` | push inherited local material out. pushing inherited material writes into a remote home over SSH; only bootstrap and config-push convergence own inherited pushes |
+| `fm-remote-inherit.sh` | denied-by-design — `remote_inherit` | remote config inherit. the inherit apply path atomically replaces files and quarantines divergent records inside a home; only the remote entrypoint's propagation run owns inherit writes |
+| `fm-remote-job-reap-orphans.sh` | denied-by-design — `reap_orphans` | reap orphaned remote jobs. reaping signals TERM then KILL across worker process trees; only the launch supervisor owns worker lifecycle |
+| `fm-remote-job-worker.sh` | denied-by-design — `remote_worker` | remote job worker. the worker claims staged records and executes tracked commands as a daemon; only the LaunchAgent and restart supervisor own worker lifecycle |
 | `fm-remote-launch.sh` (removed upstream) | gap | remote mini launch/reclaim; removed upstream since pin |
 | `fm-remote-secondmate-control.sh` | mirrored — `remote_control` (ts✔) | remote secondmate lifecycle |
 | `fm-secondmate-reconcile.sh` | mirrored — `secondmate_nudge` (ts✔) | ask a secondmate to reconcile its books |

@@ -48,7 +48,7 @@ test_manifest_and_deny_appear() {
   local missing=0
   for id in fleet_snapshot backlog crew_state status_tail send_message fleet_poll \
     peek fleet_view review_diff bearings_snapshot wake_drain guard_check \
-    remote_doctor remote_file remote_delta handoff_status \
+    remote_doctor remote_file remote_delta extension_list extension_inspect handoff_status \
     harness_detect project_mode lock_status lease_check bearings_board_path \
     inbox_status inbox_list home_summary home_summary_refresh contributions_snapshot contributions_pending \
     mail_status mail_read mail_check voice_status lint_versions tool_update_check vendor_auth_probe \
@@ -69,7 +69,9 @@ test_manifest_and_deny_appear() {
     repo_edit repo_commit repo_push repo_merge public_followup_emit relay_link \
     fleet_sync inactive_reconcile backlog_receive session_start sessionstart_run sessionstart_cursor \
     herdr_lab herdr_ci_cleanup session_cleanup claude_trust agy_trust claude_stop_autoarm \
-    herdr_eventwait herdr_workspace_move backend_select; do
+    herdr_eventwait herdr_workspace_move backend_select \
+    on_execute config_push remote_entrypoint remote_herdr_guard remote_provision \
+    remote_seed inherit_push remote_inherit reap_orphans remote_worker; do
     case "$(cat "$COVERAGE")" in
       *"$name"*) : ;;
       *) printf 'coverage missing DENY_LIST name: %s\n' "$name" >&2; missing=1 ;;

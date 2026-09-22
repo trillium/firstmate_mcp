@@ -30,6 +30,8 @@ script's observable output (modulo the envelope wrap).
 - `decision_open` — via `fm-captain-hold.sh` (adapter-native projection)
 - `decision_verify` — via `fm-captain-hold.sh` (adapter-native projection)
 - `dispatch_resolve` — via `fm-dispatch-resolve.sh` (pinned in schema/contracts.yaml)
+- `extension_inspect` — via `fm-extension.sh` (pinned in schema/contracts.yaml)
+- `extension_list` — via `fm-extension.sh` (pinned in schema/contracts.yaml)
 - `fleet_poll` — via `fm-fleet-snapshot.sh` (adapter-native projection)
 - `fleet_snapshot` — via `fm-fleet-snapshot.sh` (pinned in schema/contracts.yaml)
 - `fleet_view` — via `fm-fleet-view.sh` (pinned in schema/contracts.yaml)
@@ -105,6 +107,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - `backlog_receive` (out of smarts-only scope)
 - `claude_stop_autoarm` (out of smarts-only scope)
 - `claude_trust` (out of smarts-only scope)
+- `config_push` (out of smarts-only scope)
 - `daemon_restart` (out of smarts-only scope)
 - `daemon_start` (out of smarts-only scope)
 - `daemon_stop` (out of smarts-only scope)
@@ -114,11 +117,20 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - `herdr_lab` (out of smarts-only scope)
 - `herdr_workspace_move` (out of smarts-only scope)
 - `inactive_reconcile` (out of smarts-only scope)
+- `inherit_push` (out of smarts-only scope)
 - `merge_local` (code-forbidden)
 - `merge_pr` (code-forbidden)
+- `on_execute` (out of smarts-only scope)
 - `promote_scout` (code-forbidden)
 - `public_followup_emit` (out of smarts-only scope)
+- `reap_orphans` (out of smarts-only scope)
 - `relay_link` (out of smarts-only scope)
+- `remote_entrypoint` (out of smarts-only scope)
+- `remote_herdr_guard` (out of smarts-only scope)
+- `remote_inherit` (out of smarts-only scope)
+- `remote_provision` (out of smarts-only scope)
+- `remote_seed` (out of smarts-only scope)
+- `remote_worker` (out of smarts-only scope)
 - `repo_commit` (out of smarts-only scope)
 - `repo_edit` (out of smarts-only scope)
 - `repo_merge` (out of smarts-only scope)
@@ -166,7 +178,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` implements the 72-tool
+- TypeScript sibling — `ts/` implements the 74-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Customizable follow-on actions — `ts/src/followon.ts` provides configurable
@@ -213,7 +225,7 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | Supervision | 8 | 4 | 28 |
 | Sessions | 6 | 17 | 2 |
 | Backlog / decisions | 5 | 1 | 7 |
-| Secondmates / remotes | 7 | 0 | 13 |
+| Secondmates / remotes | 8 | 10 | 2 |
 | PR pipeline | 3 | 5 | 3 |
 | Relay | 6 | 2 | 0 |
 | Voice / mail | 4 | 0 | 0 |

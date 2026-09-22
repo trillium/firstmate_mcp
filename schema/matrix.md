@@ -19,6 +19,8 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | remote_doctor | bin/fm-remote-doctor.sh | stable | <none> | remote readiness diagnostic reads (check mode) |
 | remote_file | bin/fm-remote-file.sh | stable | get, <relative-path>, <max-bytes> | bounded home-relative file reads |
 | remote_delta | bin/fm-remote-delta-read.sh | stable | <relative-log>, <offset>, <prefix-sha256>, wait 0..10 | continuity-checked log delta reads |
+| extension_list | bin/fm-extension.sh | stable | list | enabled home-local extension binding reads |
+| extension_inspect | bin/fm-extension.sh | stable | inspect, <extension-id> | single home-local extension binding reads |
 | handoff_status | file: data/handoff/<id>.outbox.md | stable | <id>, lines=1..20 | staged handoff outbox reads |
 | secondmate_nudge | bin/fm-secondmate-reconcile.sh | evolving | notify | cooldown-guarded reconcile asks |
 | secondmate_restart | bin/fm-secondmate-restart.sh | evolving | <secondmate-id>... | persist-gated secondmate restarts |

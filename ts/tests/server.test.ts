@@ -147,7 +147,8 @@ describe("expanded surface: 66 tools", () => {
     "relay_dismiss", "relay_followup", "fleet_poll",
     "peek", "fleet_view", "review_diff",
     "bearings_snapshot", "wake_drain", "guard_check",
-    "remote_doctor", "remote_file", "remote_delta", "handoff_status",
+    "remote_doctor", "remote_file", "remote_delta", "extension_list", "extension_inspect",
+    "handoff_status",
     "secondmate_nudge", "secondmate_restart", "secondmate_report",
     "remote_control", "handoff_move",
     "harness_detect", "project_mode", "lock_status", "lease_check",
@@ -176,10 +177,10 @@ describe("expanded surface: 66 tools", () => {
     "grant_mint", "grant_revoke", "grant_status",
   ];
 
-  it("server lists 111 tools", async () => {
+  it("server lists 113 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 111);
+    assert.equal(tools.length, 113);
   });
 
   for (const required of REQUIRED) {
@@ -201,7 +202,7 @@ describe("expanded surface: 66 tools", () => {
     const open = new Set([
       "fleet_snapshot", "backlog", "crew_state", "status_tail", "send_message", "fleet_poll",
       "peek", "fleet_view", "review_diff", "bearings_snapshot", "wake_drain", "guard_check",
-      "remote_doctor", "remote_file", "remote_delta", "handoff_status",
+      "remote_doctor", "remote_file", "remote_delta", "extension_list", "extension_inspect", "handoff_status",
       "harness_detect", "project_mode", "lock_status", "lease_check",
       "bearings_board_path", "inbox_status", "inbox_list",
       "home_summary", "home_summary_refresh", "contributions_snapshot", "contributions_pending",
@@ -605,6 +606,36 @@ describe("expanded surface: 66 tools", () => {
       isError(await boxed.call("remote_delta", { log: "x", offset: 0, sha256: "short" })),
       true,
     );
+  });
+  it("extension_list returns binding table without error", async () => {
+    const resp = await boxed.call("extension_list", {});
+    assert.equal(isError(resp), false);
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("extension-stub:list"));
+  });
+  it("extension_inspect returns binding with id echoed", async () => {
+    const resp = await boxed.call("extension_inspect", { id: "org.example.probe" });
+    const inspected = payload(resp);
+    assert.equal(isError(resp), false);
+    assert.equal(inspected["id"], "org.example.probe");
+    assert.ok(String(inspected["stdout"] ?? "").includes("extension-stub:inspect"));
+  });
+  it("extension_inspect rejects bad ids", async () => {
+    for (const id of ["../escape", "UPPER", "trailing.", "", "a".repeat(129)]) {
+      assert.equal(isError(await boxed.call("extension_inspect", { id })), true, String(id));
+    }
+  });
+  it("remote-mutating verbs are refused as unknown, even with approval", async () => {
+    for (const name of [
+      "on_execute", "config_push", "remote_entrypoint", "remote_herdr_guard",
+      "remote_provision", "remote_seed", "inherit_push", "remote_inherit",
+      "reap_orphans", "remote_worker",
+    ]) {
+      for (const args of [{}, { approval: APPROVAL }]) {
+        const resp = await boxed.call(name, args);
+        assert.ok("error" in resp && resp.error!.code === -32602, `${name} ${JSON.stringify(args)}`);
+        assert.match(String(resp.error!.message ?? ""), /unknown tool/i, name);
+      }
+    }
   });
   it("remote_delta rejects bad wait", async () => {
     assert.equal(

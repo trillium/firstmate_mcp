@@ -44,6 +44,7 @@ export const STUBS: Record<string, string> = {
   "fm-remote-doctor.sh": "echo 'doctor-stub: mode=check'\n",
   "fm-remote-file.sh": 'echo "file-stub:$2 max=$3"\n',
   "fm-remote-delta-read.sh": 'echo "delta-stub:$1 off=$2 wait=$4"\n',
+  "fm-extension.sh": 'echo "extension-stub:$1 id=$2"\n',
   "fm-secondmate-reconcile.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-secondmate-restart.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-secondmate-report.sh": "echo 'stub: refused' >&2\nexit 1\n",

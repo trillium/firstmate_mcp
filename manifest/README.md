@@ -74,6 +74,7 @@ automatic merge.
 | `public_followup_pending` / `public_followup_collect` | `bin/fm-public-followup.sh pending` / `bin/fm-public-followup-collect.sh drain` | `schema/contracts.yaml#public_followup_pending` | ✅ | ✅ | intentional: pending digest and non-destructive drain only; delivery, emit, drop, and link stay firstmate-owned |
 | `tasks_list` / `tasks_show` / `tasks_ready` | `bin/fm-tasks-axi.sh list` / `show` / `ready` | `schema/contracts.yaml#tasks_list` | ✅ | ✅ | intentional: read-only list, show, and ready queries; queue writes and moves stay firstmate-owned |
 | `dispatch_resolve` / `sessionstart_nudge` | `bin/fm-dispatch-resolve.sh <brief>` / `bin/fm-sessionstart-nudge.sh` | `schema/contracts.yaml#dispatch_resolve` | ✅ | ✅ | intentional: dispatch plan and nudge reads that never launch; bootstrap, trust, cleanup, lab, event, and backend verbs stay firstmate-owned (deny-listed) |
+| `extension_list` / `extension_inspect` | `bin/fm-extension.sh list` / `inspect` | `schema/contracts.yaml#extension_list` | ✅ | ✅ | intentional: home-local binding reads only; bind, retire, verify, process-event, and remote-bind stay firstmate-owned |
 
 Equivalence proof: `tests/conformance/` replays read tools against the
 owning scripts under a scratch home; write tools never dispatch there by
