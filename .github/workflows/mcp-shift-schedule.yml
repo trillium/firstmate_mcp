@@ -46,13 +46,9 @@ jobs:
           PINNED: ${{ steps.shift.outputs.pinned }}
           BODY: ${{ runner.temp }}/shift-report.md
         run: |
-          # Dedup: one open issue per upstream SHA; a repeated daily fire while
-          # the pin sits behind the same upstream stays silent.
-          if gh issue list --label upstream-shift --state open \
-               --jq '.[].title' | grep -qF "$UPSTREAM"; then
-            echo "shift to ${UPSTREAM} already reported; skipping new issue"
-            exit 0
-          fi
-          gh issue create --label upstream-shift \
-            --title "Upstream shift ${PINNED:0:12} -> ${UPSTREAM:0:12}" \
-            --body-file "$BODY"
+          # All gh logic lives in the tested script (see --file-issue): the
+          # inline version shipped a `--jq` without `--json` and an
+          # `upstream-shift` label that did not exist, so this step failed on
+          # every scheduled run for five days (2026-09-18..22).
+          bash scripts/mcp-shift-schedule.sh --file-issue \
+            --body "$BODY" --upstream "$UPSTREAM" --pinned "$PINNED"

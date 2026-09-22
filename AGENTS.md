@@ -151,7 +151,12 @@ When updating this file, preserve this bar for all agents and keep entries conci
   reported 177/177 surfaces changed for a single unchanged revision; one
   surface's help printed a live watcher pid, another timed out under load.
   `tests/fm-manifest.test.sh` derives the gitlink shape from the manifest, so
-  a repin needs no fixture edit.
+  a repin needs no fixture edit. The issue-filing step runs through
+  `scripts/mcp-shift-schedule.sh --file-issue` (hermetically tested; it creates
+  the `upstream-shift` label on demand and dedups on the short SHA) — never
+  inline `gh` logic in the workflow: an untested `gh issue list --jq` without
+  `--json`, plus a label that did not exist, failed the scheduled job on every
+  run for five days (2026-09-18..22) while reporting nothing.
 - Dual provenance: the Kun fingerprint (submodule gitlink + drift baseline,
   radar watched by drift/shift.py) and the trillium/firstmate working-copy pin
   (proven commit + date) live together in manifest/FEATURES.yaml
