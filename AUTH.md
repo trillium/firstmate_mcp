@@ -19,11 +19,12 @@ Decision-closing verbs (`decision_resolve`, `decision_release`, `review_decision
 - Attestation tools (`decision_verify`, `decision_open`, `decision_diverged`) provide structured read paths for agent verification of hold state, lifecycle identities, and record divergence without mutations.
 Secondmate/remote verbs carry the same safe-subset discipline: `secondmate_nudge` is notify-only, `secondmate_restart` takes ids only, `secondmate_report` is the note-only form with the destination resolved by the owning helper, `remote_control` is the closed state/route/observe/send subset (no launch, no raw pane access, no remote teardown), and `handoff_move` moves only queued items or resumes pending wakes. Provisioning new secondmate homes stays out (firstmate-owned) unless read-only status.
 `spawn_crew` and `scaffold_brief` carry only the safe subset of flags with no repo-mutation options.
+Session reads stay launch-free: `dispatch_resolve` resolves only the canonical `data/<task-id>/brief.md` and `sessionstart_nudge` prints at most one line; bootstrapping, trusting, cleaning up, arming, lab operation, event waits, workspace moves, and backend selection stay firstmate-owned behind the deny-list.
 `voice_queue` hands one single-line request to firstmate through the handover queue (no microphone, no audio, no Bedrock session; the mic client and the Bedrock relay have no tool — mic hardware and AWS credentials stay out of MCP).
 Downstream code work stays under the owning scripts with merge authority, yolo posture, and decision-hold lifecycle.
 Tier 4 - external sends (approval required, relay-gated): `relay_reply`, `relay_dismiss`, `relay_followup`, `mail_send` shell to the owning `fm-x-*.sh` / `fm-mail.sh` scripts and stay inert without relay/mail consent.
 `mail_send` carries a validated to/subject plus a body piped via stdin (never in argv, never logged); SMTP credentials live outside MCP in the home `.env`.
-Code-forbidden (no tool, refused as unknown): `promote_scout`, `teardown_crew`, `arm_pr_check`, `merge_pr`, `merge_local`, `public_followup_emit`, `relay_link`, `fleet_sync`, `inactive_reconcile`, `backlog_receive`.
+Code-forbidden (no tool, refused as unknown): `promote_scout`, `teardown_crew`, `arm_pr_check`, `merge_pr`, `merge_local`, `public_followup_emit`, `relay_link`, `fleet_sync`, `inactive_reconcile`, `backlog_receive`, `session_start`, `sessionstart_run`, `sessionstart_cursor`, `herdr_lab`, `herdr_ci_cleanup`, `session_cleanup`, `claude_trust`, `agy_trust`, `claude_stop_autoarm`, `herdr_eventwait`, `herdr_workspace_move`, `backend_select`.
 No edit, commit, merge, or PR tools exist in this layer.
 No direct repo mutation paths exist in this layer.
 No teardown that discards work exists in this layer.

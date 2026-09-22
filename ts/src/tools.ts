@@ -8,7 +8,7 @@
  * harness_detect, project_mode, lock_status, lease_check,
  * bearings_board_path, inbox_status, inbox_list, home_summary,
  * home_summary_refresh, contributions_snapshot, contributions_pending,
- * mail_status, mail_read, mail_check,
+ * mail_status, mail_read, mail_check, dispatch_resolve, sessionstart_nudge,
  * voice_status, lint_versions, tool_update_check, vendor_auth_probe,
  * startup_memory, pr_state, pr_poll, relay_poll,
  * plus receipt_submit/receipt_status, the fail-closed async receipts).
@@ -16,11 +16,14 @@
  * lifecycle_interrupt/exit/relaunch/suspend/resume, relay_reply/dismiss/
  * followup, review_decision, scaffold_brief, spawn_crew,
  * secondmate_nudge/restart/report, remote_control, handoff_move,
- * voice_queue, mail_send.
+ * voice_queue, mail_send, session_start, sessionstart_run/cursor,
+ * herdr_lab, herdr_ci_cleanup, session_cleanup, claude_trust,
+ * agy_trust, claude_stop_autoarm, herdr_eventwait/workspace_move.
  *
  * Refused by the deny-list (no tool, answered unknown): promote_scout,
  * teardown_crew, arm_pr_check, merge_pr, merge_local, daemon_start/stop/
- * restart, watch_start/stop, repo_edit/commit/push/merge.
+ * restart, watch_start/stop, repo_edit/commit/push/merge, backend_select
+ * (the sourced backend-provider library and its backends/*.sh adapters).
  *
  * Every tool shells to its owning bin/fm-*.sh script and never reimplements
  * firstmate behavior. Wire payloads match the Python server exactly so the
@@ -152,6 +155,10 @@ const NEEDS_APPROVAL: ReadonlySet<string> = new Set([
   "lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch",
   "lifecycle_suspend", "lifecycle_resume", "spawn_crew",
   "scaffold_brief", "decision_hold", "decision_resolve",
+  "session_start", "sessionstart_run", "sessionstart_cursor",
+  "herdr_lab", "herdr_ci_cleanup", "session_cleanup",
+  "claude_trust", "agy_trust", "claude_stop_autoarm",
+  "herdr_eventwait", "herdr_workspace_move",
   "decision_release", "decision_complete",
   "review_decision", "relay_reply", "relay_dismiss", "relay_followup",
   "secondmate_nudge", "secondmate_restart", "secondmate_report",
@@ -2997,6 +3004,272 @@ export async function toolBacklogReceive(args: ToolArgs, ctx: ToolContext): Prom
   return ownedCall(cmd, "backlog_receive", ctx.run);
 }
 
+// --- Sessions gap area: dispatch resolution + session-start nudge reads ---
+//
+// The session-launch and lifecycle machinery behind these tools never runs
+// through the doorway except as explicitly approval-gated denied-by-design
+// verbs (below): spawning, trusting, cleaning up, arming, or switching a
+// real session/backend stays firstmate-owned. The two reads here print a
+// plan without launching anything.
+
+export async function toolDispatchResolve(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const taskId = args["task_id"];
+  const project = args["project"];
+  if (!validId(taskId)) {
+    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
+  }
+  if (project !== undefined && !validProject(project)) {
+    return { payload: { error: "invalid project", expect: "bare name or projects/<name>, no absolute paths or traversal" }, isError: true };
+  }
+  // Canonical brief path only (data/<task-id>/brief.md, where fm-brief.sh
+  // scaffolds it): arbitrary brief-file argv stays out so the resolver can
+  // never be pointed at files outside this home.
+  const brief = path.join(ctx.dataDir, taskId as string, "brief.md");
+  const cmd = [
+    path.join(ctx.binDir, "fm-dispatch-resolve.sh"),
+    brief,
+    ...(project ? ["--project", project as string] : []),
+  ];
+  const { payload, isError } = await ownedCall(cmd, "dispatch resolve failed", ctx.run);
+  if (isError) return { payload, isError: true };
+  return { payload: { ...payload, task_id: taskId, ...(project ? { project } : {}) }, isError: false };
+}
+
+export async function toolSessionstartNudge(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-sessionstart-nudge.sh")),
+    "session-start nudge failed",
+    ctx.run,
+  );
+  if (isError) return { payload, isError: true };
+  const line = ((payload["stdout"] as string) || "").trim();
+  return { payload: { ...payload, fired: line.length > 0 }, isError: false };
+}
+
+// --- Sessions gap area: denied-by-design lifecycle verbs ---
+//
+// Every verb below spawns, launches, trusts, cleans up, arms, or switches a
+// real session/backend, so each stays OUT of doorway ownership: approval-
+// gated, classified denied-by-design in manifest/COVERAGE.md, and never
+// dispatched in conformance. The backend adapters (backends/*.sh) are
+// sourced libraries with no CLI surface, so they are denied without a tool
+// under backend_select (see scripts/gen_coverage.py DENY_ALSO) rather than
+// behind an invented no-op invocation.
+
+function validPlainArg(value: unknown, max = 500): value is string {
+  return typeof value === "string" && value.length >= 1 && value.length <= max &&
+    !value.includes("\0") && !value.includes("\n") && !value.includes("\r");
+}
+
+function validSessionSource(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z][A-Za-z0-9-]{0,31}$/.test(value);
+}
+
+function validLabSession(value: unknown): value is string {
+  return typeof value === "string" && /^fm-lab-[A-Za-z0-9-]{1,48}$/.test(value);
+}
+
+function homeRoot(ctx: ToolContext): string {
+  return path.resolve(ctx.stateDir, "..");
+}
+
+function confineHomePath(ctx: ToolContext, relPath: string): string | null {
+  const home = homeRoot(ctx);
+  const resolved = path.resolve(home, relPath);
+  if (resolved !== home && resolved.startsWith(home + path.sep)) return resolved;
+  return null;
+}
+
+export async function toolSessionStart(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const reemit = args["reemit"];
+  const source = args["source"];
+  if (reemit !== undefined && typeof reemit !== "boolean") {
+    return { payload: { error: "invalid reemit", expect: "boolean" }, isError: true };
+  }
+  if (source !== undefined && !validSessionSource(source)) {
+    return { payload: { error: "invalid source", expect: "short harness source slug" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = [
+    path.join(ctx.binDir, "fm-session-start.sh"),
+    ...(reemit ? ["--reemit"] : []),
+    ...(source ? ["--source", source as string] : []),
+  ];
+  return ownedCall(cmd, "session_start", ctx.run);
+}
+
+export async function toolSessionstartRun(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const source = args["source"];
+  if (source !== undefined && !validSessionSource(source)) {
+    return { payload: { error: "invalid source", expect: "short harness source slug" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  // --pi-prerequisite is an internal provider-preflight gate and stays out.
+  const cmd = [
+    path.join(ctx.binDir, "fm-sessionstart-run.sh"),
+    ...(source ? ["--source", source as string] : []),
+  ];
+  return ownedCall(cmd, "sessionstart_run", ctx.run);
+}
+
+export async function toolSessionstartCursor(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const source = args["source"];
+  if (!validSessionSource(source)) {
+    return { payload: { error: "invalid source", expect: "short harness source slug" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = [path.join(ctx.binDir, "fm-sessionstart-cursor.sh"), "--source", source as string];
+  return ownedCall(cmd, "sessionstart_cursor", ctx.run);
+}
+
+export async function toolHerdrLab(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const subcommand = args["subcommand"];
+  const session = args["session"];
+  const label = args["label"];
+  const action = args["action"];
+  if (typeof subcommand !== "string" || !["name", "prepare", "provision", "run", "viewer", "stop", "teardown"].includes(subcommand)) {
+    return { payload: { error: "invalid subcommand", expect: "name, prepare, provision, run, viewer, stop, or teardown" }, isError: true };
+  }
+  if (subcommand === "name") {
+    if (typeof label !== "string" || !/^[A-Za-z0-9-]{1,16}$/.test(label)) {
+      return { payload: { error: "invalid label", expect: "1..16 chars, letters/digits/dashes" }, isError: true };
+    }
+  } else {
+    if (!validLabSession(session)) {
+      return { payload: { error: "invalid session", expect: "fm-lab-<label>, never default" }, isError: true };
+    }
+    if (subcommand === "viewer" && action !== "start" && action !== "stop") {
+      return { payload: { error: "invalid action", expect: "start or stop" }, isError: true };
+    }
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  // run's trailing Herdr passthrough argv stays out: free-form Herdr
+  // server/lifecycle operations never pass the doorway.
+  let cmd: string[];
+  if (subcommand === "name") {
+    cmd = [path.join(ctx.binDir, "fm-herdr-lab.sh"), "name", label as string];
+  } else if (subcommand === "viewer") {
+    cmd = [path.join(ctx.binDir, "fm-herdr-lab.sh"), "viewer", action as string, session as string];
+  } else {
+    cmd = [path.join(ctx.binDir, "fm-herdr-lab.sh"), subcommand as string, session as string];
+  }
+  return ownedCall(cmd, "herdr_lab", ctx.run);
+}
+
+export async function toolHerdrCiCleanup(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const command = args["command"];
+  const relPath = args["path"];
+  if (command !== "snapshot" && command !== "teardown") {
+    return { payload: { error: "invalid command", expect: "snapshot or teardown" }, isError: true };
+  }
+  if (!validRelpath(relPath)) {
+    return { payload: { error: "invalid path", expect: "home-relative snapshot path, no traversal" }, isError: true };
+  }
+  const confined = confineHomePath(ctx, relPath as string);
+  if (confined === null) {
+    return { payload: { error: "invalid path", expect: "home-relative snapshot path, no traversal" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = [path.join(ctx.binDir, "fm-herdr-ci-cleanup.sh"), command as string, confined];
+  return ownedCall(cmd, "herdr_ci_cleanup", ctx.run);
+}
+
+export async function toolSessionCleanup(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = [path.join(ctx.binDir, "fm-herdr-session-cleanup.sh")];
+  return ownedCall(cmd, "session_cleanup", ctx.run);
+}
+
+export async function toolClaudeTrust(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const worktree = args["worktree"];
+  const project = args["project"];
+  const home = args["home"];
+  const id = args["id"];
+  const worktreeMode = worktree !== undefined || project !== undefined;
+  const homeMode = home !== undefined || id !== undefined;
+  if (worktreeMode === homeMode) {
+    return { payload: { error: "invalid mode", expect: "worktree+project or home+id, exactly one" }, isError: true };
+  }
+  let cmd: string[];
+  if (worktreeMode) {
+    if (!validPlainArg(worktree) || !validPlainArg(project)) {
+      return { payload: { error: "invalid worktree", expect: "worktree and project paths, 1..500 chars" }, isError: true };
+    }
+    cmd = [path.join(ctx.binDir, "fm-claude-trust.sh"), worktree as string, project as string];
+  } else {
+    if (!validPlainArg(home) || !validId(id)) {
+      return { payload: { error: "invalid home", expect: "secondmate home path plus short id" }, isError: true };
+    }
+    cmd = [path.join(ctx.binDir, "fm-claude-trust.sh"), "--secondmate-home", home as string, id as string];
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  return ownedCall(cmd, "claude_trust", ctx.run);
+}
+
+export async function toolAgyTrust(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const worktree = args["worktree"];
+  const project = args["project"];
+  if (!validPlainArg(worktree) || !validPlainArg(project)) {
+    return { payload: { error: "invalid worktree", expect: "worktree and project paths, 1..500 chars" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = [path.join(ctx.binDir, "fm-agy-trust.sh"), worktree as string, project as string];
+  return ownedCall(cmd, "agy_trust", ctx.run);
+}
+
+export async function toolClaudeStopAutoarm(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = [path.join(ctx.binDir, "fm-claude-stop-autoarm.sh")];
+  return ownedCall(cmd, "claude_stop_autoarm", ctx.run);
+}
+
+export async function toolHerdrEventwait(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const socket = args["socket"];
+  const timeoutS = args["timeout_s"];
+  const paneIds = args["pane_ids"];
+  if (!validPlainArg(socket)) {
+    return { payload: { error: "invalid socket", expect: "control socket path, 1..500 chars" }, isError: true };
+  }
+  if (typeof timeoutS !== "number" || !Number.isInteger(timeoutS) || timeoutS < 1 || timeoutS > 300) {
+    return { payload: { error: "invalid timeout_s", expect: "integer between 1 and 300" }, isError: true };
+  }
+  if (!Array.isArray(paneIds) || paneIds.length < 1 || paneIds.length > 8 ||
+    !paneIds.every((p) => typeof p === "number" && Number.isInteger(p) && p > 0 && p < 2147483647)) {
+    return { payload: { error: "invalid pane_ids", expect: "1..8 positive integer pane ids" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = [
+    path.join(ctx.binDir, "backends", "herdr-eventwait.py"),
+    socket as string,
+    String(timeoutS),
+    ...(paneIds as number[]).map(String),
+  ];
+  return ownedCall(cmd, "herdr_eventwait", ctx.run);
+}
+
+export async function toolHerdrWorkspaceMove(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const socket = args["socket"];
+  const workspaceId = args["workspace_id"];
+  const insertIndex = args["insert_index"];
+  if (!validPlainArg(socket)) {
+    return { payload: { error: "invalid socket", expect: "control socket path, 1..500 chars" }, isError: true };
+  }
+  if (typeof workspaceId !== "number" || !Number.isInteger(workspaceId) || workspaceId <= 0 || workspaceId >= 2147483647) {
+    return { payload: { error: "invalid workspace_id", expect: "positive integer workspace id" }, isError: true };
+  }
+  if (typeof insertIndex !== "number" || !Number.isInteger(insertIndex) || insertIndex < 0 || insertIndex > 1000000) {
+    return { payload: { error: "invalid insert_index", expect: "non-negative integer <= 1000000" }, isError: true };
+  }
+  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
+  const cmd = [
+    path.join(ctx.binDir, "backends", "herdr-workspace-move.py"),
+    socket as string,
+    String(workspaceId),
+    String(insertIndex),
+  ];
+  return ownedCall(cmd, "herdr_workspace_move", ctx.run);
+}
+
 // --- Registry (schemas match the Python server's tools/list exactly) ---
 
 export interface ToolDef {
@@ -4165,6 +4438,110 @@ export const TOOLS: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolTasksReady,
+  },
+  dispatch_resolve: {
+    description: "Read-only dispatch resolution for one task brief; prints a dispatch plan without launching anything.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        task_id: { type: "string", description: "Task id whose data/<id>/brief.md is resolved" },
+        project: { type: "string", description: "Bare name or projects/<name>" },
+      },
+      required: ["task_id"],
+      additionalProperties: false,
+    },
+    handler: toolDispatchResolve,
+  },
+  sessionstart_nudge: {
+    description: "Read-only session-start nudge read; prints the one-line start instruction or nothing, exits 0.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolSessionstartNudge,
+  },
+  session_start: {
+    description: "Authority write: run the whole session-start bootstrap (lock, sweeps, digests).",
+    inputSchema: approvalSchema({
+      reemit: { type: "boolean", description: "Re-emit context only" },
+      source: { type: "string", description: "Harness session-open source slug" },
+    }, []),
+    handler: toolSessionStart,
+  },
+  sessionstart_run: {
+    description: "Authority write: run the session-open digest runner for one harness source.",
+    inputSchema: approvalSchema({
+      source: { type: "string", description: "Harness session-open source slug" },
+    }, []),
+    handler: toolSessionstartRun,
+  },
+  sessionstart_cursor: {
+    description: "Authority write: run the Cursor session-open transport for one harness source.",
+    inputSchema: approvalSchema({
+      source: { type: "string", description: "Harness session-open source slug" },
+    }, ["source"]),
+    handler: toolSessionstartCursor,
+  },
+  herdr_lab: {
+    description: "Authority write: operate one isolated Herdr lab session (never default).",
+    inputSchema: approvalSchema({
+      subcommand: { type: "string", enum: ["name", "prepare", "provision", "run", "viewer", "stop", "teardown"] },
+      session: { type: "string", description: "fm-lab-<label> session name" },
+      label: { type: "string", description: "Short label for the name subcommand" },
+      action: { type: "string", enum: ["start", "stop"], description: "Viewer action" },
+    }, ["subcommand"]),
+    handler: toolHerdrLab,
+  },
+  herdr_ci_cleanup: {
+    description: "Authority write: snapshot or tear down CI-owned Herdr lab sessions from a snapshot file.",
+    inputSchema: approvalSchema({
+      command: { type: "string", enum: ["snapshot", "teardown"] },
+      path: { type: "string", description: "Home-relative snapshot file path" },
+    }, ["command", "path"]),
+    handler: toolHerdrCiCleanup,
+  },
+  session_cleanup: {
+    description: "Authority write: retire stale restored-shell Herdr presentation children at locked session start.",
+    inputSchema: approvalSchema({}, []),
+    handler: toolSessionCleanup,
+  },
+  claude_trust: {
+    description: "Authority write: pre-register Claude Code workspace trust for a spawn target.",
+    inputSchema: approvalSchema({
+      worktree: { type: "string", description: "Isolated task worktree this spawn launches into" },
+      project: { type: "string", description: "Primary checkout that worktree belongs to" },
+      home: { type: "string", description: "Seeded secondmate home this spawn launches into" },
+      id: { type: "string", description: "Secondmate id that home is marked for" },
+    }, []),
+    handler: toolClaudeTrust,
+  },
+  agy_trust: {
+    description: "Authority write: pre-register Antigravity workspace trust for a spawn worktree.",
+    inputSchema: approvalSchema({
+      worktree: { type: "string", description: "Isolated task worktree this spawn launches into" },
+      project: { type: "string", description: "Primary checkout that worktree belongs to" },
+    }, ["worktree", "project"]),
+    handler: toolAgyTrust,
+  },
+  claude_stop_autoarm: {
+    description: "Authority write: run the Claude Stop-owned watcher auto-arm hook path.",
+    inputSchema: approvalSchema({}, []),
+    handler: toolClaudeStopAutoarm,
+  },
+  herdr_eventwait: {
+    description: "Authority write: wait on a Herdr session control socket for pane status transitions.",
+    inputSchema: approvalSchema({
+      socket: { type: "string", description: "Herdr session control socket path" },
+      timeout_s: { type: "integer", description: "Bounded wait budget, 1..300 seconds" },
+      pane_ids: { type: "array", items: { type: "integer" }, description: "Pane ids to subscribe (1..8)" },
+    }, ["socket", "timeout_s", "pane_ids"]),
+    handler: toolHerdrEventwait,
+  },
+  herdr_workspace_move: {
+    description: "Authority write: send one workspace.move request to a Herdr session control socket.",
+    inputSchema: approvalSchema({
+      socket: { type: "string", description: "Herdr session control socket path" },
+      workspace_id: { type: "integer", description: "Exact workspace id to move" },
+      insert_index: { type: "integer", description: "Non-negative insert index" },
+    }, ["socket", "workspace_id", "insert_index"]),
+    handler: toolHerdrWorkspaceMove,
   },
   backlog_receive: {
     description: "Authority write: receive one delivered remote-secondmate outbox into this home's backlog.",

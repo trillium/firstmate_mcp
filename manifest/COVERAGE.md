@@ -16,7 +16,7 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | --- | --- | --- | --- |
 | [Fleet runs](#fleet-runs) | 3 | 2 | 3 |
 | [Supervision](#supervision) | 8 | 4 | 28 |
-| [Sessions](#sessions) | 4 | 0 | 21 |
+| [Sessions](#sessions) | 6 | 17 | 2 |
 | [Backlog / decisions](#backlog-decisions) | 5 | 1 | 7 |
 | [Secondmates / remotes](#secondmates-remotes) | 7 | 0 | 13 |
 | [PR pipeline](#pr-pipeline) | 3 | 5 | 3 |
@@ -24,7 +24,7 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 |
 | [Installs](#installs) | 4 | 0 | 19 |
-| **Total** | **50** | **14** | **94** |
+| **Total** | **52** | **31** | **75** |
 
 ## Fleet runs
 
@@ -94,30 +94,30 @@ Launching and owning agent sessions: start, harness, backends, spawn, briefs.
 
 | Command | Mirror status | Notes |
 | --- | --- | --- |
-| `backends/cmux.sh` | gap | cmux session backend |
-| `backends/herdr-eventwait.py` | gap | Herdr event-wait helper |
-| `backends/herdr-workspace-move.py` | gap | Herdr workspace-move helper |
-| `backends/herdr.sh` | gap | Herdr session backend |
-| `backends/orca.sh` | gap | Orca session backend |
-| `backends/tmux.sh` | gap | tmux session backend |
-| `backends/zellij.sh` | gap | zellij session backend |
-| `fm-agy-trust.sh` | gap | Antigravity workspace-trust preregistration |
-| `fm-backend.sh` | gap | session-provider selection and dispatch |
+| `backends/cmux.sh` | denied-by-design — `backend_select` | cmux session backend. selecting and dispatching the runtime session provider reroutes every supervision verb; the provider library is sourced by the owning spawn/supervision path, never invoked directly |
+| `backends/herdr-eventwait.py` | denied-by-design — `herdr_eventwait` | Herdr event-wait helper. subscribing to a live Herdr control socket drives the session event path; only the watcher owns event waits |
+| `backends/herdr-workspace-move.py` | denied-by-design — `herdr_workspace_move` | Herdr workspace-move helper. sending workspace.move to a live session mutates presentation ordering; only the owning session owns moves |
+| `backends/herdr.sh` | denied-by-design — `backend_select` | Herdr session backend. selecting and dispatching the runtime session provider reroutes every supervision verb; the provider library is sourced by the owning spawn/supervision path, never invoked directly |
+| `backends/orca.sh` | denied-by-design — `backend_select` | Orca session backend. selecting and dispatching the runtime session provider reroutes every supervision verb; the provider library is sourced by the owning spawn/supervision path, never invoked directly |
+| `backends/tmux.sh` | denied-by-design — `backend_select` | tmux session backend. selecting and dispatching the runtime session provider reroutes every supervision verb; the provider library is sourced by the owning spawn/supervision path, never invoked directly |
+| `backends/zellij.sh` | denied-by-design — `backend_select` | zellij session backend. selecting and dispatching the runtime session provider reroutes every supervision verb; the provider library is sourced by the owning spawn/supervision path, never invoked directly |
+| `fm-agy-trust.sh` | denied-by-design — `agy_trust` | Antigravity workspace-trust preregistration. pre-registering Antigravity workspace trust writes the operator trust store on a spawn's behalf; only the launching spawn path owns trust |
+| `fm-backend.sh` | denied-by-design — `backend_select` | session-provider selection and dispatch. selecting and dispatching the runtime session provider reroutes every supervision verb; the provider library is sourced by the owning spawn/supervision path, never invoked directly |
 | `fm-brief.sh` | mirrored — `scaffold_brief` (ts✔) | scaffold one crewmate brief; launches nothing |
-| `fm-claude-stop-autoarm.sh` | gap | disable auto-arm in claude sessions |
-| `fm-claude-trust.sh` | gap | workspace-trust preregistration for spawns |
-| `fm-dispatch-resolve.sh` | gap | resolve one concrete dispatch |
+| `fm-claude-stop-autoarm.sh` | denied-by-design — `claude_stop_autoarm` | disable auto-arm in claude sessions. arming the watcher from a Stop hook drives shared supervision continuity; only the owning session's Stop hook fires it |
+| `fm-claude-trust.sh` | denied-by-design — `claude_trust` | workspace-trust preregistration for spawns. pre-registering workspace trust writes the operator trust store on a spawn's behalf; only the launching spawn path owns trust |
+| `fm-dispatch-resolve.sh` | mirrored — `dispatch_resolve` (ts✔) | resolve one concrete dispatch |
 | `fm-harness.sh` | mirrored — `harness_detect` (ts✔) | harness detection for the process tree |
-| `fm-herdr-ci-cleanup.sh` | gap | CI session cleanup |
-| `fm-herdr-lab.sh` | gap | isolated Herdr lab sessions |
-| `fm-herdr-session-cleanup.sh` | gap | session cleanup |
+| `fm-herdr-ci-cleanup.sh` | denied-by-design — `herdr_ci_cleanup` | CI session cleanup. stopping and deleting lab sessions is destructive even when scoped; only CI teardown owns it |
+| `fm-herdr-lab.sh` | denied-by-design — `herdr_lab` | isolated Herdr lab sessions. provisioning and operating lab sessions drives Herdr session lifecycle; only explicitly authorized lab work owns lab sessions |
+| `fm-herdr-session-cleanup.sh` | denied-by-design — `session_cleanup` | session cleanup. closing panes at session start mutates live presentation state; only the lock-owning session start owns cleanup |
 | `fm-herdr-spur.sh` (removed upstream) | gap | agent watch spur; removed upstream since pin |
 | `fm-isolated-launch.sh` (removed upstream) | gap | isolated CLI launch; removed upstream since pin |
 | `fm-project-mode.sh` | mirrored — `project_mode` (ts✔) | registered delivery posture (mode + yolo) |
-| `fm-session-start.sh` | gap | session bootstrap |
-| `fm-sessionstart-cursor.sh` | gap | cursor session-start path |
-| `fm-sessionstart-nudge.sh` | gap | session-start nudge |
-| `fm-sessionstart-run.sh` | gap | session-start runner |
+| `fm-session-start.sh` | denied-by-design — `session_start` | session bootstrap. running the session bootstrap acquires the home lock and runs mutating sweeps; only the opening session itself owns bootstrap |
+| `fm-sessionstart-cursor.sh` | denied-by-design — `sessionstart_cursor` | cursor session-start path. cursor session-open transport around the digest runner; only Cursor's sessionStart step owns it |
+| `fm-sessionstart-nudge.sh` | mirrored — `sessionstart_nudge` (ts✔) | session-start nudge |
+| `fm-sessionstart-run.sh` | denied-by-design — `sessionstart_run` | session-start runner. running the session-open digest takes the helm for a harness open; only harness session-open adapters own the runner |
 | `fm-spawn.sh` | mirrored — `spawn_crew` (ts✔) | spawn one direct report under contract |
 
 ## Backlog / decisions

@@ -11,7 +11,7 @@
  *   mail_status, mail_read, mail_check, voice_status, lint_versions,
  *   tool_update_check, vendor_auth_probe, startup_memory, pr_state,
  *   pr_poll, relay_poll, public_followup_pending, public_followup_collect,
- *   tasks_list, tasks_show, tasks_ready,
+ *   tasks_list, tasks_show, tasks_ready, dispatch_resolve, sessionstart_nudge,
  *   receipt_submit, receipt_status — no approval.
  *   (receipt_submit detaches one call past the 30s budget; authority
  *   targets still need their own nested approval string.)
@@ -20,13 +20,19 @@
  *   scaffold_brief, decision_hold, decision_resolve, decision_release,
  *   decision_complete, review_decision,
  *   secondmate_nudge, secondmate_restart, secondmate_report,
- *   remote_control, handoff_move, voice_queue — explicit per-call approval required.
+ *   remote_control, handoff_move, voice_queue, session_start,
+ *   sessionstart_run, sessionstart_cursor, herdr_lab, herdr_ci_cleanup,
+ *   session_cleanup, claude_trust, agy_trust, claude_stop_autoarm,
+ *   herdr_eventwait, herdr_workspace_move — explicit per-call approval required.
  * - Tier 4 (external sends): relay_reply, relay_dismiss, relay_followup,
  *   mail_send —
  *   approval plus relay consent inside the owning scripts.
  * - Forbidden: promote_scout, teardown_crew, arm_pr_check, merge_pr,
  *   merge_local, public_followup_emit, relay_link, fleet_sync,
- *   inactive_reconcile, backlog_receive — no tool, refused as unknown.
+ *   inactive_reconcile, backlog_receive, session_start, sessionstart_run,
+ *   sessionstart_cursor, herdr_lab, herdr_ci_cleanup, session_cleanup,
+ *   claude_trust, agy_trust, claude_stop_autoarm, herdr_eventwait,
+ *   herdr_workspace_move, backend_select — no tool, refused as unknown.
  */
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -94,6 +100,8 @@ export const TOOL_TIERS: Record<string, Tier> = {
   tasks_list: TIER_OPEN,
   tasks_show: TIER_OPEN,
   tasks_ready: TIER_OPEN,
+  dispatch_resolve: TIER_OPEN,
+  sessionstart_nudge: TIER_OPEN,
   receipt_submit: TIER_OPEN,
   receipt_status: TIER_OPEN,
   send_message: TIER_STEER,
@@ -143,6 +151,17 @@ export const TOOL_TIERS: Record<string, Tier> = {
   fleet_sync: TIER_AUTHORITY,
   inactive_reconcile: TIER_AUTHORITY,
   backlog_receive: TIER_AUTHORITY,
+  session_start: TIER_AUTHORITY,
+  sessionstart_run: TIER_AUTHORITY,
+  sessionstart_cursor: TIER_AUTHORITY,
+  herdr_lab: TIER_AUTHORITY,
+  herdr_ci_cleanup: TIER_AUTHORITY,
+  session_cleanup: TIER_AUTHORITY,
+  claude_trust: TIER_AUTHORITY,
+  agy_trust: TIER_AUTHORITY,
+  claude_stop_autoarm: TIER_AUTHORITY,
+  herdr_eventwait: TIER_AUTHORITY,
+  herdr_workspace_move: TIER_AUTHORITY,
   mail_send: TIER_EXTERNAL,
   relay_reply: TIER_EXTERNAL,
   relay_dismiss: TIER_EXTERNAL,

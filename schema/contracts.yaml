@@ -919,3 +919,35 @@ contracts:
       header: bin/fm-tasks-axi.sh:1-40
       doc: INVENTORY.md
     notes: Read-only list of dependency-cleared ready queued work dispatchable now.
+  - name: dispatch_resolve
+    command: bin/fm-dispatch-resolve.sh
+    flags: ["<brief>", "--project"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: dispatch plan (clear, ambiguous, escalate, or error) or the off notice without TYPESAFE_API_KEY; exits 0
+      nonzero: usage or configuration error (unreadable brief, malformed rules, missing jq); exit 2
+    stability: evolving
+    pinned: fm-dispatch-resolve.v1
+    evidence:
+      header: bin/fm-dispatch-resolve.sh:1-40
+      doc: INVENTORY.md
+    notes: Read-only dispatch resolution for the canonical data/<task-id>/brief.md; prints a plan without launching anything. Launching stays with spawn_crew behind approval.
+  - name: sessionstart_nudge
+    command: bin/fm-sessionstart-nudge.sh
+    flags: ["<none>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: one-line session-start instruction or silence; always exits 0
+      nonzero: none by contract
+    stability: evolving
+    pinned: fm-sessionstart-nudge.v1
+    evidence:
+      header: bin/fm-sessionstart-nudge.sh:1-35
+      doc: INVENTORY.md
+    notes: Bounded session-start nudge read; running the bootstrap stays firstmate-owned.
