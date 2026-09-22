@@ -145,6 +145,10 @@ export const TOOL_TIERS: Record<string, Tier> = {
   stow_cascade: TIER_OPEN,
   test_isolation_list: TIER_OPEN,
   test_run_list: TIER_OPEN,
+  // Running the suite executes repo code with the server's privileges and takes
+  // minutes, so it is an authority action rather than a read; the reads above
+  // deliberately keep suite runs out.
+  test_run: TIER_AUTHORITY,
   receipt_submit: TIER_OPEN,
   receipt_status: TIER_OPEN,
   send_message: TIER_STEER,

@@ -703,6 +703,22 @@ features:
         List modes only with a closed mode enum and a strict pool slug
         (upstream re-validates the family). Proof runs with concurrent
         workers and timing artifacts stay out.
+  - id: test_run
+    kind: upstream-mirror
+    summary: Run the behavior-test runner for one selection; long selections belong on the receipt path.
+    upstream_command: bin/fm-test-run.sh
+    upstream_flags: ["--all", "--family", "--changed", "--lane", "--proven-isolated"]
+    contract: schema/contracts.yaml#test_run
+    upstream_test: "none upstream for the wrapper; the runner is upstream-owned and our surface is covered by ts/tests/test-run.test.ts"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:test_run"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Execution is an authority action here (tier 3) behind a closed selection
+        enum, a family/lane pattern, tests/<name>.test.sh-only script paths, and
+        a receipt hint for the minutes-long selections; the sibling read
+        test_run_list keeps suite runs out entirely.
   - id: test_run_list
     kind: upstream-mirror
     summary: Test-runner topology (families, lanes, concurrent-safe families, coverage guard); runs stay out.
