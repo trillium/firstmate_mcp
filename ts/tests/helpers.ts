@@ -146,7 +146,9 @@ export const STUBS: Record<string, string> = {
   "fm-doc-audience-check.sh": 'echo "doc-audience-stub:$2"\n',
   "fm-home-seed.sh": 'echo "home-seed-stub:$1"\n',
   "fm-stow-cascade.sh": 'echo "stow-cascade-stub"\n',
-  "fm-test-isolation-proof.sh": 'echo "isolation-stub:$1 pool=$3"\n',
+  // Models a script that supports the --pool selector (the doorway probes the
+  // script source for it; see artifact-cache.test.ts for the other branch).
+  "fm-test-isolation-proof.sh": '# supports --pool\necho "isolation-stub:$1 pool=$3"\n',
   "fm-test-run.sh": 'echo "test-run-stub:$1"\n',
   "fm-session-start.sh": "echo 'stub: refused' >&2\nexit 1\n",
   "fm-sessionstart-run.sh": "echo 'stub: refused' >&2\nexit 1\n",
