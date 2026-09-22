@@ -250,6 +250,11 @@ Personal software, one owner, no external users. Standing owner instruction:
 - Test runner: `pnpm run test:dev` selectively reruns
   recorded failing test files during local development, while CI and PR
   always run the full suite (`bun test` / `pnpm test`).
+- Never run a build or a test in this worktree while a suite is running in it: the
+  compiled tests live in `ts/testbuild/` and `bun test` writes there, so a
+  concurrent `pnpm run build:tests` makes the running suite report
+  `NotImplementedError: describe() inside another test()` and spurious
+  "tool present" failures (three times now). Serialize: one suite at a time.
 - Never gate on the exit status of a *piped* command: `pnpm test 2>&1 | tail -n`
   reports tail's status, so a failing suite can surface as exit 0 (observed
   2026-09-22: a background run reported exit 0 while its own output said
