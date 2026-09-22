@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  Daily maintenance agent for a supervised firstmate_mcp deployment.
+
+  The server unit (com.firstmate.mcp.plist) is a stdio process: under launchd it
+  reads EOF, exits 0, and KeepAlive{SuccessfulExit:false} deliberately leaves it
+  stopped. It is a health anchor and a `launchctl kickstart -k` cutover target —
+  serving is done by whichever client spawns the server (mcpjungle here).
+
+  This unit is the part that genuinely benefits from a supervisor: it runs
+  scripts/fm-mcp-maintenance.sh on an interval, which proves the server still
+  speaks the protocol against the live home and then rotates the logs with
+  copytruncate (the server holds its log descriptors open). A failed smoke gate
+  exits non-zero, skips rotation, and leaves a loud line in the maintenance log.
+
+  Render with:
+    ./scripts/fm-mcp-render-plist.sh --home "$FM_HOME" --mcp-dir "$PWD" \
+      --label com.firstmate.mcp.maintenance \
+      --template deploy/com.firstmate.mcp.maintenance.plist.template \
+      --stderr "$FM_HOME/logs/mcp-maintenance.log" \
+      --stdout "$FM_HOME/logs/mcp-maintenance.log" \
+      --output ~/Library/LaunchAgents/com.firstmate.mcp.maintenance.plist
+-->
+<dict>
+    <key>Label</key>
+    <string>{{LABEL}}</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{FIRSTMATE_MCP_DIR}}/scripts/fm-mcp-maintenance.sh</string>
+        <string>--home</string>
+        <string>{{FM_HOME}}</string>
+        <string>--runtime</string>
+        <string>{{FM_MCP_RUNTIME}}</string>
+        <string>--max-size-mb</string>
+        <string>50</string>
+        <string>--retention-days</string>
+        <string>14</string>
+        <string>--json</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>{{FIRSTMATE_MCP_DIR}}</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>FM_HOME</key>
+        <string>{{FM_HOME}}</string>
+        <key>FM_MCP_RUNTIME</key>
+        <string>{{FM_MCP_RUNTIME}}</string>
+        <key>PATH</key>
+        <string>{{PATH}}</string>
+    </dict>
+
+    <key>StartInterval</key>
+    <integer>86400</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <key>StandardErrorPath</key>
+    <string>{{STDERR_LOG}}</string>
+
+    <key>StandardOutPath</key>
+    <string>{{STDOUT_LOG}}</string>
+</dict>
+</plist>
