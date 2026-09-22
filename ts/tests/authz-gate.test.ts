@@ -15,7 +15,7 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { TIER_AUTHORITY, tierOf } from "../src/auth.js";
+import { TIER_AUTHORITY, requiresApproval, tierOf } from "../src/auth.js";
 import { handleToolsCall } from "../src/server.js";
 import { TOOLS, type ToolContext } from "../src/tools.js";
 import type { RunResult } from "../src/runner.js";
@@ -133,5 +133,37 @@ describe("central authorization gate", () => {
     const last = lines[lines.length - 1];
     assert.equal(last["decision"], "refuse");
     assert.equal(last["reason"], "approval-required");
+  });
+});
+
+/**
+ * The detached receipt path bypasses the dispatcher, and it used to consult a
+ * hand-maintained NEEDS_APPROVAL set that held 35 entries while 60 live tools
+ * were gated — so receipt_submit(repo_push | merge_pr | promote_scout | pr_open
+ * | ...) ran with no approval at all, on the very path an autonomous loop uses.
+ * It now derives from the tier table.
+ */
+describe("receipt path authorization", () => {
+  it("refuses to detach every live approval-gated tool without approval", async () => {
+    const rec: Recorder = { calls: [], sent: [] };
+    const ctx = ctxRecording(rec);
+    const gated = Object.keys(TOOLS).filter((t) => requiresApproval(t) && t !== "receipt_submit");
+    assert.ok(gated.length >= 40, `expected the gated surface, saw ${gated.length}`);
+    for (const tool of gated) {
+      const res = await TOOLS["receipt_submit"].handler({ tool, arguments: {} }, ctx);
+      assert.equal(res.isError, true, `${tool} must not be detached without approval`);
+      assert.equal(res.payload["error"], "approval required", `${tool} must name approval`);
+    }
+    assert.deepEqual(rec.calls, [], "a refused receipt must execute nothing");
+  });
+
+  it("still detaches a gated tool once approval is present", async () => {
+    const rec: Recorder = { calls: [], sent: [] };
+    const res = await TOOLS["receipt_submit"].handler(
+      { tool: "repo_edit", arguments: { path: "note.md", content: "x", approval: APPROVAL } },
+      ctxRecording(rec),
+    );
+    assert.equal(res.isError, false, JSON.stringify(res.payload));
+    assert.match(String(res.payload["receipt_id"]), /^rcpt-/);
   });
 });
