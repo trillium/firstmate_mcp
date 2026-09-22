@@ -40,18 +40,38 @@ def sha256_file(path):
     return digest.hexdigest()
 
 
-def run_help(script, timeout=HELP_TIMEOUT_S):
-    """Run `script --help` read-only; return (exit_code, combined_output)."""
+def normalize_help(text, home=None):
+    """Strip checkout-specific paths so a snapshot describes the file, not its location.
+
+    Scripts derive FM_HOME from their own location, so the same file checked
+    out at two paths renders different output (typically an early config error
+    naming its own .env). Hashing the raw text made every surface look drifted
+    between two checkouts of identical content.
+    """
+    if not home:
+        return text
+    return text.replace(str(home), "<FM_HOME>")
+
+
+def run_help(script, timeout=HELP_TIMEOUT_S, home=None):
+    """Run `script --help` read-only; return (exit_code, combined_output).
+
+    cwd is pinned to the script's own directory and checkout paths are
+    normalized away so the result is a property of the file alone.
+    """
     try:
         proc = subprocess.run(
             ["bash", str(script), "--help"],
             capture_output=True,
             text=True,
             timeout=timeout,
+            cwd=str(script.parent),
         )
-        return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
+        combined = (proc.stdout or "") + (proc.stderr or "")
+        return proc.returncode, normalize_help(combined, home)
     except (OSError, subprocess.SubprocessError) as exc:
-        return -1, f"<help unavailable: {exc}>"
+        # The message embeds argv, so it carries the checkout path too.
+        return -1, normalize_help(f"<help unavailable: {exc}>", home)
 
 
 def parse_flags(help_text):
@@ -78,8 +98,8 @@ def schema_hint(header_text, help_text):
     return ""
 
 
-def inspect_script(script):
-    help_code, help_text = run_help(script)
+def inspect_script(script, home=None):
+    help_code, help_text = run_help(script, home=home)
     try:
         header_text = "\n".join(
             script.read_text(encoding="utf-8", errors="replace").splitlines()[:HEADER_LINES]
@@ -126,7 +146,11 @@ def firstmate_revision(fm_home):
 
 
 def collect(fm_home):
-    fm_home = Path(fm_home)
+    # Resolve before use: run_help pins the child's cwd to the script's own
+    # directory, so a relative --fm-home leaves the script path unreachable
+    # from that cwd (bash: ...: No such file or directory) and every surface
+    # records exit 127. The snapshot also records this canonical path.
+    fm_home = Path(fm_home).expanduser().resolve()
     bin_dir = fm_home / "bin"
     if not bin_dir.is_dir():
         raise ValueError(f"no bin/ directory under {fm_home}")
@@ -139,7 +163,7 @@ def collect(fm_home):
         "generated": generated,
         "fm_home": str(fm_home),
         "firstmate_revision": firstmate_revision(fm_home),
-        "surfaces": [inspect_script(script) for script in scripts],
+        "surfaces": [inspect_script(script, home=fm_home) for script in scripts],
     }
 
 

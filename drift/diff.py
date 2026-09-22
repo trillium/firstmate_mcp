@@ -4,20 +4,34 @@
 Change classes:
 - added / removed: a surface appears or disappears. Always feature drift:
   the depended-on command set itself changed.
-- changed: a surface exists on both sides but differs. Each differing field
-  is classified per the design report vocabulary:
-  - feature drift: the contract surface moved (command path, kind, flag
-    set, schema id hint, header output contract). A depended-on pin may
-    need updating.
-  - behavior drift: the same contract behaves or documents differently
-    (help text, file bytes, size/mtime, help exit code). Worth a look,
-    but no contract pin necessarily changes.
+- changed: a surface exists on both sides but differs in a field that is a
+  pure function of the checked-out bytes:
+  - feature drift: the declared contract moved (command path, kind, header
+    output contract). A depended-on pin may need updating.
+  - behavior drift: the bytes or their size changed (file_hash, size).
+    Worth a look, but no contract pin necessarily changes.
 
-A surface can carry both classes at once (e.g. new flags plus new help).
+A surface can carry both classes at once (e.g. a new header contract plus
+changed bytes).
+
+Fields captured by *executing* `<script> --help` (flags, help_excerpt,
+help_hash, help_exit, schema_hint) and the checkout timestamp (mtime) are
+recorded in the snapshot as triage evidence but never compared: they are not
+pure functions of the file. Measured 2026-09-21 against one unchanged
+revision: two checkouts at different paths reported 177/177 surfaces changed
+(the captured "help" was an early config error naming its own .env path), one
+surface's help printed a live watcher pid (22396 vs 44161), and another timed
+out under load mid-capture (embedding its absolute path). Comparing content
+only is what an upstream pin change is actually about; the captured flags stay
+readable in the snapshot, and schema/contracts.yaml stays the authority for
+depended-on flag surfaces.
 """
 
-FEATURE_FIELDS = ("command", "kind", "flags", "schema_hint", "header_contract")
-BEHAVIOR_FIELDS = ("help_excerpt", "help_hash", "file_hash", "size", "mtime", "help_exit")
+FEATURE_FIELDS = ("command", "kind", "header_contract")
+BEHAVIOR_FIELDS = ("file_hash", "size")
+# Observed, never compared (see module docstring): executing --help is not a
+# pure function of the file, and mtime describes the clone, not upstream.
+IGNORED_FIELDS = ("mtime", "flags", "help_excerpt", "help_hash", "help_exit", "schema_hint")
 
 
 def _field_change(field, old, new):

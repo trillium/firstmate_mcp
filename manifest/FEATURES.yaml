@@ -22,7 +22,7 @@ version: v1
 upstream:
   repo: https://github.com/kunchenguid/firstmate.git
   submodule: sources/firstmate
-  gitlink_at_seed: 1b1b6e051dafc9dcabe3ef0a7d4a64bd40a45567
+  gitlink_at_seed: f5735dc28a83186ef95715c8683333245762a8c6
   baseline: drift/baseline.json
   baseline_rev_at_seed: aaf67489
   baseline_surfaces_at_seed: 163
@@ -33,6 +33,11 @@ upstream:
     drift/shift.py watches this pin against upstream main; a shift report
     is a deliberate port decision, never an automatic merge. Nothing runs
     against this copy — see `fork` below for the working line.
+    Re-seeded 2026-09-22 from 1b1b6e05 (25 commits behind main, identical
+    196-script name surface): 47 of 177 surfaces actually changed. The first
+    read of that shift claimed 177/177 because drift also compared checkout
+    mtime and the executed-help fields; drift/diff.py now compares content
+    only — see its IGNORED_FIELDS and module docstring.
 fork:
   repo: https://github.com/trillium/firstmate.git
   proven_commit: 86c035336bf9e136dd44d76e7d46e16d260fac8f
