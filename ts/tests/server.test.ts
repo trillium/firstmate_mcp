@@ -141,56 +141,71 @@ describe("expanded surface: 66 tools", () => {
   });
 
   const REQUIRED = [
-    "lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch",
-    "lifecycle_suspend", "lifecycle_resume", "spawn_crew", "scaffold_brief",
-    "decision_hold", "decision_resolve", "decision_release", "decision_complete",
-    "decision_verify", "decision_open", "decision_diverged",
-    "review_decision", "relay_reply",
-    "relay_dismiss", "relay_followup", "fleet_poll",
-    "peek", "fleet_view", "review_diff",
-    "bearings_snapshot", "wake_drain", "guard_check",
-    "remote_doctor", "remote_file", "remote_delta", "extension_list", "extension_inspect",
-    "handoff_status",
-    "secondmate_nudge", "secondmate_restart", "secondmate_report",
-    "remote_control", "handoff_move",
+    "lifecycle_interrupt", "lifecycle_exit", "lifecycle_relaunch", "lifecycle_suspend",
+    "lifecycle_resume", "spawn_crew", "scaffold_brief", "decision_hold",
+    "decision_resolve", "decision_release", "decision_complete", "decision_verify",
+    "decision_open", "decision_diverged", "review_decision", "relay_reply",
+    "relay_dismiss", "relay_followup", "fleet_poll", "peek",
+    "fleet_view", "review_diff", "bearings_snapshot", "wake_drain",
+    "guard_check", "remote_doctor", "remote_file", "remote_delta",
+    "extension_list", "extension_inspect", "handoff_status", "secondmate_nudge",
+    "secondmate_restart", "secondmate_report", "remote_control", "handoff_move",
     "harness_detect", "project_mode", "lock_status", "lease_check",
-    "bearings_board_path", "inbox_status", "inbox_list",
-    "home_summary", "home_summary_refresh", "contributions_snapshot", "contributions_pending",
-    "mail_status", "mail_read", "mail_check", "voice_status",
-    "lint_versions", "tool_update_check", "vendor_auth_probe",
-    "startup_memory", "pr_state", "pr_poll", "relay_poll",
-    "public_followup_pending", "public_followup_collect",
-    "tasks_list", "tasks_show", "tasks_ready",
-    "dispatch_resolve", "sessionstart_nudge",
-    "startup_network_report", "doc_audience_check", "home_seed_validate",
-    "stow_cascade", "test_isolation_list", "test_run_list",
-    "pr_reviewers", "arm_policy_check", "cd_policy_check",
-    "subagent_policy_check", "supervision_instructions", "quota_choose",
-    "session_start", "sessionstart_run", "sessionstart_cursor",
-    "herdr_lab", "herdr_ci_cleanup", "session_cleanup",
-    "claude_trust", "agy_trust", "claude_stop_autoarm",
-    "herdr_eventwait", "herdr_workspace_move",
-    "voice_queue", "mail_send",
-    "receipt_submit", "receipt_status",
-    "promote_scout", "teardown_crew", "arm_pr_check", "merge_pr", "merge_local",
-    "public_followup_emit", "relay_link",
-    "fleet_sync", "inactive_reconcile",
-    "backlog_receive",
-    "repo_edit", "repo_commit", "repo_push", "repo_merge",
-    "daemon_start", "daemon_stop", "daemon_restart", "daemon_status",
-    "watch_start", "watch_stop",
-    "task_intake", "worktree_allocate", "lifecycle_drive", "review_gate", "reconcile_upstream",
-    "grant_mint", "grant_revoke", "grant_status",
+    "bearings_board_path", "inbox_status", "inbox_list", "home_summary",
+    "home_summary_refresh", "contributions_snapshot", "contributions_pending", "mail_status",
+    "mail_read", "mail_check", "voice_status", "lint_versions",
+    "tool_update_check", "vendor_auth_probe", "startup_memory", "pr_state",
+    "pr_poll", "relay_poll", "public_followup_pending", "public_followup_collect",
+    "tasks_list", "tasks_show", "tasks_ready", "dispatch_resolve",
+    "sessionstart_nudge", "startup_network_report", "doc_audience_check", "home_seed_validate",
+    "stow_cascade", "test_isolation_list", "test_run_list", "pr_reviewers",
+    "arm_policy_check", "cd_policy_check", "subagent_policy_check", "supervision_instructions",
+    "quota_choose", "voice_queue", "mail_send", "receipt_submit",
+    "receipt_status", "repo_edit", "repo_commit", "repo_push",
+    "daemon_status", "task_intake", "worktree_allocate", "lifecycle_drive",
+    "review_gate", "reconcile_upstream", "grant_mint", "grant_revoke",
+    "grant_status",
+  ];
+  // Registered so the dispatcher can refuse them by name, never advertised.
+  const HIDDEN = [
+    "session_start", "sessionstart_run", "sessionstart_cursor", "herdr_lab",
+    "herdr_ci_cleanup", "session_cleanup", "claude_trust", "agy_trust",
+    "claude_stop_autoarm", "herdr_eventwait", "herdr_workspace_move", "promote_scout",
+    "teardown_crew", "arm_pr_check", "merge_pr", "merge_local",
+    "public_followup_emit", "relay_link", "fleet_sync", "inactive_reconcile",
+    "backlog_receive", "repo_merge", "daemon_start", "daemon_stop",
+    "daemon_restart", "watch_start", "watch_stop",
   ];
 
-  it("server lists every registered tool", async () => {
+  it("server lists every callable tool and no forbidden one", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
     // Derived, not a literal: the surface grows with each mirrored gap, and a
     // hardcoded count turns every tool addition into an unrelated failure.
-    assert.equal(tools.length, Object.keys(TOOLS).length);
+    const callable = Object.keys(TOOLS).filter((name) => tierOf(name) !== TIER_FORBIDDEN);
+    assert.equal(tools.length, callable.length);
     assert.equal(new Set(tools.map((t) => t.name)).size, tools.length, "tool names must be unique");
+    for (const tool of tools) {
+      assert.notEqual(
+        tierOf(tool.name),
+        TIER_FORBIDDEN,
+        `${tool.name} is code-forbidden and must not be advertised`,
+      );
+    }
   });
+
+  for (const hidden of HIDDEN) {
+    it(`forbidden tool hidden from the list: ${hidden}`, async () => {
+      const resp = await boxed.request("tools/list");
+      const names = new Set(
+        ((resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>).map((t) => t.name),
+      );
+      assert.equal(names.has(hidden), false, `${hidden} must not be advertised`);
+      const call = await boxed.call(hidden, { approval: APPROVAL });
+      assert.equal(isError(call), true, `${hidden} must still be refused when called directly`);
+      assert.equal(String(payload(call)["error"] ?? ""), "forbidden", `${hidden} refusal must say forbidden`);
+    });
+  }
 
   for (const required of REQUIRED) {
     it(`tool present: ${required}`, async () => {
