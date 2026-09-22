@@ -133,6 +133,29 @@ export type TestRunListMode = (typeof TEST_RUN_LIST_MODES)[number];
 
 export const ISOLATION_POOL_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
+export const SUPERVISION_INSTRUCTIONS_HARNESSES = [
+  "claude", "codex", "opencode", "pi", "pi-signed", "grok", "cursor", "omp",
+] as const;
+export type SupervisionInstructionsHarness = (typeof SUPERVISION_INSTRUCTIONS_HARNESSES)[number];
+
+export const SUPERVISION_AFK_MODES = ["away", "quiet"] as const;
+export type SupervisionAfkMode = (typeof SUPERVISION_AFK_MODES)[number];
+
+/** Longest shell command the arm/cd policy classifiers accept (bounded argv). */
+export const POLICY_COMMAND_MAX_CHARS = 4000;
+
+/** Longest harness tool name the subagent policy classifier accepts. */
+export const SUBAGENT_TOOL_MAX_CHARS = 128;
+
+/** Longest quota-axi snapshot (JSON or TOON) quota_choose accepts on stdin. */
+export const QUOTA_SNAPSHOT_MAX_CHARS = 65536;
+
+/** Most ordered dispatch candidates quota_choose evaluates. */
+export const QUOTA_CANDIDATES_MAX = 16;
+
+/** Candidate token shape owned by bin/fm-quota-choose.sh (never a leading colon). */
+export const QUOTA_CANDIDATE_RE = /^[A-Za-z0-9._/:\-]+$/;
+
 export const MAIL_TO_MAX_CHARS = 200;
 export const MAIL_SUBJECT_MAX_CHARS = 200;
 export const MAIL_BODY_MAX_CHARS = 5000;

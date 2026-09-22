@@ -60,7 +60,8 @@ test_manifest_and_deny_appear() {
     relay_reply relay_dismiss relay_followup \
     tasks_list tasks_show tasks_ready dispatch_resolve sessionstart_nudge \
     startup_network_report doc_audience_check home_seed_validate stow_cascade \
-    test_isolation_list test_run_list; do
+    test_isolation_list test_run_list pr_reviewers arm_policy_check cd_policy_check \
+    subagent_policy_check supervision_instructions quota_choose; do
     case "$(cat "$COVERAGE")" in
       *"$id"*) : ;;
       *) printf 'coverage missing manifest entry: %s\n' "$id" >&2; missing=1 ;;
@@ -75,7 +76,11 @@ test_manifest_and_deny_appear() {
     on_execute config_push remote_entrypoint remote_herdr_guard remote_provision \
     remote_seed inherit_push remote_inherit reap_orphans remote_worker \
     bootstrap check_register check_unregister agents_md_ensure install_actionlint \
-    install_herdr install_shellcheck install_treehouse update workflow_lint; do
+    install_herdr install_shellcheck install_treehouse update workflow_lint \
+    afk_contract afk_launch afk_return afk_start branch_outcome branch_prompt \
+    busy_event kimi_turnend_hook operational_input procevent_run procevent_lavish \
+    procevent_quota procevent_remote_reply procevent_when turnend_guard \
+    turnend_guard_cursor turnend_guard_grok wake_grant watch_checkpoint; do
     case "$(cat "$COVERAGE")" in
       *"$name"*) : ;;
       *) printf 'coverage missing DENY_LIST name: %s\n' "$name" >&2; missing=1 ;;

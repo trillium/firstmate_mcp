@@ -741,6 +741,98 @@ features:
       reason: >-
         GitHub PR URLs only (adapter validates and decomposes before spawning);
         runs --validated with exact host, path, number components. Never mutates.
+  - id: pr_reviewers
+    kind: upstream-mirror
+    summary: Advisory reviewer candidates from a PR's changed files and recent authorship; never requests reviews.
+    upstream_command: bin/fm-pr-reviewers.sh
+    upstream_flags: ["<pr-url>"]
+    contract: schema/contracts.yaml#pr_reviewers
+    upstream_test: "ts/tests/conformance-system.test.ts::small-gaps equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:pr_reviewers"]}
+    divergence:
+      status: intentional
+      reason: >-
+        GitHub PR URLs only (adapter refuses before spawning what the
+        script refuses after). One API read per changed path, so wide
+        PRs may time out past the envelope instead of completing.
+        Requesting, assigning, approving, and merging stay out.
+  - id: arm_policy_check
+    kind: upstream-mirror
+    summary: Watcher-arm command-policy verdict (allow or deny) for one shell command; never executes it.
+    upstream_command: bin/fm-arm-pretool-check.sh
+    upstream_flags: ["--command", "<shell-text>"]
+    contract: schema/contracts.yaml#arm_policy_check
+    upstream_test: "ts/tests/conformance-system.test.ts::supervision equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:arm_policy_check"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Classification only behind a bounded command string (1..4000
+        chars, no NUL); the hook never executes the submitted command.
+        Verdicts report the guard as configured from the serving context.
+  - id: cd_policy_check
+    kind: upstream-mirror
+    summary: Cwd-guard command-policy verdict (allow or deny) for one shell command; never executes it.
+    upstream_command: bin/fm-cd-pretool-check.sh
+    upstream_flags: ["--command", "<shell-text>"]
+    contract: schema/contracts.yaml#cd_policy_check
+    upstream_test: "ts/tests/conformance-system.test.ts::supervision equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:cd_policy_check"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Classification only behind a bounded command string (1..4000
+        chars, no NUL); outside the real primary checkout the guard is
+        inert (allow), exactly like the hook.
+  - id: subagent_policy_check
+    kind: upstream-mirror
+    summary: Subagent-guard verdict (allow or deny) for one harness tool name; never delegates.
+    upstream_command: bin/fm-subagent-pretool-check.sh
+    upstream_flags: ["--tool", "<tool-name>"]
+    contract: schema/contracts.yaml#subagent_policy_check
+    upstream_test: "ts/tests/conformance-system.test.ts::supervision equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:subagent_policy_check"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Tool-shape classification only behind a short single-line tool
+        name; delegation itself stays out, and the FM_ALLOW_SUBAGENT
+        escape stays with the hook environment.
+  - id: supervision_instructions
+    kind: upstream-mirror
+    summary: Tracked supervision operating block for one harness, or its one-line repair instruction.
+    upstream_command: bin/fm-supervision-instructions.sh
+    upstream_flags: ["--harness", "<name>"]
+    contract: schema/contracts.yaml#supervision_instructions
+    upstream_test: "ts/tests/conformance-system.test.ts::supervision equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:supervision_instructions"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Pure render behind a closed harness enum (omitted auto-detects)
+        with boolean posture flags; arming, draining, or repairing from
+        the text stays out.
+  - id: quota_choose
+    kind: upstream-mirror
+    summary: First quota-eligible dispatch candidate from an already-captured quota snapshot; never snapshots.
+    upstream_command: bin/fm-quota-choose.sh
+    upstream_flags: ["--candidate", "<harness:model>"]
+    contract: schema/contracts.yaml#quota_choose
+    upstream_test: "ts/tests/conformance-system.test.ts::supervision equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:quota_choose"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Deterministic selection only: the snapshot arrives inline on
+        stdin (bounded, never a path, never a fresh quota-axi run) with
+        1..16 token-shaped candidates. Reasoning-class and
+        runway-feasibility gates stay agent-side, per the script header.
   - id: relay_poll
     kind: upstream-mirror
     summary: Short bounded poll of the relay connector; hard no-op without consent.

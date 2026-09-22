@@ -69,6 +69,12 @@ export const READ_TOOLS: ReadonlySet<string> = new Set([
   "stow_cascade",
   "test_isolation_list",
   "test_run_list",
+  "pr_reviewers",
+  "arm_policy_check",
+  "cd_policy_check",
+  "subagent_policy_check",
+  "supervision_instructions",
+  "quota_choose",
 ]);
 
 // Scripts the suite may execute. Anything else fails closed at the runner.
@@ -115,6 +121,12 @@ export const READ_SCRIPTS: ReadonlySet<string> = new Set([
   "fm-stow-cascade.sh",
   "fm-test-isolation-proof.sh",
   "fm-test-run.sh",
+  "fm-pr-reviewers.sh",
+  "fm-arm-pretool-check.sh",
+  "fm-cd-pretool-check.sh",
+  "fm-subagent-pretool-check.sh",
+  "fm-supervision-instructions.sh",
+  "fm-quota-choose.sh",
 ]);
 
 export const SNAPSHOT_STUB = `node -e '
@@ -200,6 +212,27 @@ export const HOME_SEED_STUB = 'echo "home-seed-stub:$1"\n';
 export const STOW_CASCADE_STUB = 'echo "stow-cascade-stub"\n';
 export const TEST_ISOLATION_STUB = 'echo "isolation-stub:$1 pool=$3"\n';
 export const TEST_RUN_STUB = 'echo "test-run-stub:$1"\n';
+export const PR_REVIEWERS_STUB = 'echo "reviewers-stub:$1"\n';
+export const ARM_PRETOOL_STUB =
+  "if [ \"$1\" = \"--command\" ]; then " +
+  "if [ \"$2\" = \"deny-me\" ]; then echo '{\"decision\":\"deny\",\"reason\":\"stub\"}'; exit 2; " +
+  "else exit 0; fi; " +
+  "else echo \"stub: bad usage\" >&2; exit 1; fi\n";
+export const CD_PRETOOL_STUB =
+  "if [ \"$1\" = \"--command\" ]; then " +
+  "if [ \"$2\" = \"deny-me\" ]; then echo '{\"decision\":\"deny\",\"reason\":\"stub\"}'; exit 2; " +
+  "else exit 0; fi; " +
+  "else echo \"stub: bad usage\" >&2; exit 1; fi\n";
+export const SUBAGENT_PRETOOL_STUB =
+  "if [ \"$1\" = \"--tool\" ]; then " +
+  "if [ \"$2\" = \"Task\" ]; then echo '{\"decision\":\"deny\",\"reason\":\"stub\"}'; exit 2; " +
+  "else exit 0; fi; " +
+  "else echo \"stub: bad usage\" >&2; exit 1; fi\n";
+export const SUPERVISION_INSTRUCTIONS_STUB = 'echo "instructions-stub:$*"\n';
+export const QUOTA_CHOOSE_STUB =
+  "if [ \"$1\" = \"--candidate\" ] && [ \"$2\" = \"none:default\" ]; then echo \"none\"; exit 1; " +
+  "elif [ \"$1\" = \"--candidate\" ]; then echo \"$2\" | tr \":\" \" \"; exit 0; " +
+  "else echo \"stub: bad usage\" >&2; exit 1; fi\n";
 export const HOME_SUMMARY_FIXTURE = {
   schema: "fm-secondmate-home-summary.v1",
   generated: "stub",
@@ -274,6 +307,12 @@ export function setup(): Fixture {
   writeStub(path.join(scratch, "bin"), "fm-stow-cascade.sh", STOW_CASCADE_STUB);
   writeStub(path.join(scratch, "bin"), "fm-test-isolation-proof.sh", TEST_ISOLATION_STUB);
   writeStub(path.join(scratch, "bin"), "fm-test-run.sh", TEST_RUN_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-pr-reviewers.sh", PR_REVIEWERS_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-arm-pretool-check.sh", ARM_PRETOOL_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-cd-pretool-check.sh", CD_PRETOOL_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-subagent-pretool-check.sh", SUBAGENT_PRETOOL_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-supervision-instructions.sh", SUPERVISION_INSTRUCTIONS_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-quota-choose.sh", QUOTA_CHOOSE_STUB);
 
   const savedFmHome = process.env.FM_HOME;
   const savedStateOverride = process.env.FM_STATE_OVERRIDE;
@@ -310,11 +349,13 @@ export function directRun(
   fx: Fixture,
   script: string,
   args: string[],
+  input?: string,
 ): { stdout: string; status: number | null } {
   try {
     const stdout = execFileSync(path.join(fx.scratch, "bin", script), args, {
       env: { ...process.env },
       encoding: "utf8",
+      input,
     });
     return { stdout, status: 0 };
   } catch (exc) {

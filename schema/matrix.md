@@ -50,6 +50,12 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | startup_memory | bin/fm-startup-memory-budget.sh | stable | read, report | startup-memory budget reads |
 | pr_state | bin/fm-pr-state.sh | stable | <pr-url> | PR blockers reads (no posts) |
 | pr_poll | bin/fm-pr-poll.sh | stable | --validated, github, <pr-url>, github.com, <path>, <number> | static merge-poll watcher check source |
+| pr_reviewers | bin/fm-pr-reviewers.sh | stable | <pr-url> | advisory reviewer-candidate reads (no requests) |
+| arm_policy_check | bin/fm-arm-pretool-check.sh | stable | --command | watcher-arm policy classification reads (no execution) |
+| cd_policy_check | bin/fm-cd-pretool-check.sh | stable | --command | cd-guard policy classification reads (no execution) |
+| subagent_policy_check | bin/fm-subagent-pretool-check.sh | stable | --tool | subagent-guard classification reads (no delegation) |
+| supervision_instructions | bin/fm-supervision-instructions.sh | stable | --harness | supervision operating-block render reads |
+| quota_choose | bin/fm-quota-choose.sh | stable | --candidate | quota-eligible candidate selection reads (no snapshot) |
 | relay_poll | bin/fm-x-poll.sh | stable | <none> | relay short-poll reads (inert without consent) |
 | public_followup_pending | bin/fm-public-followup.sh | stable | pending | open public-followup loop digest |
 | public_followup_collect | bin/fm-public-followup-collect.sh | stable | drain <obligation-id> | read staged terminal events non-destructively |

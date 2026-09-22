@@ -78,6 +78,27 @@ export const STUBS: Record<string, string> = {
   "fm-startup-memory-budget.sh": 'echo "memory-stub:$1"\n',
   "fm-pr-state.sh": 'echo "pr-stub:$1"\n',
   "fm-pr-poll.sh": 'echo "pr-poll-stub:$1 $2 $3"\n',
+  "fm-pr-reviewers.sh": 'echo "pr-reviewers-stub:$1"\n',
+  "fm-arm-pretool-check.sh":
+    "if [ \"$1\" = \"--command\" ]; then " +
+    "if [ \"$2\" = \"deny-me\" ]; then echo '{\"decision\":\"deny\",\"reason\":\"stub\"}'; exit 2; " +
+    "else exit 0; fi; " +
+    "else echo \"stub: bad usage\" >&2; exit 1; fi\n",
+  "fm-cd-pretool-check.sh":
+    "if [ \"$1\" = \"--command\" ]; then " +
+    "if [ \"$2\" = \"deny-me\" ]; then echo '{\"decision\":\"deny\",\"reason\":\"stub\"}'; exit 2; " +
+    "else exit 0; fi; " +
+    "else echo \"stub: bad usage\" >&2; exit 1; fi\n",
+  "fm-subagent-pretool-check.sh":
+    "if [ \"$1\" = \"--tool\" ]; then " +
+    "if [ \"$2\" = \"Task\" ]; then echo '{\"decision\":\"deny\",\"reason\":\"stub\"}'; exit 2; " +
+    "else exit 0; fi; " +
+    "else echo \"stub: bad usage\" >&2; exit 1; fi\n",
+  "fm-supervision-instructions.sh": 'echo "instructions-stub:$*"\n',
+  "fm-quota-choose.sh":
+    "if [ \"$1\" = \"--candidate\" ] && [ \"$2\" = \"none:default\" ]; then echo \"none\"; exit 1; " +
+    "elif [ \"$1\" = \"--candidate\" ]; then echo \"$2\" | tr \":\" \" \"; exit 0; " +
+    "else echo \"stub: bad usage\" >&2; exit 1; fi\n",
   "fm-x-poll.sh": 'echo "x-poll stub: empty"\n',
   "fm-public-followup.sh": 'echo "public-followup-stub:$1"\n',
   "fm-public-followup-collect.sh": 'echo "public-followup-collect-stub:$1 id=$2"\n',
