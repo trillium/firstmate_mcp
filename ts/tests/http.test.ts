@@ -19,7 +19,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { startHttpServer, HttpServerHandle, timingSafeEqualStr, validateOrigin, validateHost, validateAuth } from "../src/http.js";
-import { readAuditLines, type AuditLine } from "../src/auth.js";
+import { TIER_FORBIDDEN, readAuditLines, tierOf, type AuditLine } from "../src/auth.js";
 import { TOOLS, type ToolContext } from "../src/tools.js";
 
 function makeTestHome(): { dir: string; ctx: ToolContext; cleanup: () => void } {
@@ -346,7 +346,11 @@ describe("Streamable HTTP Transport: Session Lifecycle & MCP Protocol", () => {
     const body = res.json();
     assert.equal(body.id, 2);
     assert.ok(Array.isArray(body.result.tools));
-    assert.equal(body.result.tools.length, Object.keys(TOOLS).length);
+    assert.equal(
+      body.result.tools.length,
+      Object.keys(TOOLS).filter((name) => tierOf(name) !== TIER_FORBIDDEN).length,
+      "the HTTP surface advertises the same callable tools as stdio",
+    );
     const toolNames = body.result.tools.map((t: any) => t.name);
     assert.ok(toolNames.includes("fleet_snapshot"));
     assert.ok(toolNames.includes("crew_state"));
