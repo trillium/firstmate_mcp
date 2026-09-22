@@ -83,7 +83,17 @@ what it minted, for whom, with what scope, and why, in the grant `note`.
 4. Refusal-Biased Security Invariants:
    - Default-Deny: Calls without approval strings and without valid standing grants are strictly refused (`approval required`).
    - Captain-Hold Release Protection: Wildcard grants (`tools: null` or `tools: ["*"]`) NEVER authorize captain-hold release tools (`review_decision`, `decision_resolve`). Releasing a captain-held task requires an explicit per-deploy grant specifically naming the tool in its allowlist.
-   - Deny-List Preservation: Code-forbidden tools (`promote_scout`, `teardown_crew`, `arm_pr_check`, `merge_pr`, `merge_local`, `repo_*`, `daemon_start/stop/restart`, `watch_start/stop`) remain refused as unknown tools and can never be granted.
+   - Deny-List Preservation: code-forbidden tools are listed in `FORBIDDEN_TOOLS`
+  (`ts/src/auth.ts`, 48 entries: the captain's landing/merge levers, daemon and
+  supervision control, un-gated public emission, fleet sync, session machinery,
+  every cross-machine verb, and every installs mutator). They carry **no tier
+  entry**, `tierOf` answers `TIER_FORBIDDEN` for them, and `checkAuthorization`
+  refuses them before approval or grant is even considered — so neither an
+  explicit `I authorize` string nor a standing grant can reach them. The agent's
+  own delivery chain (`repo_edit`, `repo_commit`, `repo_push`, `pr_open`) is
+  deliberately NOT in the list: landing work through the doorway is the point of
+  the doorway. `repo_merge` is in it — merging into a default branch locally
+  bypasses the pull request the chain exists to open.
    - Tier Boundaries: Grants never widen tiers (e.g. a Tier 3 grant attempting a Tier 4 external send is strictly refused with `grant-tier-exceeded`).
    - Fail-Closed Expiry & Revocation: Expired, revoked, and exhausted grants fail closed immediately.
    - Cross-Home Isolation: Grants live under `FM_HOME/state/mcp-grants/` and never leak across home sandboxes.
