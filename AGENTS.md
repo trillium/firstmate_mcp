@@ -281,6 +281,11 @@ Personal software, one owner, no external users. Standing owner instruction:
   errors across files that were never touched). Fix the first real failure above
   the cascade; then the counts return to normal. Corollary: serialising suites is
   still good hygiene, but it was never the cause of this.
+- **A green suite over a dirty tree is not evidence about main.** Run
+  `git status --porcelain` before trusting a suite result, and commit the fix
+  before verifying it: on 2026-09-22 a fix stayed uncommitted while PR #93 landed
+  the sibling fix, so the suite I ran was green and main was red (360 pass, 1 fail
+  measured on the committed tree).
 - Never gate on the exit status of a *piped* command: `pnpm test 2>&1 | tail -n`
   reports tail's status, so a failing suite can surface as exit 0 (observed
   2026-09-22: a background run reported exit 0 while its own output said

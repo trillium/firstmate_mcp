@@ -22,7 +22,7 @@ version: v1
 upstream:
   repo: https://github.com/kunchenguid/firstmate.git
   submodule: sources/firstmate
-  gitlink_at_seed: 884d76bdbd4721310dcc3d4f7ad6b8a028756605
+  gitlink_at_seed: 39f4c2af3a73d282b69ce5d7fde3dbb838f3494c
   baseline: drift/baseline.json
   baseline_rev_at_seed: aaf67489
   baseline_surfaces_at_seed: 163
@@ -38,6 +38,11 @@ upstream:
     read of that shift claimed 177/177 because drift also compared checkout
     mtime and the executed-help fields; drift/diff.py now compares content
     only — see its IGNORED_FIELDS and module docstring.
+    Re-seeded 2026-09-22 from 884d76bd (2 commits: #4907 keyed-answer wake
+    suppression, #4900 secondmate relaunch with vanished watcher scratch). One
+    depended-on surface moved — fm-send.sh (contract send_message), comment-only:
+    the interface, argv and output are unchanged, so no doorway port is needed and
+    the pin bump carries the fix plus its new upstream tests.
     Re-seeded again 2026-09-22 from f5735dc2 (4 commits: #5334, #5327, #5317,
     #5294). One depended-on surface moved — fm-crew-state.sh (contract
     crew_state), a CI-state fix: passed-with-override now reads as done, and
