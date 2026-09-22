@@ -315,6 +315,21 @@ async function toolReceiptSubmit(args: ToolArgs, ctx: ToolContext): Promise<Tool
     const auth = await requireAuth(target, nested as ToolArgs, ctx);
     if (!auth.ok) return auth.result;
   }
+  // A detached call must not be opened for a contract this home cannot run: the
+  // refusal would otherwise arrive asynchronously as a raw ENOENT.
+  const missingScript = missingContractScript(target, ctx.binDir);
+  if (missingScript !== null) {
+    return {
+      payload: {
+        error: "unavailable on this home",
+        tool: target,
+        script: missingScript,
+        expect: `bin/${missingScript} in the served home`,
+        hint: "declared contract with no implementation on this served line; doctor lists every one",
+      },
+      isError: true,
+    };
+  }
   const receiptId = `rcpt-${randomBytes(8).toString("hex")}`;
   const createdEpoch = Date.now() / 1000;
   const record: Record<string, unknown> = {
@@ -3215,17 +3230,62 @@ export async function toolTestRun(args: ToolArgs, ctx: ToolContext): Promise<Too
  * resolves one level short. Probing candidates keeps doctor honest in every
  * layout instead of silently reporting "contract resolution unknown".
  */
-function findMatrixPath(): string | null {
+function findSchemaFile(name: string): string | null {
   const candidates = [
-    path.join(CHECKOUT_ROOT, "schema", "matrix.md"),
-    path.join(CHECKOUT_ROOT, "..", "schema", "matrix.md"),
-    path.join(CHECKOUT_ROOT, "..", "..", "schema", "matrix.md"),
-    path.join(process.cwd(), "schema", "matrix.md"),
+    path.join(CHECKOUT_ROOT, "schema", name),
+    path.join(CHECKOUT_ROOT, "..", "schema", name),
+    path.join(CHECKOUT_ROOT, "..", "..", "schema", name),
+    path.join(process.cwd(), "schema", name),
   ];
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate;
   }
   return null;
+}
+
+/**
+ * Tool -> owning script, parsed from schema/matrix.md (the dependency-free
+ * contract view doctor also uses). Memoized per process: the file changes only
+ * when the repo changes, and a refusal path should not re-read it per call.
+ */
+let contractScripts: Map<string, string> | null = null;
+
+function contractScriptIndex(): Map<string, string> {
+  if (contractScripts !== null) return contractScripts;
+  const index = new Map<string, string>();
+  const indexPath = findSchemaFile("contracts.index.json");
+  if (indexPath !== null) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(indexPath, "utf8")) as {
+        contracts?: Record<string, string>;
+      };
+      for (const [surface, command] of Object.entries(parsed.contracts ?? {})) {
+        const match = /^bin\/([A-Za-z0-9._-]+)$/.exec(command);
+        if (match) index.set(surface, match[1]);
+      }
+    } catch {
+      /* an unreadable index means no pre-flight, never a broken call */
+    }
+  }
+  contractScripts = index;
+  return index;
+}
+
+/**
+ * The owning script a declared contract needs but this home does not have, or
+ * null when the tool may run.
+ *
+ * 18 of 55 contracts have no implementation on the served fork line (the fork
+ * predates them: it ships fm-decision-hold.sh, not fm-captain-hold.sh, and has
+ * no mail, voice, inbox, lease or extension scripts at all). Without this check
+ * those tools reach a handler that shells out to a missing path and reports a raw
+ * ENOENT, which reads like a bug rather than "this line cannot do that". Refusing
+ * up front names the script and points at doctor.
+ */
+export function missingContractScript(tool: string, binDir: string): string | null {
+  const script = contractScriptIndex().get(tool);
+  if (!script) return null;
+  return fs.existsSync(path.join(binDir, script)) ? null : script;
 }
 
 /**
@@ -3252,28 +3312,22 @@ export async function toolDoctor(_args: ToolArgs, ctx: ToolContext): Promise<Too
 
   // 2. Contract resolution: a declared surface with no script on this home can
   //    only ever fail, and the matrix view is the dependency-free source for it.
-  const resolution = { total: 0, resolvable: 0, dead: [] as string[], matrix_read: false };
-  const matrixPath = findMatrixPath();
-  if (matrixPath === null) {
-    reasons.push("could not locate schema/matrix.md; contract resolution unknown");
+  const resolution = {
+    total: 0,
+    resolvable: 0,
+    dead: [] as string[],
+    index_read: false,
+    source: "schema/contracts.index.json",
+  };
+  const index = contractScriptIndex();
+  resolution.index_read = index.size > 0;
+  if (index.size === 0) {
+    reasons.push("could not read the contract index; contract resolution unknown");
   }
-  try {
-    const matrix = matrixPath === null ? "" : fs.readFileSync(matrixPath, "utf8");
-    resolution.matrix_read = matrixPath !== null;
-    const names = new Set<string>();
-    for (const line of matrix.split("\n")) {
-      if (!line.startsWith("|")) continue;
-      const command = (line.split("|")[2] ?? "").trim();
-      const match = /^bin\/([A-Za-z0-9._-]+)$/.exec(command);
-      if (match) names.add(match[1]);
-    }
-    resolution.total = names.size;
-    for (const name of [...names].sort()) {
-      if (fs.existsSync(path.join(ctx.binDir, name))) resolution.resolvable += 1;
-      else resolution.dead.push(name);
-    }
-  } catch {
-    reasons.push("could not read the contract matrix; contract resolution unknown");
+  resolution.total = index.size;
+  for (const [surface, script] of [...index.entries()].sort()) {
+    if (fs.existsSync(path.join(ctx.binDir, script))) resolution.resolvable += 1;
+    else resolution.dead.push(surface);
   }
   if (resolution.dead.length > 0) {
     reasons.push(

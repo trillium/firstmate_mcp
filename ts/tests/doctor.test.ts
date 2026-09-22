@@ -77,8 +77,15 @@ describe("doctor", () => {
     try {
       const res = await toolDoctor({}, ctxFor(home));
       const contracts = (res.payload as Record<string, unknown>)["contracts"] as Record<string, unknown>;
-      assert.equal(contracts["matrix_read"], true, "schema/matrix.md must be readable from the checkout");
-      assert.ok(Number(contracts["total"]) > 30, `expected the declared surface, saw ${contracts["total"]}`);
+      assert.equal(
+        contracts["index_read"],
+        true,
+        "schema/contracts.index.json must be readable from the checkout",
+      );
+      assert.ok(
+        Number(contracts["total"]) > 60,
+        `expected the full declared surface (matrix.md alone hid the decision family), saw ${contracts["total"]}`,
+      );
       // The stub home ships a script per tool but not every upstream command, so
       // there must be dead ones to report — that is the point of the check.
       assert.ok(Array.isArray(contracts["dead"]));
