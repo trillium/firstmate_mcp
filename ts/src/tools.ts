@@ -58,6 +58,9 @@ import {
   HOME_SUMMARY_SCHEMA,
   MAX_OUTPUT_BYTES,
   MODES,
+  DEFAULT_PR_BASE,
+  PR_BODY_MAX_BYTES,
+  PR_TITLE_MAX_CHARS,
   PR_URL_RE,
   RECEIPT_DIRNAME,
   RECEIPT_TIMEOUT_S,
@@ -122,6 +125,9 @@ import {
   validQuotaCandidates,
   validQuotaSnapshot,
   validRelpath,
+  validBaseBranch,
+  validPrBody,
+  validPrTitle,
   validSubagentTool,
   validSupervisionAfkMode,
   validSupervisionHarness,
@@ -3984,6 +3990,64 @@ export async function toolRepoMerge(args: ToolArgs, ctx: ToolContext): Promise<T
   return ownedCall(cmd, "repo_merge", ctx.run);
 }
 
+/**
+ * Open a pull request for an already-pushed branch.
+ *
+ * Completes the delivery chain: repo_commit and repo_push could publish a
+ * branch but nothing could open the PR, so an agent had to shell out to gh
+ * outside the doorway. merge_pr stays forbidden by design — this tool stops at
+ * opening, and never merges.
+ */
+export async function toolPrOpen(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const title = args["title"];
+  if (!validPrTitle(title)) {
+    return {
+      payload: {
+        error: "invalid title",
+        expect: `1..${PR_TITLE_MAX_CHARS} chars, single line required`,
+      },
+      isError: true,
+    };
+  }
+  const body = args["body"];
+  if (!validPrBody(body)) {
+    return {
+      payload: { error: "invalid body", expect: `non-empty, <= ${PR_BODY_MAX_BYTES} bytes` },
+      isError: true,
+    };
+  }
+  const head = args["head"];
+  if (!validBranchName(head)) {
+    return {
+      payload: { error: "invalid head", expect: "non-default source branch name, no traversal" },
+      isError: true,
+    };
+  }
+  const base = args["base"] ?? DEFAULT_PR_BASE;
+  if (!validBaseBranch(base)) {
+    return { payload: { error: "invalid base", expect: "branch name, no traversal" }, isError: true };
+  }
+  const draft = args["draft"] ?? false;
+  if (typeof draft !== "boolean") {
+    return { payload: { error: "invalid draft", expect: "boolean" }, isError: true };
+  }
+  const cmd = [
+    "gh",
+    "pr",
+    "create",
+    "--title",
+    title,
+    "--body",
+    body,
+    "--head",
+    head,
+    "--base",
+    base,
+  ];
+  if (draft) cmd.push("--draft");
+  return ownedCall(cmd, "pr_open", ctx.run);
+}
+
 export async function toolDaemonStart(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   const cmd = [path.join(ctx.binDir, "fm-supervise-daemon.sh")];
   return ownedCall(cmd, "daemon_start", ctx.run);
@@ -4991,6 +5055,21 @@ export const TOOLS: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolPrReviewers,
+  },
+  pr_open: {
+    description:
+      "Authority write: open a pull request for an already-pushed non-default branch; never merges.",
+    inputSchema: approvalSchema(
+      {
+        title: { type: "string", description: `PR title, 1..${PR_TITLE_MAX_CHARS} chars, single line` },
+        body: { type: "string", description: `PR body, non-empty, <= ${PR_BODY_MAX_BYTES} bytes` },
+        head: { type: "string", description: "Source branch (non-default, already pushed)" },
+        base: { type: "string", description: `Target branch (default ${DEFAULT_PR_BASE})` },
+        draft: { type: "boolean", description: "Open as a draft PR" },
+      },
+      ["title", "body", "head"],
+    ),
+    handler: toolPrOpen,
   },
   arm_policy_check: {
     description: "Read-only watcher-arm command-policy verdict (allow or deny) for one shell command; never executes it.",
