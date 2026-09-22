@@ -10,10 +10,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
+import fs from "node:fs";
 import {
   DEFAULT_PR_BASE,
   PR_BODY_MAX_BYTES,
   PR_TITLE_MAX_CHARS,
+  resolveGhBin,
 } from "../src/constants.js";
 import { TOOL_TIERS, TIER_AUTHORITY } from "../src/auth.js";
 import { TOOLS, toolPrOpen, type ToolContext } from "../src/tools.js";
@@ -102,13 +104,33 @@ describe("pr_open: input guards", () => {
   });
 });
 
+describe("gh resolution", () => {
+  it("honours an explicit FM_GH_BIN override", () => {
+    assert.equal(resolveGhBin({ FM_GH_BIN: "/custom/gh" }), "/custom/gh");
+    assert.equal(resolveGhBin({ FM_GH_BIN: "  /spaced/gh  " }), "/spaced/gh");
+  });
+
+  it("returns a real executable, never a bare name when one exists", () => {
+    const resolved = resolveGhBin({});
+    if (resolved !== "gh") {
+      assert.equal(fs.existsSync(resolved), true, `${resolved} must exist`);
+      assert.doesNotThrow(() => fs.accessSync(resolved, fs.constants.X_OK));
+    }
+  });
+
+  it("resolves gh on this machine, where the served PATH would not", () => {
+    // The whole point: the serving process has /usr/bin:/bin:/usr/sbin:/sbin.
+    assert.notEqual(resolveGhBin({}), "gh", "expected a resolved path on this host");
+  });
+});
+
 describe("pr_open: invocation", () => {
   it("builds gh pr create with the default base and returns the PR url", async () => {
     const seen: Seen = { argv: [] };
     const res = await toolPrOpen(VALID, ctxRecording(seen));
     assert.equal(res.isError, false, JSON.stringify(res.payload));
     assert.deepEqual(seen.argv, [
-      "gh",
+      resolveGhBin(),
       "pr",
       "create",
       "--title",
