@@ -150,3 +150,31 @@ describe("bearings_snapshot caching", () => {
     assert.equal(fs.existsSync(artifactDir(ctx)) && fs.readdirSync(artifactDir(ctx)).length > 0, false);
   });
 });
+
+/**
+ * The served fork line's fm-test-isolation-proof.sh predates the `--pool`
+ * selector, so the doorway adapts instead of passing a flag the script rejects
+ * ("unknown option: --pool", exit 2 — which is how this read failed live).
+ */
+describe("test_isolation_list adapts to the served script's interface", () => {
+  it("passes --pool when the script supports it", async () => {
+    const seen: Seen = { calls: [], result: { stdout: "candidate list", stderr: "", exitCode: 0 } };
+    const ctx = makeCtx(seen);
+    fs.writeFileSync(path.join(ctx.binDir, "fm-test-isolation-proof.sh"), "#!/bin/sh\n# supports --pool\n", { mode: 0o755 });
+    const res = await TOOLS["test_isolation_list"].handler({ mode: "candidates" }, ctx);
+    assert.equal(res.isError, false, JSON.stringify(res.payload));
+    assert.equal(res.payload["pool_honored"], true);
+    assert.equal(seen.calls[0].includes("--pool"), true);
+  });
+
+  it("omits --pool and says so when the served script predates it", async () => {
+    const seen: Seen = { calls: [], result: { stdout: "candidate list", stderr: "", exitCode: 0 } };
+    const ctx = makeCtx(seen);
+    fs.writeFileSync(path.join(ctx.binDir, "fm-test-isolation-proof.sh"), "#!/bin/sh\n# no pool selector\n", { mode: 0o755 });
+    const res = await TOOLS["test_isolation_list"].handler({ mode: "candidates", pool: "portable" }, ctx);
+    assert.equal(res.isError, false, JSON.stringify(res.payload));
+    assert.equal(res.payload["pool_honored"], false);
+    assert.match(String(res.payload["note"]), /predates --pool/);
+    assert.equal(seen.calls[0].includes("--pool"), false, "the script would reject --pool outright");
+  });
+});
