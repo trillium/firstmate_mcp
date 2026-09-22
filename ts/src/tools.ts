@@ -466,10 +466,17 @@ function writeCachedSnapshot(
 function readCachedSnapshot(
   ctx: ToolContext,
   snapshotId: unknown,
-): { snapshot: Record<string, unknown> | null; error: Record<string, unknown> | null } {
+): {
+  snapshot: Record<string, unknown> | null;
+  ageS: number | null;
+  stale: boolean;
+  error: Record<string, unknown> | null;
+} {
   if (!validId(snapshotId)) {
     return {
       snapshot: null,
+      ageS: null,
+      stale: false,
       error: {
         error: "invalid snapshot_id",
         expect: "short snapshot id, no slashes or traversal",
@@ -481,6 +488,8 @@ function readCachedSnapshot(
   if (path.dirname(file) !== dir) {
     return {
       snapshot: null,
+      ageS: null,
+      stale: false,
       error: {
         error: "invalid snapshot_id",
         expect: "short snapshot id, no slashes or traversal",
@@ -493,32 +502,50 @@ function readCachedSnapshot(
   } catch (exc) {
     const nodeErr = exc as NodeJS.ErrnoException;
     if (nodeErr?.code === "ENOENT") {
-      return { snapshot: null, error: { error: "unknown snapshot", snapshot_id: snapshotId } };
+      return {
+        snapshot: null,
+        ageS: null,
+        stale: false,
+        error: { error: "unknown snapshot", snapshot_id: snapshotId },
+      };
     }
-    return { snapshot: null, error: { error: "cannot read snapshot", detail: String(exc) } };
+    return {
+      snapshot: null,
+      ageS: null,
+      stale: false,
+      error: { error: "cannot read snapshot", detail: String(exc) },
+    };
   }
   if (typeof record !== "object" || record === null || record["snapshot_id"] !== snapshotId) {
-    return { snapshot: null, error: { error: "unknown snapshot", snapshot_id: snapshotId } };
+    return {
+      snapshot: null,
+      ageS: null,
+      stale: false,
+      error: { error: "unknown snapshot", snapshot_id: snapshotId },
+    };
   }
   const createdEpoch = typeof record["created_epoch"] === "number" ? record["created_epoch"] : NaN;
   const age = Date.now() / 1000 - createdEpoch;
   const ttl = typeof record["ttl_s"] === "number" ? record["ttl_s"] : SNAPSHOT_TTL_S;
-  if (!(age <= ttl)) {
-    try {
-      fs.rmSync(file, { force: true });
-    } catch {
-      /* expiry unlink is best-effort */
-    }
-    return {
-      snapshot: null,
-      error: { error: "snapshot expired", snapshot_id: snapshotId, ttl_s: ttl },
-    };
-  }
   const snap = record["snapshot"];
   if (typeof snap !== "object" || snap === null) {
-    return { snapshot: null, error: { error: "corrupt snapshot record", snapshot_id: snapshotId } };
+    return {
+      snapshot: null,
+      ageS: null,
+      stale: false,
+      error: { error: "corrupt snapshot record", snapshot_id: snapshotId },
+    };
   }
-  return { snapshot: snap as Record<string, unknown>, error: null };
+  // An expired record is SERVED, not deleted. Recomputing is what costs 110s and
+  // gets killed by the 30s envelope on a real home, so a stale answer carrying
+  // its own age is strictly more useful than a timeout; freshness stays the
+  // caller's decision because it is reported rather than hidden.
+  return {
+    snapshot: snap as Record<string, unknown>,
+    ageS: Number.isFinite(age) ? age : null,
+    stale: !(age <= ttl),
+    error: null,
+  };
 }
 
 /**
@@ -541,8 +568,10 @@ function latestCachedSnapshotId(ctx: ToolContext): string | null {
     return null;
   }
   const suffix = ".json";
-  let bestId: string | null = null;
-  let bestEpoch = -Infinity;
+  let freshId: string | null = null;
+  let freshEpoch = -Infinity;
+  let anyId: string | null = null;
+  let anyEpoch = -Infinity;
   for (const name of names) {
     if (!name.startsWith("snap-") || !name.endsWith(suffix)) continue;
     const id = name.slice(0, -suffix.length);
@@ -559,41 +588,67 @@ function latestCachedSnapshotId(ctx: ToolContext): string | null {
     const epoch = typeof record["created_epoch"] === "number" ? record["created_epoch"] : NaN;
     if (!Number.isFinite(epoch)) continue;
     const ttl = typeof record["ttl_s"] === "number" ? record["ttl_s"] : SNAPSHOT_TTL_S;
-    if (!(Date.now() / 1000 - epoch <= ttl)) continue;
-    if (epoch > bestEpoch) {
-      bestEpoch = epoch;
-      bestId = id;
+    if (epoch > anyEpoch) {
+      anyEpoch = epoch;
+      anyId = id;
+    }
+    if (Date.now() / 1000 - epoch <= ttl && epoch > freshEpoch) {
+      freshEpoch = epoch;
+      freshId = id;
     }
   }
-  return bestId;
+  // A fresh snapshot is preferred, but an expired one is still returned: the
+  // caller gets an answer carrying its own age instead of a 35s envelope timeout.
+  return freshId ?? anyId;
 }
 
 async function getOrFetchSnapshot(
   ctx: ToolContext,
   snapshotId: string | null,
 ): Promise<
-  | { snapshotId: string; snapshot: Record<string, unknown>; isError: false; fromCache: boolean }
+  | {
+      snapshotId: string;
+      snapshot: Record<string, unknown>;
+      isError: false;
+      fromCache: boolean;
+      stale: boolean;
+      ageS: number | null;
+    }
   | { payload: Record<string, unknown>; isError: true }
 > {
   if (snapshotId !== null) {
-    const { snapshot, error } = readCachedSnapshot(ctx, snapshotId);
-    if (snapshot === null) {
-      return { payload: error ?? { error: "cannot read snapshot" }, isError: true };
+    const cached = readCachedSnapshot(ctx, snapshotId);
+    if (cached.snapshot === null) {
+      return { payload: cached.error ?? { error: "cannot read snapshot" }, isError: true };
     }
-    return { snapshotId, snapshot, isError: false, fromCache: true };
+    return {
+      snapshotId,
+      snapshot: cached.snapshot,
+      isError: false,
+      fromCache: true,
+      stale: cached.stale,
+      ageS: cached.ageS,
+    };
   }
 
   // No id requested: serve the newest warm snapshot instead of recomputing. An
   // explicitly requested id still fails loudly rather than silently serving a
-  // different snapshot, and an expired cache is skipped so the caller recomputes.
+  // different snapshot.
   const latest = latestCachedSnapshotId(ctx);
   if (latest !== null) {
-    const { snapshot, error } = readCachedSnapshot(ctx, latest);
-    if (snapshot !== null) {
-      return { snapshotId: latest, snapshot, isError: false, fromCache: true };
+    const cached = readCachedSnapshot(ctx, latest);
+    if (cached.snapshot !== null) {
+      return {
+        snapshotId: latest,
+        snapshot: cached.snapshot,
+        isError: false,
+        fromCache: true,
+        stale: cached.stale,
+        ageS: cached.ageS,
+      };
     }
-    if (error !== null && error["error"] !== "snapshot expired") {
-      return { payload: error, isError: true };
+    if (cached.error !== null) {
+      return { payload: cached.error, isError: true };
     }
   }
 
@@ -628,7 +683,7 @@ async function getOrFetchSnapshot(
   } catch {
     /* caching failure is best effort */
   }
-  return { snapshotId: newId, snapshot, isError: false, fromCache: false };
+  return { snapshotId: newId, snapshot, isError: false, fromCache: false, stale: false, ageS: 0 };
 }
 
 // --- SUPPORTED: open reads + the single safe steer ---
@@ -665,7 +720,7 @@ async function toolFleetSnapshot(args: ToolArgs, ctx: ToolContext): Promise<Tool
   const snapResult = await getOrFetchSnapshot(ctx, cursorResult.snapshotId);
   if (snapResult.isError) return { payload: snapResult.payload, isError: true };
 
-  const { snapshotId, snapshot, fromCache } = snapResult;
+  const { snapshotId, snapshot, fromCache, stale, ageS } = snapResult;
   const tasks = (snapshot["tasks"] as Array<Record<string, unknown>>) ?? [];
 
   if (!isPaginated) {
@@ -674,6 +729,8 @@ async function toolFleetSnapshot(args: ToolArgs, ctx: ToolContext): Promise<Tool
         ...snapshot,
         snapshot_id: snapshotId,
         from_cache: fromCache,
+        stale,
+        snapshot_age_s: ageS === null ? null : Math.round(ageS),
       },
       isError: false,
     };
@@ -698,6 +755,8 @@ async function toolFleetSnapshot(args: ToolArgs, ctx: ToolContext): Promise<Tool
       schema: SNAPSHOT_SCHEMA,
       snapshot_id: snapshotId,
       from_cache: fromCache,
+      stale,
+      snapshot_age_s: ageS === null ? null : Math.round(ageS),
       generated: snapshot["generated"],
       summary: {
         total: tasks.length,
@@ -745,7 +804,7 @@ async function toolBacklog(args: ToolArgs, ctx: ToolContext): Promise<ToolResult
   const snapResult = await getOrFetchSnapshot(ctx, cursorResult.snapshotId);
   if (snapResult.isError) return { payload: snapResult.payload, isError: true };
 
-  const { snapshotId, snapshot, fromCache } = snapResult;
+  const { snapshotId, snapshot, fromCache, stale, ageS } = snapResult;
   const tasks = (snapshot["tasks"] as Array<Record<string, unknown>>) ?? [];
 
   const byState: Record<string, number> = {};
@@ -760,6 +819,8 @@ async function toolBacklog(args: ToolArgs, ctx: ToolContext): Promise<ToolResult
       payload: {
         snapshot_id: snapshotId,
         from_cache: fromCache,
+        stale,
+        snapshot_age_s: ageS === null ? null : Math.round(ageS),
         generated: snapshot["generated"],
         backlog: (snapshot["backlog"] as unknown) ?? {},
         task_counts: { total: tasks.length, by_state: byState },
@@ -779,6 +840,8 @@ async function toolBacklog(args: ToolArgs, ctx: ToolContext): Promise<ToolResult
     payload: {
       snapshot_id: snapshotId,
       from_cache: fromCache,
+      stale,
+      snapshot_age_s: ageS === null ? null : Math.round(ageS),
       generated: snapshot["generated"],
       summary: {
         total: tasks.length,

@@ -81,6 +81,7 @@ describe("warmed snapshot: read path", () => {
     assert.equal(res.isError, false, JSON.stringify(res.payload));
     assert.equal(res.payload["snapshot_id"], "snap-warm0000000001");
     assert.equal(res.payload["from_cache"], true);
+    assert.equal(res.payload["stale"], false);
     assert.equal((res.payload["summary"] as Record<string, unknown>)["total"], 2);
   });
 
@@ -125,21 +126,26 @@ describe("warmed snapshot: read path", () => {
     }
   });
 
-  it("ignores an expired snapshot and recomputes", async () => {
-    const stale = makeStubHome();
+  it("serves an expired snapshot with a stale stamp instead of recomputing", async () => {
+    const staleHome = makeStubHome();
     try {
-      cacheSnapshot(stale, "snap-stale000000001", snapshotDoc("stale"), SNAPSHOT_TTL_S * 4);
+      cacheSnapshot(staleHome, "snap-stale000000001", snapshotDoc("stale"), SNAPSHOT_TTL_S * 4);
       let runs = 0;
       const run = async (): Promise<RunResult> => {
         runs += 1;
         return { stdout: JSON.stringify(snapshotDoc("fresh")), stderr: "", exitCode: 0 };
       };
-      const res = await TOOLS.fleet_snapshot.handler({ limit: 1 }, ctxWithRun(stale, run));
+      const res = await TOOLS.fleet_snapshot.handler({ limit: 1 }, ctxWithRun(staleHome, run));
       assert.equal(res.isError, false, JSON.stringify(res.payload));
-      assert.equal(res.payload["from_cache"], false);
-      assert.equal(runs, 1);
+      assert.equal(res.payload["from_cache"], true);
+      assert.equal(res.payload["stale"], true, "an expired cache must say so");
+      assert.ok(
+        Number(res.payload["snapshot_age_s"]) > SNAPSHOT_TTL_S,
+        `age must be reported, saw ${res.payload["snapshot_age_s"]}`,
+      );
+      assert.equal(runs, 0, "an expired cache must be served, never recomputed into the envelope");
     } finally {
-      removeHome(stale);
+      removeHome(staleHome);
     }
   });
 
