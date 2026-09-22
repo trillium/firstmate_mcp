@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-21T01:42:35.765Z",
+  "generatedAt": "2026-09-21T20:48:57.567Z",
   "proofs": {
     "envelope.errEnvelope": {
       "status": "PASS",
@@ -13,8 +13,8 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -29,8 +29,8 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -45,8 +45,8 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -61,8 +61,8 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -77,8 +77,8 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -93,8 +93,24 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.parseSnapshotCursor": {
+      "status": "PASS",
+      "testFingerprint": "46ad12c7590743479e25fc8de59489e3f9b6d0857788f072f3073557d45ae6ec",
+      "targetFingerprint": "09b5a8510dde0290a92aea588fb04dd8e7d79d9551ac26486726fc00dab3ad9e",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:parseSnapshotCursor",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "function:parseSnapshotCursor",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -109,8 +125,8 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -125,8 +141,24 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
+        "astGrepVersion": "0.45.3"
+      }
+    },
+    "validators.validPageLimit": {
+      "status": "PASS",
+      "testFingerprint": "728bf6a5261b88b7ce9b5643f1be1c0823177f3deee416a37649335e6c1c2e97",
+      "targetFingerprint": "c724da91a4c99f4d487f15f8010a25ba9531fe2ac03d80acba41f37fe9865d91",
+      "testFile": "tests/validators.test.ts",
+      "testUnit": "describe:validPageLimit",
+      "targetFile": "src/validators.ts",
+      "targetUnit": "function:validPageLimit",
+      "provenance": {
+        "runner": "bun test",
+        "runtime": "node v24.12.0 (bun compat)",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -141,8 +173,8 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -157,8 +189,8 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -173,8 +205,8 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -189,8 +221,8 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -205,8 +237,8 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -221,8 +253,8 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     },
@@ -237,8 +269,8 @@
       "provenance": {
         "runner": "bun test",
         "runtime": "node v24.12.0 (bun compat)",
-        "verifiedAt": "2026-09-21T01:42:35.765Z",
-        "gitCommit": "1a7d06b3a194545691439f95c818245ce2ddcede",
+        "verifiedAt": "2026-09-21T20:48:57.567Z",
+        "gitCommit": "e722361c488d95ed233bc8d6584a3cce9f613e8f",
         "astGrepVersion": "0.45.3"
       }
     }
