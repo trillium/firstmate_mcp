@@ -62,6 +62,7 @@ import {
   PR_BODY_MAX_BYTES,
   PR_TITLE_MAX_CHARS,
   PR_URL_RE,
+  resolveGhBin,
   RECEIPT_DIRNAME,
   RECEIPT_TIMEOUT_S,
   RECEIPT_TTL_S,
@@ -4024,7 +4025,8 @@ export async function toolPrOpen(args: ToolArgs, ctx: ToolContext): Promise<Tool
     return { payload: { error: "invalid draft", expect: "boolean" }, isError: true };
   }
   const cmd = [
-    "gh",
+    // Resolved, not a bare "gh": the serving process has a launchd PATH.
+    resolveGhBin(),
     "pr",
     "create",
     "--title",

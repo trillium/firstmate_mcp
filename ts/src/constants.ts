@@ -48,6 +48,30 @@ export function binDir(): string {
   return resolveBinDir();
 }
 
+/**
+ * Resolve the `gh` binary the way bin/ scripts resolve FM_HOME/bin.
+ *
+ * The served process is spawned by mcpjungle from a launchd context whose PATH
+ * is /usr/bin:/bin:/usr/sbin:/sbin, so a bare "gh" is not found even though it
+ * resolves fine by hand — measured 2026-09-22: pr_open through the doorway
+ * returned "Executable not found in $PATH: gh". Order: FM_GH_BIN, then the
+ * usual install locations, then a last-resort PATH lookup so an unusual install
+ * can still be pointed at explicitly.
+ */
+export function resolveGhBin(env: NodeJS.ProcessEnv = process.env): string {
+  const override = env.FM_GH_BIN?.trim();
+  if (override) return override;
+  for (const candidate of ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh"]) {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch {
+      /* try the next location */
+    }
+  }
+  return "gh";
+}
+
 export function stateDir(): string {
   return process.env.FM_STATE_OVERRIDE ?? path.join(homeDir(), "state");
 }

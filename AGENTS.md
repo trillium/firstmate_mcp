@@ -63,6 +63,14 @@ When updating this file, preserve this bar for all agents and keep entries conci
   serving process needs its own gh credentials — a launchd/mcpjungle-spawned
   server does not inherit an interactive shell's keychain session, so `pr_open`
   can fail with `not authenticated` while `gh` works by hand in a terminal.
+  Measured 2026-09-22: the failure was resolution, not credentials — the launchd
+  PATH is `/usr/bin:/bin:/usr/sbin:/sbin`, so a bare `gh` returned
+  `Executable not found in $PATH: gh`. `resolveGhBin()` (FM_GH_BIN > the usual
+  install locations > PATH) covers the server's direct calls, and the gateway
+  registration now carries a PATH so scripts that shell out to gh work too.
+  Credentials come from the environment the gateway runs in; verified live by a
+  probe that reached the API and failed on a nonexistent head ref without
+  creating anything.
 - Whole-home reads (`backlog`, `bearings_snapshot`, `fleet_snapshot`) exceed the
   30s envelope on a real home and return a typed `{"error":"timed out"}`; that
   is the envelope working, not a client bug — use the receipt path.
