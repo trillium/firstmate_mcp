@@ -202,3 +202,78 @@ describe("code-forbidden tools", () => {
     assert.deepEqual(rec.calls, []);
   });
 });
+
+/**
+ * Declared-but-unimplemented contracts must refuse legibly.
+ *
+ * 18 of 55 contracts have no script on the served fork line (it ships the older
+ * fm-decision-hold.sh, not fm-captain-hold.sh, and has no mail/voice/inbox/lease/
+ * extension scripts at all). Without this the handler shells out to a missing path
+ * and reports a raw ENOENT, which reads like a bug instead of "this line cannot do
+ * that". The stub home ships a script per tool, so the served line has to be
+ * modelled explicitly — it is MORE complete than the real fork line.
+ */
+describe("unimplemented contracts on this home", () => {
+  function servedLineHome(): string {
+    const home = makeStubHome();
+    for (const script of ["fm-captain-hold.sh", "fm-mail.sh", "fm-lease.sh"]) {
+      fs.rmSync(path.join(home, "bin", script), { force: true });
+    }
+    return home;
+  }
+
+  it("refuses a dead contract at the dispatcher, naming the missing script", async () => {
+    const rec: Recorder = { calls: [], sent: [] };
+    const home = servedLineHome();
+    try {
+      const scoped: ToolContext = { ...ctxRecording(rec), binDir: path.join(home, "bin") };
+      const payload = await callTool(rec, scoped, "decision_open", {
+        task_id: "t-1",
+        approval: APPROVAL,
+      });
+      assert.equal(payload["isError"], true);
+      assert.equal(payload["error"], "unavailable on this home");
+      assert.equal(payload["script"], "fm-captain-hold.sh");
+      assert.deepEqual(rec.calls, [], "a dead contract must execute nothing");
+    } finally {
+      removeHome(home);
+    }
+  });
+
+  it("refuses to detach a dead contract on the receipt path", async () => {
+    const rec: Recorder = { calls: [], sent: [] };
+    const home = servedLineHome();
+    try {
+      const ctx = { ...ctxRecording(rec), binDir: path.join(home, "bin") };
+      const res = await TOOLS["receipt_submit"].handler(
+        { tool: "mail_status", arguments: { approval: APPROVAL } },
+        ctx,
+      );
+      assert.equal(res.isError, true);
+      assert.equal(res.payload["error"], "unavailable on this home");
+      assert.equal(res.payload["script"], "fm-mail.sh");
+    } finally {
+      removeHome(home);
+    }
+  });
+
+  it("leaves live contracts and contract-free tools alone", async () => {
+    const rec: Recorder = { calls: [], sent: [] };
+    const home = servedLineHome();
+    try {
+      const ctx = { ...ctxRecording(rec), binDir: path.join(home, "bin") };
+      // harness_detect has a live script; pr_open wraps no script at all.
+      const read = await callTool(rec, ctx, "harness_detect", {});
+      assert.equal(read["isError"], false, JSON.stringify(read));
+      const chain = await callTool(rec, ctx, "pr_open", {
+        title: "t",
+        body: "b",
+        head: "fm/x",
+        approval: APPROVAL,
+      });
+      assert.notEqual(chain["error"], "unavailable on this home");
+    } finally {
+      removeHome(home);
+    }
+  });
+});

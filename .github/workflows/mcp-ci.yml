@@ -305,6 +305,8 @@ jobs:
               sys.exit(1)
           print(f"ok: {len(seed_names)} contracts agree across contracts.yaml, matrix.md, validate.py")
           PYEOF
+      - name: contract index is current
+        run: python3 scripts/gen_contract_index.py --check
 
   ci-gate:
     name: ci merge gate

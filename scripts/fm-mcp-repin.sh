@@ -117,6 +117,7 @@ if [ "$RUN_GATES" -eq 1 ]; then
   run_gate "manifest" python3 manifest/validate.py
   run_gate "schema" python3 schema/validate.py
   run_gate "readme lists" python3 scripts/gen_readme_lists.py --check
+  run_gate "contract index" python3 scripts/gen_contract_index.py --check
   run_gate "fm-manifest suite" bash tests/fm-manifest.test.sh
   run_gate "fm-coverage suite" bash tests/fm-coverage.test.sh
   run_gate "mcp-schema suite" bash tests/mcp-schema.test.sh

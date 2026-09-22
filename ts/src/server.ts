@@ -19,7 +19,7 @@ import {
 import { AuditService, appendAudit, buildLine, type TransportType } from "./auth.js";
 import { checkAuthorization } from "./grants.js";
 import { FollowOnService, FollowOnLive } from "./followon.js";
-import { TOOLS, liveContext, type ToolContext } from "./tools.js";
+import { TOOLS, liveContext, missingContractScript, type ToolContext } from "./tools.js";
 import { MainLive } from "./layers.js";
 import type { HttpServerHandle } from "./http.js";
 
@@ -193,6 +193,20 @@ async function authorizeOrRefuse(
   args: Record<string, unknown>,
   ctx: ToolContext,
 ): Promise<Record<string, unknown> | null> {
+  // A declared contract with no implementation on this home is refused before
+  // authorization: the call cannot work whoever asks, and naming the missing
+  // script beats letting the handler report a raw ENOENT (18 of 55 contracts on
+  // the served fork line). doctor lists the whole set.
+  const missingScript = missingContractScript(name, ctx.binDir);
+  if (missingScript !== null) {
+    return {
+      error: "unavailable on this home",
+      tool: name,
+      script: missingScript,
+      expect: `bin/${missingScript} in the served home`,
+      hint: "declared contract with no implementation on this served line; doctor lists every one",
+    };
+  }
   const auth = await checkAuthorization(name, args, ctx);
   if (auth.ok) return null;
   return (
