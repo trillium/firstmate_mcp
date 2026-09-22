@@ -161,6 +161,10 @@ export const MAIL_SUBJECT_MAX_CHARS = 200;
 export const MAIL_BODY_MAX_CHARS = 5000;
 export const VOICE_QUEUE_MAX_CHARS = 500;
 
+export const PR_TITLE_MAX_CHARS = 200;
+export const PR_BODY_MAX_BYTES = 65536;
+export const DEFAULT_PR_BASE = "main";
+
 export const PR_URL_RE =
   /^https:\/\/github\.com\/([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9-]{0,37}[A-Za-z0-9])\/([A-Za-z0-9._-]{1,100})\/pull\/([1-9][0-9]*)$/;
 

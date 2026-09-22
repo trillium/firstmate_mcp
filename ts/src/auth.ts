@@ -120,6 +120,10 @@ export const TOOL_TIERS: Record<string, Tier> = {
   pr_state: TIER_OPEN,
   pr_poll: TIER_OPEN,
   pr_reviewers: TIER_OPEN,
+  // The write counterpart of the PR reads: opens a pull request for an
+  // already-pushed branch. merge_pr stays forbidden by design, so this is the
+  // last step an agent may take on its own.
+  pr_open: TIER_AUTHORITY,
   arm_policy_check: TIER_OPEN,
   cd_policy_check: TIER_OPEN,
   subagent_policy_check: TIER_OPEN,

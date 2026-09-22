@@ -51,7 +51,18 @@ When updating this file, preserve this bar for all agents and keep entries conci
   rebuilt `dist` is invisible until
   `mcpjungle --registry http://127.0.0.1:8338 register --conf <export> --force`
   (`mcpjungle export -d <dir>`); the CLI defaults to :8080, so always pass
-  `--registry http://127.0.0.1:8338`.
+  `--registry http://127.0.0.1:8338`. Adding a tool is exactly this case: the
+  registry keeps serving the old count until it is re-registered.
+- `pr_open` (Tier 3) completes the delivery chain: `repo_edit`/`repo_commit`/
+  `repo_push` existed and nothing could open the pull request, so landing work
+  meant shelling out to `gh` outside the doorway. It runs `gh pr create`
+  directly, the way `repo_commit`/`repo_push` run `git`, behind validators that
+  refuse a default-branch head, a multi-line or oversized title, an empty body
+  (never a bodyless PR) and a traversal-shaped base; `merge_pr` stays forbidden
+  by design, so opening is the last step an agent takes alone. Sharp edge: the
+  serving process needs its own gh credentials — a launchd/mcpjungle-spawned
+  server does not inherit an interactive shell's keychain session, so `pr_open`
+  can fail with `not authenticated` while `gh` works by hand in a terminal.
 - Whole-home reads (`backlog`, `bearings_snapshot`, `fleet_snapshot`) exceed the
   30s envelope on a real home and return a typed `{"error":"timed out"}`; that
   is the envelope working, not a client bug — use the receipt path.
