@@ -84,6 +84,19 @@ When updating this file, preserve this bar for all agents and keep entries conci
   `drift/baseline.json: firstmate_revision`; server order is
   `CHECKOUT_BIN` > `FM_HOME/bin`, with `FIRSTMATE_HOME` > `FM_REAL_HOME` >
   `FM_CHECKOUT` for reference lookup.
+- Ledger-backed orientation (`ts/src/tools.ts` `publishHomeSummary`):
+  `home_summary` reads `state/home-summary.json` in O(1) — 3ms live, against
+  110s for the full `fm-fleet-snapshot.sh --json` walk that used to serve it —
+  while the publisher stays out of band. The served fork line does not ship
+  `bin/fm-home-summary-refresh.sh`, so the doorway publishes from the bounded
+  `fm-fleet-snapshot.sh --secondmate-home-summary` the line does ship (65s live:
+  submit it through `receipt_submit`, a direct call hits the 30s envelope and
+  returns a hint saying so). The publish must bypass `ownedCall()` — that tails
+  stdout at `TAIL_CAP_BYTES` (8 KiB) while the document is ~32 KiB, so the JSON
+  would be truncated mid-document. Publish is atomic: mode-0600 temp on the
+  state filesystem, then rename, so a killed refresh leaves the prior complete
+  document. Sharp edge: the served line's document carries no `generated_epoch`
+  (a declared field), so freshness has to come from `generated`.
 - Envelope (ts/src/constants.ts): `SUBPROCESS_TIMEOUT_S=30`, `MAX_OUTPUT_BYTES=1MB`.
   No call blocks past 30s: `runScript` starts children in their own session
   and kills the whole process group on timeout, auditing a typed timeout
