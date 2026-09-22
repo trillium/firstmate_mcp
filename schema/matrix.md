@@ -70,6 +70,7 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | stow_cascade | bin/fm-stow-cascade.sh | evolving | <none> | stow cascade enumeration reads |
 | test_isolation_list | bin/fm-test-isolation-proof.sh | evolving | --list, --pool | isolation-proof topology reads |
 | test_run_list | bin/fm-test-run.sh | evolving | --list-families | test-runner topology reads |
+| test_run | bin/fm-test-run.sh | evolving | --all, --family, --changed, --lane, --proven-isolated | suite execution (tier 3; long selections on the receipt path) |
 | spawn_crew | bin/fm-spawn.sh | evolving | task, project, mode, yolo | dispatch writes |
 | scaffold_brief | bin/fm-brief.sh | evolving | task, repo, mode/scout | dispatch writes |
 | receipt_submit | native: receipt store (state/mcp-receipts/) | experimental | <tool> <arguments> | detach long calls past the 30s budget |

@@ -94,6 +94,20 @@ When updating this file, preserve this bar for all agents and keep entries conci
   (`git submodule update --init`); without it `gen_coverage.py` falls back
   to the fork snapshot in `drift/baseline.json` and mis-reports upstream
   commands newer than that pin.
+- Adding a mirrored tool touches a fixed set of registries of record, and the
+  gates fail when any drift apart: `ts/src/{auth,tools,validators}.ts`,
+  `schema/contracts.yaml` **plus** its `schema/matrix.md` row and its
+  `schema/validate.py` `CURRENT_PINS` entry, `manifest/FEATURES.yaml`,
+  `scripts/gen_readme_lists.py` (its `TOOLS` map and tier map), and the
+  regenerated README `GENERATED` block. Four checks prove it:
+  `python3 manifest/validate.py`, `python3 schema/validate.py`,
+  `python3 scripts/gen_readme_lists.py --check`, and the `drift-baseline
+  freshness` snippet in `.github/workflows/mcp-ci.yml` — run that one locally
+  too, because it is a required `ci-gate` job while a direct `gh pr merge` can
+  still slip past branch protection. Doorway-native tools with no upstream
+  script (`repo_push`, `pr_open`) are exempt from the contract/manifest side;
+  that exemption is why `pr_open` needed no registry edits while `test_run`,
+  which wraps `fm-test-run.sh`, needed six.
 - The repo tree has no `bin/`; the server resolves scripts through `FM_HOME/bin`
   (`ts/src/constants.ts:resolveBinDir`), defaulting to the live firstmate checkout.
   Line binding (line, pinned revs, full resolution order with example):
