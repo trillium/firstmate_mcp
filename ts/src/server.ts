@@ -20,6 +20,7 @@ import { AuditService, appendAudit, buildLine, type TransportType } from "./auth
 import { checkAuthorization } from "./grants.js";
 import { FollowOnService, FollowOnLive } from "./followon.js";
 import { TOOLS, liveContext, missingContractScript, type ToolContext } from "./tools.js";
+import { readResource, resourceList } from "./resources.js";
 import { MainLive } from "./layers.js";
 import type { HttpServerHandle } from "./http.js";
 
@@ -67,9 +68,43 @@ export function handleInitialize(
     id: msgId ?? null,
     result: {
       protocolVersion: version,
-      capabilities: { tools: {} },
+      capabilities: { tools: {}, resources: { listChanged: false, subscribe: false } },
       serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
     },
+  });
+}
+
+export function handleResourcesList(
+  msgId: string | number | null | undefined,
+  send: (value: unknown) => void = writeLine,
+): void {
+  send({ jsonrpc: "2.0", id: msgId ?? null, result: { resources: resourceList() } });
+}
+
+async function handleResourcesRead(
+  msgId: string | number | null | undefined,
+  params: Record<string, unknown>,
+  ctx: ToolContext,
+  send: (value: unknown) => void = writeLine,
+): Promise<void> {
+  const uri = params?.["uri"];
+  const result = await readResource(uri, ctx);
+  if (result === null) {
+    send({
+      jsonrpc: "2.0",
+      id: msgId ?? null,
+      error: { code: -32602, message: `unknown resource: ${String(uri)}` },
+    });
+    return;
+  }
+  if ("error" in result) {
+    send({ jsonrpc: "2.0", id: msgId ?? null, error: { code: -32602, message: result.error } });
+    return;
+  }
+  send({
+    jsonrpc: "2.0",
+    id: msgId ?? null,
+    result: { contents: [{ uri, mimeType: result.mimeType, text: result.text }] },
   });
 }
 
@@ -538,6 +573,12 @@ export function dispatchMessageEffect(
     }).pipe(Effect.as(true));
   } else if (method === "tools/call") {
     return handleToolsCallEffect(msgId, params, ctx, send, transport, actorOverride).pipe(Effect.as(true));
+  } else if (method === "resources/list") {
+    return Effect.sync(() => {
+      handleResourcesList(msgId, send);
+    }).pipe(Effect.as(true));
+  } else if (method === "resources/read") {
+    return Effect.promise(() => handleResourcesRead(msgId, params, ctx, send)).pipe(Effect.as(true));
   } else if (method === "ping") {
     return Effect.sync(() => {
       send({ jsonrpc: "2.0", id: msgId ?? null, result: {} });
@@ -575,6 +616,10 @@ export async function dispatchMessage(
     handleToolsList(msgId, send);
   } else if (method === "tools/call") {
     await handleToolsCall(msgId, params, ctx, send, transport, actorOverride);
+  } else if (method === "resources/list") {
+    handleResourcesList(msgId, send);
+  } else if (method === "resources/read") {
+    await handleResourcesRead(msgId, params, ctx, send);
   } else if (method === "ping") {
     send({ jsonrpc: "2.0", id: msgId ?? null, result: {} });
   } else if (typeof method === "string" && method.startsWith("notifications/")) {
