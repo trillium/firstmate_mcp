@@ -107,8 +107,16 @@ When updating this file, preserve this bar for all agents and keep entries conci
   via the special-rows path, never the upstream `.sh` enumeration.
   Sourced-library surfaces with no CLI (e.g. `backends/*.sh` adapters) are
   denied toolless via `DENY_ALSO` under one named deny (no invented no-op
-  tool); every DENY name with a real CLI keeps its approval-gated tool +
-  tier so the tiers/tools 1:1 invariant the TS suites enforce still holds.
+  tool); local-danger DENY names with a real CLI keep their approval-gated
+  tool + tier.
+- Gap-mirror deny shapes (`scripts/gen_coverage.py` DENY_REASONS + `ts/src/auth.ts`
+  TOOL_TIERS + `tests/fm-coverage.test.sh`): a command cannot be both mirrored
+  and denied (the gate fails) — excluded facets of a mirrored command live in
+  the FEATURES.yaml divergence reason (precedent: `remote_doctor --fix`,
+  `remote_file put`). Verbs that would reach another machine over SSH
+  (execute/provision/push/launch/reap) get a Tier 3 name but NO handler in
+  `ts/src/tools.ts`, so tools/call refuses them as unknown even with approval
+  (`ts/tests/server.test.ts` asserts the refusal).
 - Supervised deployment (`docs/DEPLOYMENT.md`): launchd unit template (`deploy/com.firstmate.mcp.plist.template`), fail-closed stdio smoke gate (`scripts/fm-mcp-smoke.sh`, `tests/fm-mcp-smoke.test.sh`), plist renderer (`scripts/fm-mcp-render-plist.sh`, `tests/fm-mcp-deploy.test.sh`), and copytruncate log rotation (`scripts/fm-mcp-logrotate.sh`, `tests/fm-mcp-logrotate.test.sh`).
 - Commit hooks: `bash scripts/setup-hooks.sh` configures `core.hooksPath = .githooks`
   (enforcing conventional commits `feat|fix|chore|docs|refactor|test|ci|perf|build|revert|style`

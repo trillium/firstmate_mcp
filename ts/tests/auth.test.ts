@@ -36,7 +36,7 @@ const TIER1_TOOLS = [
   "fleet_snapshot", "backlog", "crew_state", "status_tail", "fleet_poll",
   "peek", "fleet_view", "review_diff", "bearings_snapshot",
   "wake_drain", "guard_check", "remote_doctor", "remote_file",
-  "remote_delta", "handoff_status",
+  "remote_delta", "extension_list", "extension_inspect", "handoff_status",
   "harness_detect", "project_mode", "lock_status", "lease_check",
   "bearings_board_path", "inbox_status", "inbox_list",
   "home_summary", "home_summary_refresh", "contributions_snapshot", "contributions_pending",
@@ -58,7 +58,7 @@ const TIER4_TOOLS = Object.entries(TOOL_TIERS)
 
 describe("tier assignments", () => {
   it("covers every tool", () => {
-    assert.equal(Object.keys(TOOL_TIERS).length, 111);
+    assert.equal(Object.keys(TOOL_TIERS).length, 123);
   });
   it("tier 1 is open reads", () => {
     for (const tool of TIER1_TOOLS) assert.equal(tierOf(tool), TIER_OPEN, tool);
@@ -67,7 +67,7 @@ describe("tier assignments", () => {
     assert.equal(tierOf("send_message"), TIER_STEER);
   });
   it("tier 3 is authority writes", () => {
-    assert.equal(TIER3_TOOLS.length, 54);
+    assert.equal(TIER3_TOOLS.length, 64);
     for (const tool of TIER3_TOOLS) assert.equal(tierOf(tool), TIER_AUTHORITY, tool);
   });
   it("tier 4 is external sends", () => {

@@ -4,7 +4,8 @@
  * SUPPORTED (no approval): fleet_snapshot, backlog, crew_state,
  * status_tail, send_message (+ fleet_poll, the read-only poller, peek,
  * fleet_view, review_diff, bearings_snapshot, wake_drain, guard_check,
- * remote_doctor, remote_file, remote_delta, handoff_status,
+ * remote_doctor, remote_file, remote_delta, extension_list,
+ * extension_inspect, handoff_status,
  * harness_detect, project_mode, lock_status, lease_check,
  * bearings_board_path, inbox_status, inbox_list, home_summary,
  * home_summary_refresh, contributions_snapshot, contributions_pending,
@@ -23,7 +24,10 @@
  * Refused by the deny-list (no tool, answered unknown): promote_scout,
  * teardown_crew, arm_pr_check, merge_pr, merge_local, daemon_start/stop/
  * restart, watch_start/stop, repo_edit/commit/push/merge, backend_select
- * (the sourced backend-provider library and its backends/*.sh adapters).
+ * (the sourced backend-provider library and its backends/*.sh adapters),
+ * on_execute, config_push, remote_entrypoint, remote_herdr_guard,
+ * remote_provision, remote_seed, inherit_push, remote_inherit,
+ * reap_orphans, remote_worker.
  *
  * Every tool shells to its owning bin/fm-*.sh script and never reimplements
  * firstmate behavior. Wire payloads match the Python server exactly so the
@@ -87,6 +91,7 @@ import {
   validCommitMessage,
   validCorr,
   validDeltaWait,
+  validExtensionId,
   validFileContent,
   validHandoffLines,
   validId,
@@ -999,6 +1004,29 @@ async function toolRemoteDelta(args: ToolArgs, ctx: ToolContext): Promise<ToolRe
     ctx.run,
   );
   if (!isError) return { payload: { ...payload, log: relLog, offset }, isError: false };
+  return { payload, isError: true };
+}
+
+async function toolExtensionList(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  // List only: binding, retirement, verify, process-event, and remote-bind
+  // facets stay out of scope (see extension_inspect divergence).
+  return ownedCall(argv(path.join(ctx.binDir, "fm-extension.sh"), "list"), "extension list failed", ctx.run);
+}
+
+async function toolExtensionInspect(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const id = args["id"];
+  if (!validExtensionId(id)) {
+    return {
+      payload: { error: "invalid id", expect: "extension id [a-z0-9]+([.-][a-z0-9]+)*, max 128 bytes" },
+      isError: true,
+    };
+  }
+  const { payload, isError } = await ownedCall(
+    argv(path.join(ctx.binDir, "fm-extension.sh"), "inspect", id),
+    "extension inspect failed",
+    ctx.run,
+  );
+  if (!isError) return { payload: { ...payload, id }, isError: false };
   return { payload, isError: true };
 }
 
@@ -3882,6 +3910,23 @@ export const TOOLS: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolRemoteDelta,
+  },
+  extension_list: {
+    description: "Read-only list of enabled home-local extension bindings (bind/retire/verify/process-event stay out).",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    handler: toolExtensionList,
+  },
+  extension_inspect: {
+    description: "Read-only deterministic JSON for one enabled home-local extension binding.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Extension id [a-z0-9]+([.-][a-z0-9]+)*" },
+      },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    handler: toolExtensionInspect,
   },
   handoff_status: {
     description:

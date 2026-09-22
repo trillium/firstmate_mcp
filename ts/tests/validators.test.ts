@@ -13,6 +13,7 @@ import {
   validApproval,
   validCorr,
   validDeltaWait,
+  validExtensionId,
   validHandoffLines,
   validId,
   validIdList,
@@ -259,6 +260,20 @@ describe("wave-4 validators", () => {
     assert.equal(validPrUrl("https://example.com/o/r/pull/1"), false);
     assert.equal(validPrUrl("not a url"), false);
     assert.equal(validPrUrl("https://github.com/bad--owner/repo/pull/1"), false);
+  });
+  it("validates extension binding ids like fm-extension.mjs", () => {
+    assert.equal(validExtensionId("org.example.probe"), true);
+    assert.equal(validExtensionId("ext-probe"), true);
+    assert.equal(validExtensionId("a"), true);
+    assert.equal(validExtensionId("UPPER"), false);
+    assert.equal(validExtensionId("trailing."), false);
+    assert.equal(validExtensionId("-leading"), false);
+    assert.equal(validExtensionId("../escape"), false);
+    assert.equal(validExtensionId("has space"), false);
+    assert.equal(validExtensionId(""), false);
+    assert.equal(validExtensionId("a".repeat(129)), false);
+    assert.equal(validExtensionId("a\n"), false);
+    assert.equal(validExtensionId(42), false);
   });
 });
 

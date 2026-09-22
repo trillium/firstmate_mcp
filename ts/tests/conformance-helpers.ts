@@ -31,6 +31,8 @@ export const READ_TOOLS: ReadonlySet<string> = new Set([
   "remote_doctor",
   "remote_file",
   "remote_delta",
+  "extension_list",
+  "extension_inspect",
   "handoff_status",
   "harness_detect",
   "project_mode",
@@ -76,6 +78,7 @@ export const READ_SCRIPTS: ReadonlySet<string> = new Set([
   "fm-remote-doctor.sh",
   "fm-remote-file.sh",
   "fm-remote-delta-read.sh",
+  "fm-extension.sh",
   "fm-harness.sh",
   "fm-project-mode.sh",
   "fm-lock.sh",
@@ -140,6 +143,7 @@ export const GUARD_STUB = "exit 0\n";
 export const REMOTE_DOCTOR_STUB = "echo 'doctor-stub: mode=check'\n";
 export const REMOTE_FILE_STUB = 'echo "file-stub:$2 max=$3"\n';
 export const REMOTE_DELTA_STUB = 'echo "delta-stub:$1 off=$2 wait=$4"\n';
+export const EXTENSION_STUB = 'echo "extension-stub:$1 id=$2"\n';
 export const HARNESS_STUB = 'echo "harness-stub:$1"\n';
 export const PROJECT_MODE_STUB = 'echo "local-only off"\n';
 export const LOCK_STUB = "echo 'lock: free'\n";
@@ -221,6 +225,7 @@ export function setup(): Fixture {
   writeStub(path.join(scratch, "bin"), "fm-remote-doctor.sh", REMOTE_DOCTOR_STUB);
   writeStub(path.join(scratch, "bin"), "fm-remote-file.sh", REMOTE_FILE_STUB);
   writeStub(path.join(scratch, "bin"), "fm-remote-delta-read.sh", REMOTE_DELTA_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-extension.sh", EXTENSION_STUB);
   writeStub(path.join(scratch, "bin"), "fm-harness.sh", HARNESS_STUB);
   writeStub(path.join(scratch, "bin"), "fm-project-mode.sh", PROJECT_MODE_STUB);
   writeStub(path.join(scratch, "bin"), "fm-lock.sh", LOCK_STUB);

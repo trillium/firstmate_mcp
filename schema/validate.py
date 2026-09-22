@@ -50,6 +50,8 @@ CURRENT_PINS = {
     "remote_doctor": "fm-remote-doctor.v1",
     "remote_file": "fm-remote-file.get.v1",
     "remote_delta": "fm-remote-delta-read.v1",
+    "extension_list": "fm-extension.v1",
+    "extension_inspect": "fm-extension.v1",
     "handoff_status": "handoff-outbox.v1",
     "secondmate_nudge": "fm-reconcile.notify.v1",
     "secondmate_restart": "fm-secondmate-restart.v1",

@@ -405,6 +405,21 @@ export function validMergeMethod(value: unknown): value is "squash" | "merge" | 
   return value === "squash" || value === "merge" || value === "rebase";
 }
 
+/**
+ * Extension binding id: the exact shape fm-extension.mjs owns.
+ * Mirrors boundedString(<id>, 128, ID_RE) in bin/fm-extension.mjs, so the
+ * handler refuses before spawning what the script would refuse after.
+ */
+const EXTENSION_ID_RE = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
+
+export function validExtensionId(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 1 || Buffer.byteLength(value, "utf8") > 128) return false;
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1f\x7f]/.test(value)) return false;
+  return EXTENSION_ID_RE.test(value);
+}
+
 export function validCommitMessage(value: unknown): value is string {
   if (typeof value !== "string") return false;
   if (value.length < 1 || value.length > 500) return false;

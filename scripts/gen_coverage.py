@@ -287,6 +287,16 @@ DENY_REASONS = {
     "herdr_eventwait": ("backends/herdr-eventwait.py", "subscribing to a live Herdr control socket drives the session event path; only the watcher owns event waits"),
     "herdr_workspace_move": ("backends/herdr-workspace-move.py", "sending workspace.move to a live session mutates presentation ordering; only the owning session owns moves"),
     "backend_select": ("fm-backend.sh", "selecting and dispatching the runtime session provider reroutes every supervision verb; the provider library is sourced by the owning spawn/supervision path, never invoked directly"),
+    "on_execute": ("fm-on.sh", "executing a tracked command in a remote home reaches another machine over SSH; only a crew operating that home's own session owns remote execution"),
+    "config_push": ("fm-config-push.sh", "pushing inherited material writes into live homes including remote SSH routes; only bootstrap and session start own home convergence"),
+    "remote_entrypoint": ("fm-remote-entrypoint.sh", "the fixed remote-end staging entrypoint executes jobs on the remote host; it is only meaningful on that host, never through the doorway"),
+    "remote_herdr_guard": ("fm-remote-herdr-guard.sh", "the login-session guard stops foreign Herdr servers and execs replacements, closing panes; only the launchd agent owns server ownership"),
+    "remote_provision": ("fm-remote-home-provision.sh", "provisioning clones a code root and publishes home markers on another host; only seeding owns remote home creation"),
+    "remote_seed": ("fm-remote-home-seed.sh", "seeding registers registry rows and sends provisioning manifests over SSH; only the captain's own provisioning run owns remote home creation"),
+    "inherit_push": ("fm-remote-inherit-push.sh", "pushing inherited material writes into a remote home over SSH; only bootstrap and config-push convergence own inherited pushes"),
+    "remote_inherit": ("fm-remote-inherit.sh", "the inherit apply path atomically replaces files and quarantines divergent records inside a home; only the remote entrypoint's propagation run owns inherit writes"),
+    "reap_orphans": ("fm-remote-job-reap-orphans.sh", "reaping signals TERM then KILL across worker process trees; only the launch supervisor owns worker lifecycle"),
+    "remote_worker": ("fm-remote-job-worker.sh", "the worker claims staged records and executes tracked commands as a daemon; only the LaunchAgent and restart supervisor own worker lifecycle"),
 }
 
 DENY_LIST = frozenset(DENY_REASONS.keys())

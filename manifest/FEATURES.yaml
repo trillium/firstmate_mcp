@@ -254,6 +254,38 @@ features:
         The wait window is clamped to 0..10s so no call nears the 30s
         envelope; upstream allows 300s. Adapter-side cursor and hash-shape
         validation refuses before spawning.
+  - id: extension_list
+    kind: upstream-mirror
+    summary: Enabled home-local extension bindings read; bind, retire, verify, process-event, and remote-bind stay out.
+    upstream_command: bin/fm-extension.sh
+    upstream_flags: ["list"]
+    contract: schema/contracts.yaml#extension_list
+    upstream_test: "ts/tests/conformance-remote.test.ts::secondmate-remote-read equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:extension_list"]}
+    divergence:
+      status: intentional
+      reason: >-
+        List-only subset: reads $FM_HOME/config/extensions.d only and
+        never spawns a package executable. bind copies package trees and
+        handshakes same-user code, retire removes bindings, verify and
+        resolve/process-event execute package code, and remote-bind pipes
+        through fm-on.sh to another machine; all stay out.
+  - id: extension_inspect
+    kind: upstream-mirror
+    summary: Deterministic JSON read of one enabled home-local extension binding.
+    upstream_command: bin/fm-extension.sh
+    upstream_flags: ["inspect", "<extension-id>"]
+    contract: schema/contracts.yaml#extension_inspect
+    upstream_test: "ts/tests/conformance-remote.test.ts::secondmate-remote-read equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:extension_inspect"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Adapter-side id validation mirrors upstream boundedString(<id>,
+        128, ID_RE) and refuses before spawning; inspect performs local
+        file reads and digest checks only, never the verify handshake.
   - id: handoff_status
     kind: upstream-mirror
     summary: Staged handoff outbox read; list staged moves or read one outbox tail.
