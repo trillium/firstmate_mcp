@@ -22,7 +22,7 @@ version: v1
 upstream:
   repo: https://github.com/kunchenguid/firstmate.git
   submodule: sources/firstmate
-  gitlink_at_seed: f5735dc28a83186ef95715c8683333245762a8c6
+  gitlink_at_seed: 884d76bdbd4721310dcc3d4f7ad6b8a028756605
   baseline: drift/baseline.json
   baseline_rev_at_seed: aaf67489
   baseline_surfaces_at_seed: 163
@@ -38,6 +38,13 @@ upstream:
     read of that shift claimed 177/177 because drift also compared checkout
     mtime and the executed-help fields; drift/diff.py now compares content
     only — see its IGNORED_FIELDS and module docstring.
+    Re-seeded again 2026-09-22 from f5735dc2 (4 commits: #5334, #5327, #5317,
+    #5294). One depended-on surface moved — fm-crew-state.sh (contract
+    crew_state), a CI-state fix: passed-with-override now reads as done, and
+    "base branch advanced, re-arming CI monitor timeout" is no longer treated
+    as a marker (it held green PRs at working while main advanced). No doorway
+    port needed: that contract passes the script's line through and no TS
+    enumerates state words, so the pin bump carries the fix.
 fork:
   repo: https://github.com/trillium/firstmate.git
   proven_commit: 86c035336bf9e136dd44d76e7d46e16d260fac8f
