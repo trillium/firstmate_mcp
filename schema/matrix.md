@@ -54,6 +54,8 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | tasks_list | bin/fm-tasks-axi.sh | evolving | list, --state, --repo, --kind, --blocked, --limit, --fields | backlog item listing reads |
 | tasks_show | bin/fm-tasks-axi.sh | evolving | show, <id>, --full | single-task detail inspection reads |
 | tasks_ready | bin/fm-tasks-axi.sh | evolving | ready, --repo, --include-held | dispatchable ready queued task reads |
+| dispatch_resolve | bin/fm-dispatch-resolve.sh | evolving | <brief>, --project | dispatch plan reads (never launches) |
+| sessionstart_nudge | bin/fm-sessionstart-nudge.sh | evolving | <none> | session-start nudge reads |
 | spawn_crew | bin/fm-spawn.sh | evolving | task, project, mode, yolo | dispatch writes |
 | scaffold_brief | bin/fm-brief.sh | evolving | task, repo, mode/scout | dispatch writes |
 | receipt_submit | native: receipt store (state/mcp-receipts/) | experimental | <tool> <arguments> | detach long calls past the 30s budget |

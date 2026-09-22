@@ -185,6 +185,42 @@ describe("small-gaps equivalence", () => {
     const result = okPayload(await readOnlyCall(fx, "tasks_ready", {}));
     assert.equal(result["stdout"], direct.stdout);
   });
+
+  it("dispatch_resolve matches direct stub on the canonical brief", async () => {
+    const briefDir = path.join(fx.scratch, "data", "task-1");
+    fs.mkdirSync(briefDir, { recursive: true });
+    const brief = path.join(briefDir, "brief.md");
+    fs.writeFileSync(brief, "brief fixture\n");
+    const direct = directRun(fx, "fm-dispatch-resolve.sh", [brief]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "dispatch_resolve", { task_id: "task-1" }));
+    assert.equal(result["stdout"], direct.stdout);
+    assert.equal(result["task_id"], "task-1");
+  });
+
+  it("dispatch_resolve refuses invalid task id without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "dispatch_resolve", { task_id: "../escape" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid task_id");
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("dispatch_resolve refuses invalid project without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "dispatch_resolve", { task_id: "task-1", project: "/abs" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid project");
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("sessionstart_nudge matches direct stub with fired projection", async () => {
+    const direct = directRun(fx, "fm-sessionstart-nudge.sh", []);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "sessionstart_nudge", {}));
+    assert.equal(result["stdout"], direct.stdout);
+    assert.equal(result["fired"], true);
+  });
 });
 
 describe("side-effect-free", () => {
@@ -253,6 +289,11 @@ describe("side-effect-free", () => {
     await readOnlyCall(fx, "tasks_list", {});
     await readOnlyCall(fx, "tasks_show", { id: "probe-task" });
     await readOnlyCall(fx, "tasks_ready", {});
+    const probeDir = path.join(fx.scratch, "data", "probe-task");
+    fs.mkdirSync(probeDir, { recursive: true });
+    fs.writeFileSync(path.join(probeDir, "brief.md"), "probe brief\n");
+    await readOnlyCall(fx, "dispatch_resolve", { task_id: "probe-task" });
+    await readOnlyCall(fx, "sessionstart_nudge", {});
 
     assert.ok(fx.calls.length >= 20);
     const nonRead = fx.calls.filter(

@@ -269,6 +269,40 @@ features:
         Bounded native read with id validation and path confinement; no
         owning-script status verb exists. Staged moves only — handoff owns
         moves, receive owns intake.
+  - id: dispatch_resolve
+    kind: upstream-mirror
+    summary: Dispatch resolution for one task brief; prints a plan without launching anything.
+    upstream_command: bin/fm-dispatch-resolve.sh
+    upstream_flags: ["<brief>", "--project"]
+    contract: schema/contracts.yaml#dispatch_resolve
+    upstream_test: "ts/tests/conformance-system.test.ts::sessions equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:dispatch_resolve"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Canonical brief path only (data/<task-id>/brief.md, where
+        fm-brief.sh scaffolds it); arbitrary brief-file argv stays out so
+        the resolver can never be pointed outside this home. Without
+        TYPESAFE_API_KEY the owning script prints its off notice and exits
+        0; with the operator's opt-in key it resolves via typesafe.ai
+        exactly as upstream does. Resolution only — launching stays with
+        spawn_crew behind approval.
+  - id: sessionstart_nudge
+    kind: upstream-mirror
+    summary: Session-start nudge read; prints the one-line start instruction or nothing.
+    upstream_command: bin/fm-sessionstart-nudge.sh
+    upstream_flags: []
+    contract: schema/contracts.yaml#sessionstart_nudge
+    upstream_test: "ts/tests/conformance-system.test.ts::sessions equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools.ts:sessionstart_nudge"]}
+    divergence:
+      status: intentional
+      reason: >-
+        No-arg read with a fired projection; every silence and error path
+        of the owning script exits 0. Running the bootstrap (session_start,
+        sessionstart_run, sessionstart_cursor) stays firstmate-owned.
   - id: harness_detect
     kind: upstream-mirror
     summary: Harness detection for this home; closed mode subset, never process ancestry.

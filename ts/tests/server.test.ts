@@ -158,6 +158,11 @@ describe("expanded surface: 66 tools", () => {
     "startup_memory", "pr_state", "pr_poll", "relay_poll",
     "public_followup_pending", "public_followup_collect",
     "tasks_list", "tasks_show", "tasks_ready",
+    "dispatch_resolve", "sessionstart_nudge",
+    "session_start", "sessionstart_run", "sessionstart_cursor",
+    "herdr_lab", "herdr_ci_cleanup", "session_cleanup",
+    "claude_trust", "agy_trust", "claude_stop_autoarm",
+    "herdr_eventwait", "herdr_workspace_move",
     "voice_queue", "mail_send",
     "receipt_submit", "receipt_status",
     "promote_scout", "teardown_crew", "arm_pr_check", "merge_pr", "merge_local",
@@ -171,10 +176,10 @@ describe("expanded surface: 66 tools", () => {
     "grant_mint", "grant_revoke", "grant_status",
   ];
 
-  it("server lists 98 tools", async () => {
+  it("server lists 111 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 98);
+    assert.equal(tools.length, 111);
   });
 
   for (const required of REQUIRED) {
@@ -205,6 +210,7 @@ describe("expanded surface: 66 tools", () => {
       "startup_memory", "pr_state", "pr_poll", "relay_poll",
       "public_followup_pending", "public_followup_collect",
       "tasks_list", "tasks_show", "tasks_ready",
+      "dispatch_resolve", "sessionstart_nudge",
       "receipt_submit", "receipt_status", "daemon_status", "grant_status",
       "decision_verify", "decision_open", "decision_diverged",
     ]);
@@ -1146,6 +1152,157 @@ describe("expanded surface: 66 tools", () => {
           bytes: 100,
           sha256: "not-64-hex",
           generation: 1,
+          approval: APPROVAL,
+        }),
+      ),
+      true,
+    );
+  });
+  it("dispatch_resolve returns a plan without launching", async () => {
+    const resp = await boxed.call("dispatch_resolve", { task_id: "task-1" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["task_id"], "task-1");
+  });
+  it("dispatch_resolve rejects invalid task id", async () => {
+    assert.equal(isError(await boxed.call("dispatch_resolve", { task_id: "../escape" })), true);
+  });
+  it("dispatch_resolve rejects invalid project", async () => {
+    assert.equal(
+      isError(await boxed.call("dispatch_resolve", { task_id: "task-1", project: "/abs" })),
+      true,
+    );
+  });
+  it("sessionstart_nudge returns fired projection", async () => {
+    const resp = await boxed.call("sessionstart_nudge", {});
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["fired"], true);
+  });
+  it("session_start refuses without approval", async () => {
+    const resp = await boxed.call("session_start", {});
+    assert.equal(isError(resp), true);
+  });
+  it("session_start rejects invalid source", async () => {
+    assert.equal(
+      isError(await boxed.call("session_start", { source: "bad source!", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("sessionstart_run refuses without approval", async () => {
+    const resp = await boxed.call("sessionstart_run", {});
+    assert.equal(isError(resp), true);
+  });
+  it("sessionstart_run rejects invalid source", async () => {
+    assert.equal(
+      isError(await boxed.call("sessionstart_run", { source: "bad source!", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("sessionstart_cursor refuses without approval", async () => {
+    const resp = await boxed.call("sessionstart_cursor", { source: "startup" });
+    assert.equal(isError(resp), true);
+  });
+  it("sessionstart_cursor rejects missing or invalid source", async () => {
+    assert.equal(isError(await boxed.call("sessionstart_cursor", { approval: APPROVAL })), true);
+    assert.equal(
+      isError(await boxed.call("sessionstart_cursor", { source: "bad source!", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("herdr_lab refuses without approval", async () => {
+    const resp = await boxed.call("herdr_lab", { subcommand: "stop", session: "fm-lab-x" });
+    assert.equal(isError(resp), true);
+  });
+  it("herdr_lab rejects invalid subcommand and session", async () => {
+    assert.equal(
+      isError(await boxed.call("herdr_lab", { subcommand: "delete", session: "fm-lab-x", approval: APPROVAL })),
+      true,
+    );
+    assert.equal(
+      isError(await boxed.call("herdr_lab", { subcommand: "stop", session: "default", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("herdr_ci_cleanup refuses without approval", async () => {
+    const resp = await boxed.call("herdr_ci_cleanup", { command: "snapshot", path: "state/snap.json" });
+    assert.equal(isError(resp), true);
+  });
+  it("herdr_ci_cleanup rejects traversal path", async () => {
+    assert.equal(
+      isError(
+        await boxed.call("herdr_ci_cleanup", { command: "snapshot", path: "../escape.json", approval: APPROVAL }),
+      ),
+      true,
+    );
+  });
+  it("session_cleanup refuses without approval", async () => {
+    const resp = await boxed.call("session_cleanup", {});
+    assert.equal(isError(resp), true);
+  });
+  it("claude_trust refuses without approval", async () => {
+    const resp = await boxed.call("claude_trust", { worktree: "/tmp/wt", project: "/tmp/proj" });
+    assert.equal(isError(resp), true);
+  });
+  it("claude_trust rejects ambiguous mode", async () => {
+    assert.equal(
+      isError(await boxed.call("claude_trust", { approval: APPROVAL })),
+      true,
+    );
+    assert.equal(
+      isError(
+        await boxed.call("claude_trust", {
+          worktree: "/tmp/wt",
+          project: "/tmp/proj",
+          home: "/tmp/home",
+          id: "sm1",
+          approval: APPROVAL,
+        }),
+      ),
+      true,
+    );
+  });
+  it("agy_trust refuses without approval", async () => {
+    const resp = await boxed.call("agy_trust", { worktree: "/tmp/wt", project: "/tmp/proj" });
+    assert.equal(isError(resp), true);
+  });
+  it("agy_trust rejects missing worktree", async () => {
+    assert.equal(
+      isError(await boxed.call("agy_trust", { project: "/tmp/proj", approval: APPROVAL })),
+      true,
+    );
+  });
+  it("claude_stop_autoarm refuses without approval", async () => {
+    const resp = await boxed.call("claude_stop_autoarm", {});
+    assert.equal(isError(resp), true);
+  });
+  it("herdr_eventwait refuses without approval", async () => {
+    const resp = await boxed.call("herdr_eventwait", { socket: "/tmp/s", timeout_s: 5, pane_ids: [1] });
+    assert.equal(isError(resp), true);
+  });
+  it("herdr_eventwait rejects invalid timeout and panes", async () => {
+    assert.equal(
+      isError(
+        await boxed.call("herdr_eventwait", { socket: "/tmp/s", timeout_s: 999, pane_ids: [1], approval: APPROVAL }),
+      ),
+      true,
+    );
+    assert.equal(
+      isError(
+        await boxed.call("herdr_eventwait", { socket: "/tmp/s", timeout_s: 5, pane_ids: [], approval: APPROVAL }),
+      ),
+      true,
+    );
+  });
+  it("herdr_workspace_move refuses without approval", async () => {
+    const resp = await boxed.call("herdr_workspace_move", { socket: "/tmp/s", workspace_id: 3, insert_index: 0 });
+    assert.equal(isError(resp), true);
+  });
+  it("herdr_workspace_move rejects invalid ids", async () => {
+    assert.equal(
+      isError(
+        await boxed.call("herdr_workspace_move", {
+          socket: "/tmp/s",
+          workspace_id: -1,
+          insert_index: 0,
           approval: APPROVAL,
         }),
       ),
