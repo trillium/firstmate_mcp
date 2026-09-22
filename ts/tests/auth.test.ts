@@ -62,7 +62,7 @@ const TIER4_TOOLS = Object.entries(TOOL_TIERS)
 
 describe("tier assignments", () => {
   it("covers every tool", () => {
-    assert.equal(Object.keys(TOOL_TIERS).length, 166);
+    assert.equal(Object.keys(TOOL_TIERS).length, 119);
   });
   it("tier 1 is open reads", () => {
     for (const tool of TIER1_TOOLS) assert.equal(tierOf(tool), TIER_OPEN, tool);
@@ -71,19 +71,45 @@ describe("tier assignments", () => {
     assert.equal(tierOf("send_message"), TIER_STEER);
   });
   it("tier 3 is authority writes", () => {
-    assert.equal(TIER3_TOOLS.length, 95);
+    assert.equal(TIER3_TOOLS.length, 49);
     for (const tool of TIER3_TOOLS) assert.equal(tierOf(tool), TIER_AUTHORITY, tool);
   });
+  it("code-forbidden tools carry no tier entry and read as forbidden", () => {
+    // The invariant: a forbidden surface is absent from TOOL_TIERS, so no stale
+    // entry can shadow it, and tierOf still answers forbidden for it.
+    for (const tool of ["merge_pr", "promote_scout", "teardown_crew", "repo_merge", "daemon_start"]) {
+      assert.equal(TOOL_TIERS[tool], undefined, `${tool} must have no tier entry`);
+      assert.equal(tierOf(tool), TIER_FORBIDDEN, tool);
+    }
+  });
+  it("keeps the agent's own delivery chain callable", () => {
+    for (const tool of ["repo_edit", "repo_commit", "repo_push", "pr_open"]) {
+      assert.equal(tierOf(tool), TIER_AUTHORITY, tool);
+    }
+  });
   it("tier 4 is external sends", () => {
-    assert.deepEqual([...TIER4_TOOLS].sort(), ["daemon_restart", "mail_send", "relay_dismiss", "relay_followup", "relay_reply"]);
+    assert.deepEqual([...TIER4_TOOLS].sort(), ["mail_send", "relay_dismiss", "relay_followup", "relay_reply"]);
     for (const tool of TIER4_TOOLS) assert.equal(tierOf(tool), TIER_EXTERNAL, tool);
   });
   it("forbidden tools have no tool tier", () => {
-    assert.deepEqual(
-      [...FORBIDDEN_TOOLS].sort(),
-      [],
-    );
-    for (const tool of FORBIDDEN_TOOLS) assert.equal(tierOf(tool), TIER_FORBIDDEN, tool);
+    // This test used to assert the list was EMPTY — it pinned the state of the
+    // code, not the documented intent. AUTH.md, auth.ts's header and
+    // docs/mcp-adapter.md all deny these surfaces, and the adapter's deny list is
+    // client-side (bypassable by any direct caller, proven with curl against the
+    // gateway). The list is real now; the invariant that matters is that a
+    // forbidden tool carries no tier entry for anything to shadow.
+    assert.ok(FORBIDDEN_TOOLS.length > 0, "the code-forbidden set must not be empty");
+    for (const tool of FORBIDDEN_TOOLS) {
+      assert.equal(TOOL_TIERS[tool], undefined, `${tool} must carry no tier entry`);
+      assert.equal(tierOf(tool), TIER_FORBIDDEN, tool);
+    }
+    for (const tool of ["repo_edit", "repo_commit", "repo_push", "pr_open"]) {
+      assert.equal(
+        (FORBIDDEN_TOOLS as readonly string[]).includes(tool),
+        false,
+        `${tool} is the agent's delivery chain and must stay callable`,
+      );
+    }
   });
   it("unknown tools have no tier", () => {
     assert.equal(tierOf("drop_database"), null);

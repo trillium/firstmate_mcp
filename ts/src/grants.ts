@@ -469,6 +469,18 @@ export async function checkAuthorization(
   ctx: ToolContext,
 ): Promise<{ ok: boolean; approvalRef: string | null; payload?: Record<string, unknown> }> {
   const toolTier = tierOf(tool);
+  // Code-forbidden is checked before anything else and is never satisfiable:
+  // neither an explicit approval string nor a standing grant may authorize it.
+  if (toolTier === TIER_FORBIDDEN) {
+    return {
+      ok: false,
+      approvalRef: null,
+      payload: {
+        error: "forbidden",
+        expect: "a tool the doorway may call at all; this surface is code-forbidden and cannot be granted",
+      },
+    };
+  }
   if (toolTier === TIER_OPEN || toolTier === TIER_STEER) {
     return { ok: true, approvalRef: null };
   }
