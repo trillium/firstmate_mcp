@@ -249,7 +249,7 @@ Setup and hygiene: installers, seeds, linters, tests, probes, registry checks.
 | `fm-stow-cascade.sh` | mirrored — `stow_cascade` (ts✔) | stow cascade |
 | `fm-test-affected.sh` (removed upstream) | gap | test-impact selector; removed upstream since pin |
 | `fm-test-isolation-proof.sh` | mirrored — `test_isolation_list` (ts✔) | isolation proof |
-| `fm-test-run.sh` | mirrored — `test_run_list` (ts✔) | test runner |
+| `fm-test-run.sh` | mirrored — `test_run` (ts✔), `test_run_list` (ts✔) | test runner |
 | `fm-tool-update-check.sh` | mirrored — `tool_update_check` (ts✔) | tool update check |
 | `fm-update.sh` | denied-by-design — `update` | firstmate update. updating fast-forwards the running repo and every secondmate home and restarts live agents; only the captain's own update run owns fleet updates |
 | `fm-vendor-auth-probe.sh` | mirrored — `vendor_auth_probe` (ts✔) | vendor auth probe |

@@ -556,6 +556,50 @@ export function validBaseBranch(value: unknown): value is string {
   return true;
 }
 
+/**
+ * A test-runner selection mode. Exactly one selects what runs; suite runs are
+ * minutes-long, so callers reach for receipt_submit rather than a direct call.
+ */
+export function validTestRunMode(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    ["all", "family", "changed", "lane", "proven-isolated", "scripts"].includes(value)
+  );
+}
+
+/** A test family name, as fm-test-run.sh --list-families reports them. */
+export function validTestFamily(value: unknown): value is string {
+  return typeof value === "string" && /^[a-z0-9][a-z0-9._-]{0,63}$/.test(value);
+}
+
+/**
+ * A lane name: portable-parallel-1|2, portable-serial, or one CI serial shard
+ * portable-serial-<k>of<n>. Anything else is refused rather than passed through.
+ */
+export function validTestLane(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^portable-(parallel-[12]|serial(-[1-9][0-9]*of[1-9][0-9]*)?)$/.test(value)
+  );
+}
+
+/** A git ref used as --base for the changed selection; never a revision range. */
+export function validGitRef(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 1 || value.length > 100) return false;
+  if (!/^[a-zA-Z0-9._/-]+$/.test(value)) return false;
+  if (value.includes("..") || value.startsWith("/") || value.endsWith("/")) return false;
+  return true;
+}
+
+/**
+ * An explicit test script path: tests/<name>.test.sh only. Absolute paths and
+ * traversal are refused, so the tool cannot be pointed at arbitrary files.
+ */
+export function validTestScriptPath(value: unknown): value is string {
+  return typeof value === "string" && /^tests\/[A-Za-z0-9._-]{1,80}\.test\.sh$/.test(value);
+}
+
 export function validFileContent(value: unknown): value is string {
   if (typeof value !== "string") return false;
   return byteLength(value) <= 256 * 1024;

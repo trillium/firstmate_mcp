@@ -109,6 +109,7 @@ revalidated ids/paths/text, explicit per-call approval.
 - `secondmate_report` — via `fm-secondmate-report.sh` (Tier 3 approval, approval required)
 - `secondmate_restart` — via `fm-secondmate-restart.sh` (Tier 3 approval, approval required)
 - `spawn_crew` — via `fm-spawn.sh` (Tier 3 approval, approval required)
+- `test_run` — via `fm-test-run.sh` (Tier 3 approval, approval required)
 - `voice_queue` — via `fm_voice_records.py` (Tier 3 approval, approval required)
 
 Refused by the adapter deny-list (no tool, answered unknown):
@@ -219,7 +220,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` implements the 86-tool
+- TypeScript sibling — `ts/` implements the 87-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Customizable follow-on actions — `ts/src/followon.ts` provides configurable
