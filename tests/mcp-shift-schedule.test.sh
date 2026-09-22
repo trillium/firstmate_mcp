@@ -143,9 +143,67 @@ test_scheduler_error_stays_silent() {
   assert_not_exists "$body" "error case wrote a report body"
 }
 
+test_file_issue_creates_then_dedups() {
+  local bin="$TMP_ROOT/bin" log="$TMP_ROOT/gh.log" body="$TMP_ROOT/issue-body.md"
+  local up="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" pin="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  local text
+  mkdir -p "$bin"
+  cat >"$bin/gh" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$GH_LOG"
+case "$1 $2" in
+  "label create") exit 0 ;;
+  "issue list") [ -n "${GH_LIST_TITLES:-}" ] && printf '%s\n' "$GH_LIST_TITLES"; exit 0 ;;
+  "issue create") echo "https://example.invalid/issues/1"; exit 0 ;;
+esac
+exit 0
+EOF
+  chmod +x "$bin/gh"
+  echo "report body" >"$body"
+
+  : >"$log"
+  GH_LOG="$log" PATH="$bin:$PATH" bash "$SCHED" --file-issue \
+    --body "$body" --upstream "$up" --pinned "$pin" >/dev/null 2>&1 \
+    || fail "filing mode exited non-zero"
+  text=$(cat "$log")
+  assert_contains "$text" "label create upstream-shift" "filing mode must ensure the label exists" "$text"
+  assert_contains "$text" "issue list --label upstream-shift --state open --json title --jq .[].title" \
+    "issue list must pass --json alongside --jq" "$text"
+  assert_contains "$text" "issue create --label upstream-shift --title Upstream shift aaaaaaaaaaaa -> bbbbbbbbbbbb" \
+    "filing mode must open the issue" "$text"
+
+  : >"$log"
+  GH_LOG="$log" GH_LIST_TITLES="Upstream shift aaaaaaaaaaaa -> bbbbbbbbbbbb" PATH="$bin:$PATH" \
+    bash "$SCHED" --file-issue --body "$body" --upstream "$up" --pinned "$pin" >/dev/null 2>&1 \
+    || fail "dedup run exited non-zero"
+  text=$(cat "$log")
+  case "$text" in
+    *"issue create"*) fail "dedup run opened a duplicate issue"$'\n'"--- log ---"$'\n'"$text" ;;
+  esac
+
+  : >"$log"
+  GH_LOG="$log" PATH="$bin:$PATH" bash "$SCHED" --file-issue --body "$TMP_ROOT/missing.md" \
+    --upstream "$up" --pinned "$pin" >/dev/null 2>&1 \
+    && fail "filing mode accepted a missing report body"
+  return 0
+}
+
+# The scheduled job's own logic is untested by construction: keep it out of the
+# workflow so the tests above are what actually runs in CI.
+test_workflow_does_not_inline_gh() {
+  local wf="$ROOT/.github/workflows/mcp-shift-schedule.yml"
+  assert_contains "$(cat "$wf")" "--file-issue" "workflow must call the tested filing path"
+  if grep -qE '^[[:space:]]*gh ' "$wf"; then
+    fail "workflow inlines gh logic; it must call scripts/mcp-shift-schedule.sh --file-issue"
+  fi
+  return 0
+}
+
 test_moved_upstream_fires_port_ignore
 test_no_move_reports_silence
 test_scheduler_fires_on_movement
 test_scheduler_silent_on_no_move
 test_scheduler_error_stays_silent
-pass "shift scheduler: moved upstream fires PORT/IGNORE, no-move and errors stay silent"
+test_file_issue_creates_then_dedups
+test_workflow_does_not_inline_gh
+pass "shift scheduler: moved upstream fires PORT/IGNORE, no-move and errors stay silent; filing path creates, dedups, and the workflow never inlines gh"
