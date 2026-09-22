@@ -98,6 +98,25 @@ DENY_LIST = frozenset(
         "install_treehouse",
         "update",
         "workflow_lint",
+        "afk_contract",
+        "afk_launch",
+        "afk_return",
+        "afk_start",
+        "branch_outcome",
+        "branch_prompt",
+        "busy_event",
+        "kimi_turnend_hook",
+        "operational_input",
+        "procevent_run",
+        "procevent_lavish",
+        "procevent_quota",
+        "procevent_remote_reply",
+        "procevent_when",
+        "turnend_guard",
+        "turnend_guard_cursor",
+        "turnend_guard_grok",
+        "wake_grant",
+        "watch_checkpoint",
     }
 )
 
@@ -188,6 +207,12 @@ TOOLS = {
     "stow_cascade": ("fm-stow-cascade.sh", None, False),
     "test_isolation_list": ("fm-test-isolation-proof.sh", None, False),
     "test_run_list": ("fm-test-run.sh", None, False),
+    "pr_reviewers": ("fm-pr-reviewers.sh", None, False),
+    "arm_policy_check": ("fm-arm-pretool-check.sh", None, False),
+    "cd_policy_check": ("fm-cd-pretool-check.sh", None, False),
+    "subagent_policy_check": ("fm-subagent-pretool-check.sh", None, False),
+    "supervision_instructions": ("fm-supervision-instructions.sh", None, False),
+    "quota_choose": ("fm-quota-choose.sh", None, False),
 }
 
 TOOL_TIERS = {
@@ -209,6 +234,9 @@ TOOL_TIERS = {
     "startup_network_report": 1, "doc_audience_check": 1,
     "home_seed_validate": 1, "stow_cascade": 1,
     "test_isolation_list": 1, "test_run_list": 1,
+    "pr_reviewers": 1, "arm_policy_check": 1, "cd_policy_check": 1,
+    "subagent_policy_check": 1, "supervision_instructions": 1,
+    "quota_choose": 1,
     "receipt_submit": 1, "receipt_status": 1, "grant_status": 1,
     "decision_verify": 1, "decision_open": 1, "decision_diverged": 1,
     "send_message": 2,
@@ -232,6 +260,13 @@ TOOL_TIERS = {
     "agents_md_ensure": 3, "install_actionlint": 3, "install_herdr": 3,
     "install_shellcheck": 3, "install_treehouse": 3, "update": 3,
     "workflow_lint": 3,
+    "afk_contract": 3, "afk_launch": 3, "afk_return": 3, "afk_start": 3,
+    "branch_outcome": 3, "branch_prompt": 3, "busy_event": 3,
+    "kimi_turnend_hook": 3, "operational_input": 3, "procevent_run": 3,
+    "procevent_lavish": 3, "procevent_quota": 3,
+    "procevent_remote_reply": 3, "procevent_when": 3,
+    "turnend_guard": 3, "turnend_guard_cursor": 3,
+    "turnend_guard_grok": 3, "wake_grant": 3, "watch_checkpoint": 3,
     "mail_send": 4, "relay_reply": 4, "relay_dismiss": 4, "relay_followup": 4,
 }
 

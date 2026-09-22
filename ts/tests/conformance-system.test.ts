@@ -195,6 +195,25 @@ describe("small-gaps equivalence", () => {
     assert.equal(fx.calls.length, before);
   });
 
+  it("pr_reviewers matches direct stub with url echoed", async () => {
+    const url = "https://github.com/octo/repo/pull/42";
+    const direct = directRun(fx, "fm-pr-reviewers.sh", [url]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "pr_reviewers", { url }));
+    assert.equal(result["url"], url);
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("pr_reviewers refuses non-GitHub urls without spawn", async () => {
+    const before = fx.calls.length;
+    for (const url of ["not a url", "https://example.com/o/r/pull/1"]) {
+      const result = await readOnlyCall(fx, "pr_reviewers", { url });
+      assert.equal(result.isError, true);
+      assert.equal(result.payload["error"], "invalid url");
+    }
+    assert.equal(fx.calls.length, before);
+  });
+
   it("relay_poll matches direct stub", async () => {
     const direct = directRun(fx, "fm-x-poll.sh", []);
     assert.equal(direct.status, 0);
@@ -298,6 +317,151 @@ describe("small-gaps equivalence", () => {
   });
 });
 
+describe("supervision equivalence", () => {
+  let fx: Fixture;
+  beforeEach(() => {
+    fx = setup();
+  });
+  afterEach(() => teardown(fx));
+
+  const SNAPSHOT = JSON.stringify({
+    generatedAt: "2030-01-01T00:00:00Z",
+    schemaVersion: 5,
+    providers: [
+      {
+        provider: "pi",
+        windows: [],
+        quotaSemantics: {
+          status: "known",
+          effectiveAvailability: [
+            {
+              scope: "all_models",
+              status: "known",
+              effectivePercentRemaining: 50,
+              runway: { status: "through_reset" },
+            },
+          ],
+        },
+      },
+    ],
+  });
+
+  it("arm_policy_check matches direct stub allow and deny verdicts", async () => {
+    const allowDirect = directRun(fx, "fm-arm-pretool-check.sh", ["--command", "git status"]);
+    assert.equal(allowDirect.status, 0);
+    const allow = okPayload(await readOnlyCall(fx, "arm_policy_check", { command: "git status" }));
+    assert.equal(allow["verdict"], "allow");
+    assert.equal(allow["command"], "git status");
+    const denyDirect = directRun(fx, "fm-arm-pretool-check.sh", ["--command", "deny-me"]);
+    assert.equal(denyDirect.status, 2);
+    const deny = okPayload(await readOnlyCall(fx, "arm_policy_check", { command: "deny-me" }));
+    assert.equal(deny["verdict"], "deny");
+    assert.equal(deny["stdout"], denyDirect.stdout);
+  });
+
+  it("arm_policy_check refuses unbounded commands without spawn", async () => {
+    const before = fx.calls.length;
+    for (const command of ["", "x".repeat(4001)]) {
+      const result = await readOnlyCall(fx, "arm_policy_check", { command });
+      assert.equal(result.isError, true);
+      assert.equal(result.payload["error"], "invalid command");
+    }
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("cd_policy_check matches direct stub allow and deny verdicts", async () => {
+    const allowDirect = directRun(fx, "fm-cd-pretool-check.sh", ["--command", "git status"]);
+    assert.equal(allowDirect.status, 0);
+    const allow = okPayload(await readOnlyCall(fx, "cd_policy_check", { command: "git status" }));
+    assert.equal(allow["verdict"], "allow");
+    const denyDirect = directRun(fx, "fm-cd-pretool-check.sh", ["--command", "deny-me"]);
+    assert.equal(denyDirect.status, 2);
+    const deny = okPayload(await readOnlyCall(fx, "cd_policy_check", { command: "deny-me" }));
+    assert.equal(deny["verdict"], "deny");
+    assert.equal(deny["stdout"], denyDirect.stdout);
+  });
+
+  it("subagent_policy_check matches direct stub allow and deny verdicts", async () => {
+    const allowDirect = directRun(fx, "fm-subagent-pretool-check.sh", ["--tool", "Bash"]);
+    assert.equal(allowDirect.status, 0);
+    const allow = okPayload(await readOnlyCall(fx, "subagent_policy_check", { tool: "Bash" }));
+    assert.equal(allow["verdict"], "allow");
+    assert.equal(allow["tool"], "Bash");
+    const denyDirect = directRun(fx, "fm-subagent-pretool-check.sh", ["--tool", "Task"]);
+    assert.equal(denyDirect.status, 2);
+    const deny = okPayload(await readOnlyCall(fx, "subagent_policy_check", { tool: "Task" }));
+    assert.equal(deny["verdict"], "deny");
+    assert.equal(deny["stdout"], denyDirect.stdout);
+  });
+
+  it("subagent_policy_check refuses bad tool names without spawn", async () => {
+    const before = fx.calls.length;
+    for (const tool of ["", "a\nb"]) {
+      const result = await readOnlyCall(fx, "subagent_policy_check", { tool });
+      assert.equal(result.isError, true);
+      assert.equal(result.payload["error"], "invalid tool");
+    }
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("supervision_instructions matches direct stub with flags echoed", async () => {
+    const direct = directRun(fx, "fm-supervision-instructions.sh", [
+      "--harness", "pi", "--read-only", "1",
+    ]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(
+      await readOnlyCall(fx, "supervision_instructions", { harness: "pi", read_only: true }),
+    );
+    assert.equal(result["harness"], "pi");
+    assert.equal(result["read_only"], true);
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("supervision_instructions refuses unknown harnesses without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "supervision_instructions", { harness: "bogus" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid harness");
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("quota_choose matches direct stub eligible and none outcomes", async () => {
+    const eligibleDirect = directRun(
+      fx, "fm-quota-choose.sh", ["--candidate", "pi:default"], SNAPSHOT,
+    );
+    assert.equal(eligibleDirect.status, 0);
+    const eligible = okPayload(
+      await readOnlyCall(fx, "quota_choose", { snapshot: SNAPSHOT, candidates: ["pi:default"] }),
+    );
+    assert.equal(eligible["eligible"], true);
+    assert.equal(eligible["harness"], "pi");
+    assert.equal(eligible["model"], "default");
+    assert.equal(eligible["stdout"], eligibleDirect.stdout);
+    const noneDirect = directRun(
+      fx, "fm-quota-choose.sh", ["--candidate", "none:default"], SNAPSHOT,
+    );
+    assert.equal(noneDirect.status, 1);
+    const none = okPayload(
+      await readOnlyCall(fx, "quota_choose", { snapshot: SNAPSHOT, candidates: ["none:default"] }),
+    );
+    assert.equal(none["eligible"], false);
+    assert.equal(none["stdout"], noneDirect.stdout);
+  });
+
+  it("quota_choose refuses bad snapshots and candidates without spawn", async () => {
+    const before = fx.calls.length;
+    for (const args of [
+      { snapshot: "", candidates: ["pi:default"] },
+      { snapshot: SNAPSHOT, candidates: [] },
+      { snapshot: SNAPSHOT, candidates: [":bad"] },
+    ]) {
+      const result = await readOnlyCall(fx, "quota_choose", args);
+      assert.equal(result.isError, true);
+    }
+    assert.equal(fx.calls.length, before);
+  });
+});
+
 describe("side-effect-free", () => {
   let fx: Fixture;
   beforeEach(() => {
@@ -358,6 +522,12 @@ describe("side-effect-free", () => {
     await readOnlyCall(fx, "startup_memory", {});
     await readOnlyCall(fx, "pr_state", { url: "https://github.com/octo/repo/pull/1" });
     await readOnlyCall(fx, "pr_poll", { url: "https://github.com/octo/repo/pull/1" });
+    await readOnlyCall(fx, "pr_reviewers", { url: "https://github.com/octo/repo/pull/1" });
+    await readOnlyCall(fx, "arm_policy_check", { command: "git status" });
+    await readOnlyCall(fx, "cd_policy_check", { command: "git status" });
+    await readOnlyCall(fx, "subagent_policy_check", { tool: "Bash" });
+    await readOnlyCall(fx, "supervision_instructions", { harness: "pi" });
+    await readOnlyCall(fx, "quota_choose", { snapshot: "captured", candidates: ["pi:default"] });
     await readOnlyCall(fx, "relay_poll", {});
     await readOnlyCall(fx, "public_followup_pending", {});
     await readOnlyCall(fx, "public_followup_collect", { obligation_id: "ob-1" });

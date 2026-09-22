@@ -25,12 +25,18 @@ import {
   validPageLimit,
   parseSnapshotCursor,
   validPeekLines,
+  validPolicyCommand,
+  validQuotaCandidates,
+  validQuotaSnapshot,
   validIsolationPool,
   validProbe,
   validProject,
   validPrUrl,
   validRelpath,
   validRemoteMaxBytes,
+  validSubagentTool,
+  validSupervisionAfkMode,
+  validSupervisionHarness,
   validSha256,
   validSingleLine,
   validStartupMode,
@@ -259,6 +265,38 @@ describe("wave-4 validators", () => {
     assert.equal(validTestRunListMode("concurrent_safe"), true);
     assert.equal(validTestRunListMode("coverage"), true);
     assert.equal(validTestRunListMode("all"), false);
+  });
+  it("accepts supervision harnesses and afk modes", () => {
+    for (const h of ["claude", "codex", "opencode", "pi", "pi-signed", "grok", "cursor", "omp"]) {
+      assert.equal(validSupervisionHarness(h), true);
+    }
+    assert.equal(validSupervisionHarness("bogus"), false);
+    assert.equal(validSupervisionHarness("unknown"), false);
+    assert.equal(validSupervisionAfkMode("away"), true);
+    assert.equal(validSupervisionAfkMode("quiet"), true);
+    assert.equal(validSupervisionAfkMode("loud"), false);
+  });
+  it("bounds policy commands and subagent tool names", () => {
+    assert.equal(validPolicyCommand("git status"), true);
+    assert.equal(validPolicyCommand("a &&\nb"), true);
+    assert.equal(validPolicyCommand(""), false);
+    assert.equal(validPolicyCommand("x".repeat(4001)), false);
+    assert.equal(validPolicyCommand("a\0b"), false);
+    assert.equal(validSubagentTool("Bash"), true);
+    assert.equal(validSubagentTool(""), false);
+    assert.equal(validSubagentTool("a\nb"), false);
+    assert.equal(validSubagentTool("x".repeat(129)), false);
+  });
+  it("bounds quota snapshots and candidates", () => {
+    assert.equal(validQuotaSnapshot("captured"), true);
+    assert.equal(validQuotaSnapshot(""), false);
+    assert.equal(validQuotaSnapshot("x".repeat(65537)), false);
+    assert.equal(validQuotaCandidates(["pi:default"]), true);
+    assert.equal(validQuotaCandidates(["codex:default", "pi:default"]), true);
+    assert.equal(validQuotaCandidates([]), false);
+    assert.equal(validQuotaCandidates([":bad"]), false);
+    assert.equal(validQuotaCandidates(["bad candidate!"]), false);
+    assert.equal(validQuotaCandidates("pi:default"), false);
   });
   it("validates mail recipients, subjects, bodies", () => {
     assert.equal(validMailTo("a@example.com"), true);

@@ -162,6 +162,8 @@ describe("expanded surface: 66 tools", () => {
     "dispatch_resolve", "sessionstart_nudge",
     "startup_network_report", "doc_audience_check", "home_seed_validate",
     "stow_cascade", "test_isolation_list", "test_run_list",
+    "pr_reviewers", "arm_policy_check", "cd_policy_check",
+    "subagent_policy_check", "supervision_instructions", "quota_choose",
     "session_start", "sessionstart_run", "sessionstart_cursor",
     "herdr_lab", "herdr_ci_cleanup", "session_cleanup",
     "claude_trust", "agy_trust", "claude_stop_autoarm",
@@ -179,10 +181,10 @@ describe("expanded surface: 66 tools", () => {
     "grant_mint", "grant_revoke", "grant_status",
   ];
 
-  it("server lists 119 tools", async () => {
+  it("server lists 125 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 119);
+    assert.equal(tools.length, 125);
   });
 
   for (const required of REQUIRED) {
@@ -216,6 +218,8 @@ describe("expanded surface: 66 tools", () => {
       "dispatch_resolve", "sessionstart_nudge",
       "startup_network_report", "doc_audience_check", "home_seed_validate",
       "stow_cascade", "test_isolation_list", "test_run_list",
+      "pr_reviewers", "arm_policy_check", "cd_policy_check",
+      "subagent_policy_check", "supervision_instructions", "quota_choose",
       "receipt_submit", "receipt_status", "daemon_status", "grant_status",
       "decision_verify", "decision_open", "decision_diverged",
     ]);
@@ -1057,6 +1061,21 @@ describe("expanded surface: 66 tools", () => {
   it("pr_poll rejects malformed urls", async () => {
     assert.equal(isError(await boxed.call("pr_poll", { url: "not a url" })), true);
   });
+  it("pr_reviewers reads candidates with url echoed", async () => {
+    const resp = await boxed.call("pr_reviewers", { url: "https://github.com/octo/repo/pull/42" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["url"], "https://github.com/octo/repo/pull/42");
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("pr-reviewers-stub"));
+  });
+  it("pr_reviewers rejects non-GitHub urls", async () => {
+    assert.equal(
+      isError(await boxed.call("pr_reviewers", { url: "https://example.com/o/r/pull/1" })),
+      true,
+    );
+  });
+  it("pr_reviewers rejects malformed urls", async () => {
+    assert.equal(isError(await boxed.call("pr_reviewers", { url: "not a url" })), true);
+  });
   it("relay_poll short-polls without error", async () => {
     const resp = await boxed.call("relay_poll", {});
     assert.equal(isError(resp), false);
@@ -1259,11 +1278,101 @@ describe("expanded surface: 66 tools", () => {
   it("test_run_list rejects bad mode without spawn", async () => {
     assert.equal(isError(await boxed.call("test_run_list", { mode: "bogus" })), true);
   });
+  it("arm_policy_check allows a benign command", async () => {
+    const resp = await boxed.call("arm_policy_check", { command: "git status" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["verdict"], "allow");
+    assert.equal(payload(resp)["command"], "git status");
+  });
+  it("arm_policy_check denies the stubbed command as a verdict, not an error", async () => {
+    const resp = await boxed.call("arm_policy_check", { command: "deny-me" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["verdict"], "deny");
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("deny"));
+  });
+  it("arm_policy_check rejects empty and oversized commands without spawn", async () => {
+    assert.equal(isError(await boxed.call("arm_policy_check", { command: "" })), true);
+    assert.equal(isError(await boxed.call("arm_policy_check", { command: "x".repeat(4001) })), true);
+    assert.equal(isError(await boxed.call("arm_policy_check", {})), true);
+  });
+  it("cd_policy_check allows a benign command", async () => {
+    const resp = await boxed.call("cd_policy_check", { command: "git status" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["verdict"], "allow");
+  });
+  it("cd_policy_check denies the stubbed command as a verdict, not an error", async () => {
+    const resp = await boxed.call("cd_policy_check", { command: "deny-me" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["verdict"], "deny");
+  });
+  it("cd_policy_check rejects empty commands without spawn", async () => {
+    assert.equal(isError(await boxed.call("cd_policy_check", { command: "" })), true);
+  });
+  it("subagent_policy_check allows a plain tool", async () => {
+    const resp = await boxed.call("subagent_policy_check", { tool: "Bash" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["verdict"], "allow");
+    assert.equal(payload(resp)["tool"], "Bash");
+  });
+  it("subagent_policy_check denies delegation-shaped tools as a verdict", async () => {
+    const resp = await boxed.call("subagent_policy_check", { tool: "Task" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["verdict"], "deny");
+  });
+  it("subagent_policy_check rejects empty and multiline tools without spawn", async () => {
+    assert.equal(isError(await boxed.call("subagent_policy_check", { tool: "" })), true);
+    assert.equal(isError(await boxed.call("subagent_policy_check", { tool: "a\nb" })), true);
+  });
+  it("supervision_instructions renders the stubbed block with flags echoed", async () => {
+    const resp = await boxed.call("supervision_instructions", { harness: "pi", read_only: true });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["harness"], "pi");
+    assert.equal(payload(resp)["read_only"], true);
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("instructions-stub"));
+  });
+  it("supervision_instructions rejects unknown harnesses and non-boolean flags", async () => {
+    assert.equal(isError(await boxed.call("supervision_instructions", { harness: "bogus" })), true);
+    assert.equal(isError(await boxed.call("supervision_instructions", { afk_mode: "loud" })), true);
+    assert.equal(isError(await boxed.call("supervision_instructions", { read_only: "yes" })), true);
+  });
+  it("quota_choose selects the stubbed eligible candidate", async () => {
+    const resp = await boxed.call("quota_choose", { snapshot: "captured", candidates: ["pi:default"] });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["eligible"], true);
+    assert.equal(payload(resp)["harness"], "pi");
+    assert.equal(payload(resp)["model"], "default");
+  });
+  it("quota_choose reports none as ineligible without error", async () => {
+    const resp = await boxed.call("quota_choose", { snapshot: "captured", candidates: ["none:default"] });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["eligible"], false);
+  });
+  it("quota_choose rejects empty snapshots and bad candidates without spawn", async () => {
+    assert.equal(isError(await boxed.call("quota_choose", { snapshot: "", candidates: ["pi:default"] })), true);
+    assert.equal(isError(await boxed.call("quota_choose", { snapshot: "captured", candidates: [] })), true);
+    assert.equal(isError(await boxed.call("quota_choose", { snapshot: "captured", candidates: [":bad"] })), true);
+    assert.equal(isError(await boxed.call("quota_choose", { snapshot: "captured", candidates: ["bad candidate!"] })), true);
+  });
   it("installs-mutating verbs are refused as unknown, even with approval", async () => {
     for (const name of [
       "bootstrap", "check_register", "check_unregister", "agents_md_ensure",
       "install_actionlint", "install_herdr", "install_shellcheck", "install_treehouse",
       "update", "workflow_lint",
+    ]) {
+      for (const args of [{}, { approval: APPROVAL }]) {
+        const resp = await boxed.call(name, args);
+        assert.ok("error" in resp && resp.error!.code === -32602, `${name} ${JSON.stringify(args)}`);
+        assert.match(String(resp.error!.message ?? ""), /unknown tool/i, name);
+      }
+    }
+  });
+  it("supervision-driving verbs are refused as unknown, even with approval", async () => {
+    for (const name of [
+      "afk_contract", "afk_launch", "afk_return", "afk_start",
+      "branch_outcome", "branch_prompt", "busy_event", "kimi_turnend_hook",
+      "operational_input", "procevent_run", "procevent_lavish", "procevent_quota",
+      "procevent_remote_reply", "procevent_when", "turnend_guard",
+      "turnend_guard_cursor", "turnend_guard_grok", "wake_grant", "watch_checkpoint",
     ]) {
       for (const args of [{}, { approval: APPROVAL }]) {
         const resp = await boxed.call(name, args);
