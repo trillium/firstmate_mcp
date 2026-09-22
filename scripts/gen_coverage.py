@@ -275,6 +275,18 @@ DENY_REASONS = {
     "fleet_sync": ("fm-fleet-sync.sh", "refreshing project clones mutates local checkouts and branch tracking; only session start and teardown own fleet sync"),
     "inactive_reconcile": ("fm-inactive-reconcile.sh", "reconciling inactive terminal outcomes mutates terminal outcome records and publishes parent channel/wake updates; only watcher poll and session start own inactive outcome reconciliation"),
     "backlog_receive": ("fm-backlog-receive.sh", "receiving remote outboxes moves backlog items between homes; only secondmate receipt loops own backlog receipt"),
+    "session_start": ("fm-session-start.sh", "running the session bootstrap acquires the home lock and runs mutating sweeps; only the opening session itself owns bootstrap"),
+    "sessionstart_run": ("fm-sessionstart-run.sh", "running the session-open digest takes the helm for a harness open; only harness session-open adapters own the runner"),
+    "sessionstart_cursor": ("fm-sessionstart-cursor.sh", "cursor session-open transport around the digest runner; only Cursor's sessionStart step owns it"),
+    "herdr_lab": ("fm-herdr-lab.sh", "provisioning and operating lab sessions drives Herdr session lifecycle; only explicitly authorized lab work owns lab sessions"),
+    "herdr_ci_cleanup": ("fm-herdr-ci-cleanup.sh", "stopping and deleting lab sessions is destructive even when scoped; only CI teardown owns it"),
+    "session_cleanup": ("fm-herdr-session-cleanup.sh", "closing panes at session start mutates live presentation state; only the lock-owning session start owns cleanup"),
+    "claude_trust": ("fm-claude-trust.sh", "pre-registering workspace trust writes the operator trust store on a spawn's behalf; only the launching spawn path owns trust"),
+    "agy_trust": ("fm-agy-trust.sh", "pre-registering Antigravity workspace trust writes the operator trust store on a spawn's behalf; only the launching spawn path owns trust"),
+    "claude_stop_autoarm": ("fm-claude-stop-autoarm.sh", "arming the watcher from a Stop hook drives shared supervision continuity; only the owning session's Stop hook fires it"),
+    "herdr_eventwait": ("backends/herdr-eventwait.py", "subscribing to a live Herdr control socket drives the session event path; only the watcher owns event waits"),
+    "herdr_workspace_move": ("backends/herdr-workspace-move.py", "sending workspace.move to a live session mutates presentation ordering; only the owning session owns moves"),
+    "backend_select": ("fm-backend.sh", "selecting and dispatching the runtime session provider reroutes every supervision verb; the provider library is sourced by the owning spawn/supervision path, never invoked directly"),
 }
 
 DENY_LIST = frozenset(DENY_REASONS.keys())
@@ -284,6 +296,11 @@ DENY_LIST = frozenset(DENY_REASONS.keys())
 # than one owning script). Reasons are shared with DENY_REASONS.
 DENY_ALSO = {
     "fm-watch-arm.sh": ("watch_start", "watch_stop"),
+    "backends/tmux.sh": ("backend_select",),
+    "backends/herdr.sh": ("backend_select",),
+    "backends/zellij.sh": ("backend_select",),
+    "backends/orca.sh": ("backend_select",),
+    "backends/cmux.sh": ("backend_select",),
 }
 
 

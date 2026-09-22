@@ -59,6 +59,8 @@ export const READ_TOOLS: ReadonlySet<string> = new Set([
   "tasks_list",
   "tasks_show",
   "tasks_ready",
+  "dispatch_resolve",
+  "sessionstart_nudge",
 ]);
 
 // Scripts the suite may execute. Anything else fails closed at the runner.
@@ -96,6 +98,8 @@ export const READ_SCRIPTS: ReadonlySet<string> = new Set([
   "fm-public-followup.sh",
   "fm-public-followup-collect.sh",
   "fm-tasks-axi.sh",
+  "fm-dispatch-resolve.sh",
+  "fm-sessionstart-nudge.sh",
 ]);
 
 export const SNAPSHOT_STUB = `node -e '
@@ -172,6 +176,8 @@ export const TASKS_AXI_STUB =
   'elif [ "$1" = "show" ]; then echo "tasks-axi-stub:show id=$2"; ' +
   'elif [ "$1" = "ready" ]; then echo "tasks-axi-stub:ready"; ' +
   'else echo "tasks-axi-stub:dashboard"; fi\n';
+export const DISPATCH_RESOLVE_STUB = 'echo "dispatch-resolve-stub:$1"\n';
+export const SESSIONSTART_NUDGE_STUB = 'echo "sessionstart-nudge-stub"\n';
 export const HOME_SUMMARY_FIXTURE = {
   schema: "fm-secondmate-home-summary.v1",
   generated: "stub",
@@ -237,6 +243,8 @@ export function setup(): Fixture {
   writeStub(path.join(scratch, "bin"), "fm-public-followup.sh", PUBLIC_FOLLOWUP_STUB);
   writeStub(path.join(scratch, "bin"), "fm-public-followup-collect.sh", PUBLIC_FOLLOWUP_COLLECT_STUB);
   writeStub(path.join(scratch, "bin"), "fm-tasks-axi.sh", TASKS_AXI_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-dispatch-resolve.sh", DISPATCH_RESOLVE_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-sessionstart-nudge.sh", SESSIONSTART_NUDGE_STUB);
 
   const savedFmHome = process.env.FM_HOME;
   const savedStateOverride = process.env.FM_STATE_OVERRIDE;

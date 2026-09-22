@@ -105,6 +105,10 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Coverage provenance outside `bin/fm-*.sh` (e.g. `bin/fm_voice_records.py`)
   needs a `bin/` key in `scripts/gen_coverage.py` COMMAND_AREAS; it renders
   via the special-rows path, never the upstream `.sh` enumeration.
+  Sourced-library surfaces with no CLI (e.g. `backends/*.sh` adapters) are
+  denied toolless via `DENY_ALSO` under one named deny (no invented no-op
+  tool); every DENY name with a real CLI keeps its approval-gated tool +
+  tier so the tiers/tools 1:1 invariant the TS suites enforce still holds.
 - Supervised deployment (`docs/DEPLOYMENT.md`): launchd unit template (`deploy/com.firstmate.mcp.plist.template`), fail-closed stdio smoke gate (`scripts/fm-mcp-smoke.sh`, `tests/fm-mcp-smoke.test.sh`), plist renderer (`scripts/fm-mcp-render-plist.sh`, `tests/fm-mcp-deploy.test.sh`), and copytruncate log rotation (`scripts/fm-mcp-logrotate.sh`, `tests/fm-mcp-logrotate.test.sh`).
 - Commit hooks: `bash scripts/setup-hooks.sh` configures `core.hooksPath = .githooks`
   (enforcing conventional commits `feat|fix|chore|docs|refactor|test|ci|perf|build|revert|style`
