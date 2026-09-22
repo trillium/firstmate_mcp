@@ -3231,12 +3231,37 @@ async function toolTestIsolationList(args: ToolArgs, ctx: ToolContext): Promise<
   // List modes only: proven candidates or kept-serial exclusions.
   // Proof runs (concurrent workers, timing artifacts) stay out.
   const flag = mode === "exclusions" ? "--list-exclusions" : "--list";
-  const { payload, isError } = await ownedCall(
-    argv(path.join(ctx.binDir, "fm-test-isolation-proof.sh"), flag, "--pool", pool as string),
-    "test isolation list failed",
-    ctx.run,
-  );
-  if (!isError) return { payload: { ...payload, mode, pool }, isError: false };
+  const script = path.join(ctx.binDir, "fm-test-isolation-proof.sh");
+  // `--pool` is upstream's newer selector; the served fork line's older script
+  // rejects it outright ("unknown option: --pool", exit 2), which made this read
+  // fail on the live home while working against the upstream pin. Probe the
+  // script's own source for the flag rather than assuming the interface, and say
+  // in the payload whether the selection could be honoured — the same fork-shape
+  // class as the decision core, and a concrete case of the unvalidated flag
+  // surfaces tracked in project-2od.14.
+  let poolHonored = false;
+  try {
+    poolHonored = fs.readFileSync(script, "utf8").includes("--pool");
+  } catch {
+    /* unreadable script: fall back to the modern argv and let the run report */
+    poolHonored = true;
+  }
+  const cmd = poolHonored ? argv(script, flag, "--pool", pool as string) : argv(script, flag);
+  const { payload, isError } = await ownedCall(cmd, "test isolation list failed", ctx.run);
+  if (!isError) {
+    return {
+      payload: {
+        ...payload,
+        mode,
+        pool,
+        pool_honored: poolHonored,
+        ...(poolHonored
+          ? {}
+          : { note: "this home's fm-test-isolation-proof.sh predates --pool; the list is the whole proven set" }),
+      },
+      isError: false,
+    };
+  }
   return { payload, isError: true };
 }
 
