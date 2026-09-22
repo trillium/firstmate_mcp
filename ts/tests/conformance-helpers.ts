@@ -210,7 +210,12 @@ export const STARTUP_NETWORK_STUB = 'echo "network-stub:$1"\n';
 export const DOC_AUDIENCE_STUB = 'echo "doc-audience-stub:$2"\n';
 export const HOME_SEED_STUB = 'echo "home-seed-stub:$1"\n';
 export const STOW_CASCADE_STUB = 'echo "stow-cascade-stub"\n';
-export const TEST_ISOLATION_STUB = 'echo "isolation-stub:$1 pool=$3"\n';
+// Models a script that supports the --pool selector: the doorway probes the
+// script source for it (see artifact-cache.test.ts for the branch where a served
+// line predates the flag) and the conformance fixture compares against a direct
+// run of this same stub, so the two must agree.
+export const TEST_ISOLATION_STUB =
+  '# supports --pool\necho "isolation-stub:$1 pool=$3"\n';
 export const TEST_RUN_STUB = 'echo "test-run-stub:$1"\n';
 export const PR_REVIEWERS_STUB = 'echo "reviewers-stub:$1"\n';
 export const ARM_PRETOOL_STUB =
