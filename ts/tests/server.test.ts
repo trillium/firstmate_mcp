@@ -20,6 +20,7 @@ import {
   payload,
   removeHome,
 } from "./helpers.js";
+import { TIER_FORBIDDEN, TIER_OPEN, TIER_STEER, tierOf } from "../src/auth.js";
 import { TOOLS } from "../src/tools.js";
 
 describe("handshake and reads", () => {
@@ -201,34 +202,18 @@ describe("expanded surface: 66 tools", () => {
     });
   }
 
-  it("every authority tool schema requires approval", async () => {
+  it("every approval-gated tool schema requires approval", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{
       name: string;
       inputSchema: { required?: string[] };
     }>;
-    const open = new Set([
-      "fleet_snapshot", "backlog", "crew_state", "status_tail", "send_message", "fleet_poll",
-      "peek", "fleet_view", "review_diff", "bearings_snapshot", "wake_drain", "guard_check",
-      "remote_doctor", "remote_file", "remote_delta", "extension_list", "extension_inspect", "handoff_status",
-      "harness_detect", "project_mode", "lock_status", "lease_check",
-      "bearings_board_path", "inbox_status", "inbox_list",
-      "home_summary", "home_summary_refresh", "contributions_snapshot", "contributions_pending",
-      "mail_status", "mail_read", "mail_check", "voice_status",
-      "lint_versions", "tool_update_check", "vendor_auth_probe",
-      "startup_memory", "pr_state", "pr_poll", "relay_poll",
-      "public_followup_pending", "public_followup_collect",
-      "tasks_list", "tasks_show", "tasks_ready",
-      "dispatch_resolve", "sessionstart_nudge",
-      "startup_network_report", "doc_audience_check", "home_seed_validate",
-      "stow_cascade", "test_isolation_list", "test_run_list",
-      "pr_reviewers", "arm_policy_check", "cd_policy_check",
-      "subagent_policy_check", "supervision_instructions", "quota_choose",
-      "receipt_submit", "receipt_status", "daemon_status", "grant_status",
-      "decision_verify", "decision_open", "decision_diverged",
-    ]);
+    // Derived from the tier table, not a hand-maintained allowlist: that list was
+    // how adding a new open read (doctor) turned into an unrelated failure here,
+    // which is the same drift the code-forbidden set suffered from.
     for (const tool of tools) {
-      if (open.has(tool.name)) continue;
+      const tier = tierOf(tool.name);
+      if (tier === TIER_OPEN || tier === TIER_STEER || tier === TIER_FORBIDDEN) continue;
       assert.ok(
         (tool.inputSchema.required ?? []).includes("approval"),
         `${tool.name} schema must require approval`,
