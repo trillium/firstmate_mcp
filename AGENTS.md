@@ -163,6 +163,10 @@ When updating this file, preserve this bar for all agents and keep entries conci
 - Test runner: `pnpm run test:dev` selectively reruns
   recorded failing test files during local development, while CI and PR
   always run the full suite (`bun test` / `pnpm test`).
+- Never gate on the exit status of a *piped* command: `pnpm test 2>&1 | tail -n`
+  reports tail's status, so a failing suite can surface as exit 0 (observed
+  2026-09-22: a background run reported exit 0 while its own output said
+  "423 pass, 13 fail"). Read the summary line, or avoid the pipe.
 - AST proof caching (`ts/src/proof/`, `ts/proof-cache/`): content-addressed AST proof caching for explicitly bounded unit tests (`ts/proof-cache/contracts.json`, `ts/proof-cache/manifest.json`). Uses ast-grep to fingerprint AST nodes normalized against formatting and comments. Runner skips passing bounded unit suites while ineligible tests (integration/timing/conformance) always execute; inspect via `pnpm run proof:check` and `pnpm run proof:explain`.
 - CI path filters (`.github/workflows/mcp-ci.yml`): non-code and docs-only changes
   skip heavy proof suites (`ts-server`, `upstream`) while fast validators
