@@ -81,6 +81,12 @@ automatic merge.
 | `stow_cascade` | `bin/fm-stow-cascade.sh` | `schema/contracts.yaml#stow_cascade` | ✅ | ✅ | intentional: enumeration only; curation stays with the /stow skill |
 | `test_isolation_list` | `bin/fm-test-isolation-proof.sh --list` | `schema/contracts.yaml#test_isolation_list` | ✅ | ✅ | intentional: candidate/exclusion lists only; proof runs stay out |
 | `test_run_list` | `bin/fm-test-run.sh --list-families` | `schema/contracts.yaml#test_run_list` | ✅ | ✅ | intentional: topology lists only; suite runs stay out |
+| `pr_reviewers` | `bin/fm-pr-reviewers.sh <pr-url>` | `schema/contracts.yaml#pr_reviewers` | ✅ | ✅ | intentional: advisory reviewer candidates only; requesting, assigning, and merging stay out |
+| `arm_policy_check` | `bin/fm-arm-pretool-check.sh --command` | `schema/contracts.yaml#arm_policy_check` | ✅ | ✅ | intentional: classification only; the hook never executes the submitted command |
+| `cd_policy_check` | `bin/fm-cd-pretool-check.sh --command` | `schema/contracts.yaml#cd_policy_check` | ✅ | ✅ | intentional: classification only; inert outside the primary checkout |
+| `subagent_policy_check` | `bin/fm-subagent-pretool-check.sh --tool` | `schema/contracts.yaml#subagent_policy_check` | ✅ | ✅ | intentional: tool-shape classification only; delegation stays out |
+| `supervision_instructions` | `bin/fm-supervision-instructions.sh --harness` | `schema/contracts.yaml#supervision_instructions` | ✅ | ✅ | intentional: pure render only; arming, draining, or repairing stays out |
+| `quota_choose` | `bin/fm-quota-choose.sh --candidate` | `schema/contracts.yaml#quota_choose` | ✅ | ✅ | intentional: selection over a captured snapshot only; fresh snapshots and dispatch stay out |
 
 Equivalence proof: `tests/conformance/` replays read tools against the
 owning scripts under a scratch home; write tools never dispatch there by

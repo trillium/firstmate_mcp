@@ -855,6 +855,102 @@ contracts:
       header: bin/fm-pr-poll.sh:1-30
       doc: INVENTORY.md
     notes: Read-only static watcher check source; returns merged when merged, silent otherwise.
+  - name: pr_reviewers
+    command: bin/fm-pr-reviewers.sh
+    flags: ["<pr-url>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["url", "stdout"]
+    exits:
+      zero: one reviewer candidate per line ordered by unique-commit count, or a NO CANDIDATES note
+      nonzero: lookup or usage refusal, including non-GitHub URLs; stderr carries the reason
+    stability: stable
+    pinned: fm-pr-reviewers.v1
+    evidence:
+      header: bin/fm-pr-reviewers.sh:1-30
+      doc: INVENTORY.md
+    notes: Read-only advisory reviewer candidates over a validated GitHub PR URL; one API read per changed path, so wide PRs may time out. Never requests, assigns, or merges.
+  - name: arm_policy_check
+    command: bin/fm-arm-pretool-check.sh
+    flags: ["--command", "<shell-text>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["verdict", "stdout", "stderr"]
+    exits:
+      zero: allow (silent); exit 2 is a deny verdict with the reason on its outputs, not a failure
+      nonzero: invalid classification result; stderr carries the reason
+    stability: stable
+    pinned: fm-arm-pretool-check.classify.v1
+    evidence:
+      header: bin/fm-arm-pretool-check.sh:1-30
+      doc: INVENTORY.md
+    notes: Read-only watcher-arm policy classification of one bounded shell command; never executes it.
+  - name: cd_policy_check
+    command: bin/fm-cd-pretool-check.sh
+    flags: ["--command", "<shell-text>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["verdict", "stdout", "stderr"]
+    exits:
+      zero: allow (silent, also when inert outside the primary checkout); exit 2 is a deny verdict, not a failure
+      nonzero: invalid classification result; stderr carries the reason
+    stability: stable
+    pinned: fm-cd-pretool-check.classify.v1
+    evidence:
+      header: bin/fm-cd-pretool-check.sh:1-30
+      doc: INVENTORY.md
+    notes: Read-only cd-guard policy classification of one bounded shell command; never executes it.
+  - name: subagent_policy_check
+    command: bin/fm-subagent-pretool-check.sh
+    flags: ["--tool", "<tool-name>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["verdict", "stdout", "stderr"]
+    exits:
+      zero: allow (silent); exit 2 is a deny verdict with the reason on its outputs, not a failure
+      nonzero: invalid classification result; stderr carries the reason
+    stability: stable
+    pinned: fm-subagent-pretool-check.classify.v1
+    evidence:
+      header: bin/fm-subagent-pretool-check.sh:1-30
+      doc: INVENTORY.md
+    notes: Read-only subagent-guard classification of one short harness tool name; never delegates.
+  - name: supervision_instructions
+    command: bin/fm-supervision-instructions.sh
+    flags: ["--harness", "<name>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: rendered operating block (or one repair line with --repair-line)
+      nonzero: invalid arguments; stderr carries the reason
+    stability: stable
+    pinned: fm-supervision-instructions.render.v1
+    evidence:
+      header: bin/fm-supervision-instructions.sh:1-30
+      doc: INVENTORY.md
+    notes: Pure render of the tracked supervision protocol for one harness; an omitted harness auto-detects. Never arms, drains, or repairs.
+  - name: quota_choose
+    command: bin/fm-quota-choose.sh
+    flags: ["--candidate", "<harness:model>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["eligible", "harness", "model", "stdout"]
+    exits:
+      zero: first eligible candidate as "<harness> <model>"; exit 1 prints "none" when no candidate is eligible
+      nonzero: invalid snapshot, candidates, or schema version; stderr carries the reason
+    stability: stable
+    pinned: fm-quota-choose.select.v1
+    evidence:
+      header: bin/fm-quota-choose.sh:1-30
+      doc: INVENTORY.md
+    notes: Deterministic selection over an already-captured quota snapshot on stdin (JSON schemaVersion 5 or TOON); never snapshots or dispatches.
   - name: relay_poll
     command: bin/fm-x-poll.sh
     flags: ["<none>"]

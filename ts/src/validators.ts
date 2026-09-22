@@ -26,6 +26,10 @@ import {
   MAIL_TO_MAX_CHARS,
   PROJECT_RE,
   PR_URL_RE,
+  POLICY_COMMAND_MAX_CHARS,
+  QUOTA_CANDIDATE_RE,
+  QUOTA_CANDIDATES_MAX,
+  QUOTA_SNAPSHOT_MAX_CHARS,
   REL_PATH_RE,
   REMOTE_FILE_BYTES_MAX,
   REMOTE_FILE_BYTES_MIN,
@@ -35,6 +39,9 @@ import {
   SNAPSHOT_MAX_LIMIT,
   SNAPSHOT_MIN_LIMIT,
   STARTUP_MEMORY_MODES,
+  SUBAGENT_TOOL_MAX_CHARS,
+  SUPERVISION_AFK_MODES,
+  SUPERVISION_INSTRUCTIONS_HARNESSES,
   TEST_ISOLATION_LIST_MODES,
   TEST_RUN_LIST_MODES,
   VENDOR_AUTH_PROBES,
@@ -374,6 +381,66 @@ export function validTestRunListMode(value: unknown): value is string {
 /** Isolation pool: portable or a test-runner family name (upstream re-validates). */
 export function validIsolationPool(value: unknown): value is string {
   return typeof value === "string" && ISOLATION_POOL_RE.test(value);
+}
+
+/** Supervision-instructions harness: one of the eight tracked protocol snippets. */
+export function validSupervisionHarness(value: unknown): value is string {
+  return typeof value === "string" && (SUPERVISION_INSTRUCTIONS_HARNESSES as readonly string[]).includes(value);
+}
+
+/** Supervision away-mode wording: away (default) or quiet. */
+export function validSupervisionAfkMode(value: unknown): value is string {
+  return typeof value === "string" && (SUPERVISION_AFK_MODES as readonly string[]).includes(value);
+}
+
+/**
+ * Shell command for the arm/cd policy classifiers: bounded text passed as
+ * one argv (the scripts never execute it). Multiline commands are
+ * legitimate shell; NUL is never legitimate in argv.
+ */
+export function validPolicyCommand(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 1 || value.length > POLICY_COMMAND_MAX_CHARS) return false;
+  // eslint-disable-next-line no-control-regex
+  if (/\x00/.test(value)) return false;
+  return true;
+}
+
+/** Harness tool name for the subagent policy classifier: short single line. */
+export function validSubagentTool(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 1 || value.length > SUBAGENT_TOOL_MAX_CHARS) return false;
+  if (/[\r\n]/.test(value)) return false;
+  return true;
+}
+
+/**
+ * Quota-axi snapshot for the quota-choose selector: bounded captured text
+ * (JSON schemaVersion 5 or the TOON rendering) piped on stdin, never a path.
+ */
+export function validQuotaSnapshot(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 1 || value.length > QUOTA_SNAPSHOT_MAX_CHARS) return false;
+  return true;
+}
+
+/**
+ * Ordered dispatch candidate: <harness>:<model> token owned by
+ * bin/fm-quota-choose.sh (mirrors its reject of empty, leading-colon,
+ * and unsafe-character candidates; the script re-validates).
+ */
+export function validQuotaCandidate(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 1 || value.length > SUBAGENT_TOOL_MAX_CHARS) return false;
+  if (value.startsWith(":")) return false;
+  return QUOTA_CANDIDATE_RE.test(value);
+}
+
+/** Ordered dispatch candidates: at least one, bounded count. */
+export function validQuotaCandidates(value: unknown): value is string[] {
+  if (!Array.isArray(value)) return false;
+  if (value.length < 1 || value.length > QUOTA_CANDIDATES_MAX) return false;
+  return value.every(validQuotaCandidate);
 }
 
 /** SMTP recipient: single line, no whitespace, must contain @. */

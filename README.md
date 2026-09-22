@@ -20,9 +20,11 @@ python3 scripts/gen_readme_lists.py --check   # verify the embed is current
 No-approval tools: the adapter's typed projection equals the owning
 script's observable output (modulo the envelope wrap).
 
+- `arm_policy_check` — via `fm-arm-pretool-check.sh` (pinned in schema/contracts.yaml)
 - `backlog` — via `fm-fleet-snapshot.sh` (pinned in schema/contracts.yaml)
 - `bearings_board_path` — via `fm-bearings-board.sh` (pinned in schema/contracts.yaml)
 - `bearings_snapshot` — via `fm-bearings-snapshot.sh` (pinned in schema/contracts.yaml)
+- `cd_policy_check` — via `fm-cd-pretool-check.sh` (pinned in schema/contracts.yaml)
 - `contributions_pending` — via `fm-contributions.sh` (pinned in schema/contracts.yaml)
 - `contributions_snapshot` — via `fm-contributions.sh` (pinned in schema/contracts.yaml)
 - `crew_state` — via `fm-crew-state.sh` (pinned in schema/contracts.yaml)
@@ -52,10 +54,12 @@ script's observable output (modulo the envelope wrap).
 - `mail_status` — via `fm-mail.sh` (pinned in schema/contracts.yaml)
 - `peek` — via `fm-peek.sh` (pinned in schema/contracts.yaml)
 - `pr_poll` — via `fm-pr-poll.sh` (pinned in schema/contracts.yaml)
+- `pr_reviewers` — via `fm-pr-reviewers.sh` (pinned in schema/contracts.yaml)
 - `pr_state` — via `fm-pr-state.sh` (pinned in schema/contracts.yaml)
 - `project_mode` — via `fm-project-mode.sh` (pinned in schema/contracts.yaml)
 - `public_followup_collect` — via `fm-public-followup-collect.sh` (pinned in schema/contracts.yaml)
 - `public_followup_pending` — via `fm-public-followup.sh` (pinned in schema/contracts.yaml)
+- `quota_choose` — via `fm-quota-choose.sh` (pinned in schema/contracts.yaml)
 - `relay_poll` — via `fm-x-poll.sh` (pinned in schema/contracts.yaml)
 - `remote_delta` — via `fm-remote-delta-read.sh` (pinned in schema/contracts.yaml)
 - `remote_doctor` — via `fm-remote-doctor.sh` (pinned in schema/contracts.yaml)
@@ -67,6 +71,8 @@ script's observable output (modulo the envelope wrap).
 - `startup_network_report` — via `fm-startup-network.sh` (pinned in schema/contracts.yaml)
 - `status_tail` — via `native (no owning script)` (pinned in schema/contracts.yaml)
 - `stow_cascade` — via `fm-stow-cascade.sh` (pinned in schema/contracts.yaml)
+- `subagent_policy_check` — via `fm-subagent-pretool-check.sh` (pinned in schema/contracts.yaml)
+- `supervision_instructions` — via `fm-supervision-instructions.sh` (pinned in schema/contracts.yaml)
 - `tasks_list` — via `fm-tasks-axi.sh` (pinned in schema/contracts.yaml)
 - `tasks_ready` — via `fm-tasks-axi.sh` (pinned in schema/contracts.yaml)
 - `tasks_show` — via `fm-tasks-axi.sh` (pinned in schema/contracts.yaml)
@@ -107,12 +113,19 @@ revalidated ids/paths/text, explicit per-call approval.
 
 Refused by the adapter deny-list (no tool, answered unknown):
 
+- `afk_contract` (out of smarts-only scope)
+- `afk_launch` (out of smarts-only scope)
+- `afk_return` (out of smarts-only scope)
+- `afk_start` (out of smarts-only scope)
 - `agents_md_ensure` (out of smarts-only scope)
 - `agy_trust` (out of smarts-only scope)
 - `arm_pr_check` (code-forbidden)
 - `backend_select` (out of smarts-only scope)
 - `backlog_receive` (out of smarts-only scope)
 - `bootstrap` (out of smarts-only scope)
+- `branch_outcome` (out of smarts-only scope)
+- `branch_prompt` (out of smarts-only scope)
+- `busy_event` (out of smarts-only scope)
 - `check_register` (out of smarts-only scope)
 - `check_unregister` (out of smarts-only scope)
 - `claude_stop_autoarm` (out of smarts-only scope)
@@ -132,9 +145,16 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - `install_herdr` (out of smarts-only scope)
 - `install_shellcheck` (out of smarts-only scope)
 - `install_treehouse` (out of smarts-only scope)
+- `kimi_turnend_hook` (out of smarts-only scope)
 - `merge_local` (code-forbidden)
 - `merge_pr` (code-forbidden)
 - `on_execute` (out of smarts-only scope)
+- `operational_input` (out of smarts-only scope)
+- `procevent_lavish` (out of smarts-only scope)
+- `procevent_quota` (out of smarts-only scope)
+- `procevent_remote_reply` (out of smarts-only scope)
+- `procevent_run` (out of smarts-only scope)
+- `procevent_when` (out of smarts-only scope)
 - `promote_scout` (code-forbidden)
 - `public_followup_emit` (out of smarts-only scope)
 - `reap_orphans` (out of smarts-only scope)
@@ -154,7 +174,12 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - `sessionstart_cursor` (out of smarts-only scope)
 - `sessionstart_run` (out of smarts-only scope)
 - `teardown_crew` (code-forbidden)
+- `turnend_guard` (out of smarts-only scope)
+- `turnend_guard_cursor` (out of smarts-only scope)
+- `turnend_guard_grok` (out of smarts-only scope)
 - `update` (out of smarts-only scope)
+- `wake_grant` (out of smarts-only scope)
+- `watch_checkpoint` (out of smarts-only scope)
 - `watch_start` (out of smarts-only scope)
 - `watch_stop` (out of smarts-only scope)
 - `workflow_lint` (out of smarts-only scope)
@@ -194,7 +219,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` implements the 80-tool
+- TypeScript sibling — `ts/` implements the 86-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Customizable follow-on actions — `ts/src/followon.ts` provides configurable
@@ -238,11 +263,11 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | Area | Mirrored | Denied | Gap |
 | --- | --- | --- | --- |
 | Fleet runs | 3 | 2 | 3 |
-| Supervision | 8 | 4 | 28 |
+| Supervision | 13 | 23 | 4 |
 | Sessions | 6 | 17 | 2 |
 | Backlog / decisions | 5 | 1 | 7 |
 | Secondmates / remotes | 8 | 10 | 2 |
-| PR pipeline | 3 | 5 | 3 |
+| PR pipeline | 4 | 5 | 2 |
 | Relay | 6 | 2 | 0 |
 | Voice / mail | 4 | 0 | 0 |
 | Digests | 6 | 0 | 0 |

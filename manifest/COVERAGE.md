@@ -15,16 +15,16 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | Area | Mirrored | Denied | Gap |
 | --- | --- | --- | --- |
 | [Fleet runs](#fleet-runs) | 3 | 2 | 3 |
-| [Supervision](#supervision) | 8 | 4 | 28 |
+| [Supervision](#supervision) | 13 | 23 | 4 |
 | [Sessions](#sessions) | 6 | 17 | 2 |
 | [Backlog / decisions](#backlog-decisions) | 5 | 1 | 7 |
 | [Secondmates / remotes](#secondmates-remotes) | 8 | 10 | 2 |
-| [PR pipeline](#pr-pipeline) | 3 | 5 | 3 |
+| [PR pipeline](#pr-pipeline) | 4 | 5 | 2 |
 | [Relay](#relay) | 6 | 2 | 0 |
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 |
 | [Installs](#installs) | 10 | 10 | 3 |
-| **Total** | **59** | **51** | **48** |
+| **Total** | **65** | **70** | **23** |
 
 ## Fleet runs
 
@@ -48,44 +48,44 @@ Control and data planes for live crews: daemon, lifecycle verbs, steer, wakes, g
 | Command | Mirror status | Notes |
 | --- | --- | --- |
 | `file: state/<id>.status` | mirrored — `status_tail` (ts✔) | Wake-event history tail for one task; history only, never current state. |
-| `fm-afk-contract.sh` | gap | away-posture record owner |
-| `fm-afk-launch.sh` | gap | non-visible terminal launch for the daemon |
-| `fm-afk-return.sh` | gap | away-mode return catch-up gate |
-| `fm-afk-start.sh` | gap | away-mode daemon foreground |
-| `fm-arm-pretool-check.sh` | gap | PreToolUse command-policy hook |
+| `fm-afk-contract.sh` | denied-by-design — `afk_contract` | away-posture record owner. the away-posture record gates supervision and archives the captain's verbatim mandate clauses; only the /afk entry and return paths own the record |
+| `fm-afk-launch.sh` | denied-by-design — `afk_launch` | non-visible terminal launch for the daemon. entry and exit own the away-mode daemon terminal lifecycle and posture record; only the away-mode entry path owns launches |
+| `fm-afk-return.sh` | denied-by-design — `afk_return` | away-mode return catch-up gate. the return shuts the daemon down and owns the catch-up gate; only the return path owns returns |
+| `fm-afk-start.sh` | denied-by-design — `afk_start` | away-mode daemon foreground. starting execs the supervise daemon in the foreground; only harness-tracked launch owns daemon starts |
+| `fm-arm-pretool-check.sh` | mirrored — `arm_policy_check` (ts✔) | PreToolUse command-policy hook |
 | `fm-attended-start.sh` (removed upstream) | gap | attended triage daemon; removed upstream since pin |
-| `fm-branch-outcome.sh` | gap | supervision-branch outcome store |
-| `fm-branch-prompt.sh` | gap | supervision-branch system prompt emitter |
-| `fm-busy-event.sh` | gap | sole writer of the busy-state contract |
-| `fm-cd-pretool-check.sh` | gap | cwd-change policy hook |
+| `fm-branch-outcome.sh` | denied-by-design — `branch_outcome` | supervision-branch outcome store. the append-only outcome store with its read-cursor and processed-marker protocol is the branch's private channel; only the Pi branch extension and session-start replay own it |
+| `fm-branch-prompt.sh` | denied-by-design — `branch_prompt` | supervision-branch system prompt emitter. the branch system prompt carries the branch's authority context; only the branch host owns prompt construction |
+| `fm-busy-event.sh` | denied-by-design — `busy_event` | sole writer of the busy-state contract. the sole writer of the semantic busy-state contract; only adapter wiring and the owning spawn own busy writes |
+| `fm-cd-pretool-check.sh` | mirrored — `cd_policy_check` (ts✔) | cwd-change policy hook |
 | `fm-control.sh` | mirrored — `lifecycle_interrupt` (ts✔), `lifecycle_exit` (ts✔), `lifecycle_relaunch` (ts✔), `lifecycle_suspend` (ts✔), `lifecycle_resume` (ts✔) | lifecycle verbs behind approval |
 | `fm-crew-state.sh` | mirrored — `crew_state` (ts✔) | deterministic current-state read |
 | `fm-guard.sh` | mirrored — `guard_check` (ts✔) | watcher liveness / worktree-tangle guard |
-| `fm-kimi-turnend-hook.sh` | gap | kimi turn-end hook |
+| `fm-kimi-turnend-hook.sh` | denied-by-design — `kimi_turnend_hook` | kimi turn-end hook. installing edits $HOME/.kimi-code/config.toml outside any home; only the Kimi session setup owns hook installs |
 | `fm-lease.sh` | mirrored — `lease_check` (ts✔) | per-task supervision leases |
 | `fm-lock.sh` | mirrored — `lock_status` (ts✔) | per-home session lock |
 | `fm-nm-run-is-live.sh` (removed upstream) | gap | single-run liveness probe; removed upstream since pin |
 | `fm-no-mistakes-liveness.sh` (removed upstream) | gap | shared-daemon liveness match; removed upstream since pin |
-| `fm-operational-input.sh` | gap | cross-language operational-input protocol |
-| `fm-procevent-lavish.sh` | gap | rich event rendering |
-| `fm-procevent-quota.sh` | gap | event-path quota accounting |
-| `fm-procevent-remote-reply.sh` | gap | remote reply intake on the event path |
-| `fm-procevent-when.sh` | gap | condition->action adapter |
-| `fm-procevent.sh` | gap | process-to-event runner |
-| `fm-quota-choose.sh` | gap | quota-eligible candidate choice for dispatch |
+| `fm-operational-input.sh` | denied-by-design — `operational_input` | cross-language operational-input protocol. encoding mints supervisor-routed marked inputs; only the owning supervision path owns marked-input construction, and parsing stays in-process as a sourced library |
+| `fm-procevent-lavish.sh` | denied-by-design — `procevent_lavish` | rich event rendering. the lavish adapter's poll runs a blocking wait on an external review surface; only the process-event runner owns adapter polls |
+| `fm-procevent-quota.sh` | denied-by-design — `procevent_quota` | event-path quota accounting. the quota adapter's poll blocks until quota exhausts or errors; only the process-event runner owns adapter polls |
+| `fm-procevent-remote-reply.sh` | denied-by-design — `procevent_remote_reply` | remote reply intake on the event path. reply intake ingests remote status deltas into the parent stream; only the process-event runner owns autohandle |
+| `fm-procevent-when.sh` | denied-by-design — `procevent_when` | condition->action adapter. arming binds and fires an arbitrary action executable on a condition; only the process-event runner owns condition-action sources |
+| `fm-procevent.sh` | denied-by-design — `procevent_run` | process-to-event runner. the runner executes long-polling children to completion as supervised background processes; only the watcher owns event sources |
+| `fm-quota-choose.sh` | mirrored — `quota_choose` (ts✔) | quota-eligible candidate choice for dispatch |
 | `fm-send.sh` | mirrored — `send_message` (ts✔) | data plane: prose steer for one crew |
-| `fm-subagent-pretool-check.sh` | gap | subagent policy hook |
+| `fm-subagent-pretool-check.sh` | mirrored — `subagent_policy_check` (ts✔) | subagent policy hook |
 | `fm-supervise-daemon.sh` | denied-by-design — `daemon_start`, `daemon_stop`, `daemon_restart` | the shared daemon binary. shared daemon serves every lane; only firstmate manages it |
-| `fm-supervision-instructions.sh` | gap | supervisor prompt surface |
+| `fm-supervision-instructions.sh` | mirrored — `supervision_instructions` (ts✔) | supervisor prompt surface |
 | `fm-teardown.sh` | denied-by-design — `teardown_crew` | endpoint + worktree teardown. discards endpoint, worktree, and uncommitted work |
-| `fm-turnend-guard-cursor.sh` | gap | cursor turn-end guard |
-| `fm-turnend-guard-grok.sh` | gap | grok turn-end guard |
-| `fm-turnend-guard.sh` | gap | turn-end guard |
+| `fm-turnend-guard-cursor.sh` | denied-by-design — `turnend_guard_cursor` | cursor turn-end guard. the Cursor stop-hook park holds the turn boundary open until a watcher wake; only Cursor's stop step owns the park |
+| `fm-turnend-guard-grok.sh` | denied-by-design — `turnend_guard_grok` | grok turn-end guard. the Grok Stop-hook adapter resumes the owning session; only Grok's Stop hook owns it |
+| `fm-turnend-guard.sh` | denied-by-design — `turnend_guard` | turn-end guard. the turn-end guard blocks a primary's turn boundary; only the harness Stop hooks fire it |
 | `fm-wake-drain.sh` | mirrored — `wake_drain` (ts✔) | durable wake-queue drain |
-| `fm-wake-grant.sh` | gap | wake-grant mechanics |
+| `fm-wake-grant.sh` | denied-by-design — `wake_grant` | wake-grant mechanics. grant activation and publication mutate wake-queue ownership under the wake lock; only the wake path owns grants |
 | `fm-wake-memo.sh` (removed upstream) | gap | wake memo record/consult/prune; removed upstream since pin |
 | `fm-watch-arm.sh` | denied-by-design — `watch_start`, `watch_stop` | watcher arm path. watcher control would fork shared supervision state |
-| `fm-watch-checkpoint.sh` | gap | watcher checkpoint path; read-adjacent, unmirrored |
+| `fm-watch-checkpoint.sh` | denied-by-design — `watch_checkpoint` | watcher checkpoint path; read-adjacent, unmirrored. a checkpoint runs the watcher in the foreground for up to a bounded window; only the harness checkpoint path owns foreground watcher runs |
 | `fm-watch.sh` | denied-by-design — `watch_start`, `watch_stop` | watcher control verbs. watcher control would fork shared supervision state |
 
 ## Sessions
@@ -179,7 +179,7 @@ Check arming, polls, reviews, and landing: the code-adjacent surface that stays 
 | `fm-pr-check.sh` | denied-by-design — `arm_pr_check` | record PR-ready task + arm merge poll. arming a merge poll mutates CI/landing state |
 | `fm-pr-merge.sh` | denied-by-design — `merge_pr` | landing merge; merge authority owns this, never MCP. landing merges belong to the configured merge authority |
 | `fm-pr-poll.sh` | mirrored — `pr_poll` (ts✔) | merge-poll check source; unmirrored read |
-| `fm-pr-reviewers.sh` | gap | reviewer assignment; unmirrored |
+| `fm-pr-reviewers.sh` | mirrored — `pr_reviewers` (ts✔) | reviewer assignment; unmirrored |
 | `fm-pr-state.sh` | mirrored — `pr_state` (ts✔) | PR state read; unmirrored |
 | `fm-promote.sh` | denied-by-design — `promote_scout` | promote scout to ship; code-writing path stays out. code-writing path: scouts report, ships launch separately |
 | `fm-review-diff.sh` | mirrored — `review_diff` (ts✔) | branch-vs-base review diff; unmirrored read |
