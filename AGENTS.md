@@ -140,6 +140,18 @@ When updating this file, preserve this bar for all agents and keep entries conci
   `scripts/mcp-shift-schedule.sh`, daily job
   `.github/workflows/mcp-shift-schedule.yml`, fake-feed proof
   `tests/mcp-shift-atom.test.sh` (plus `tests/mcp-shift-schedule.test.sh`).
+  Repin: fetch+checkout the new sha in `sources/firstmate`, then update
+  `upstream.gitlink_at_seed` (`manifest/FEATURES.yaml`) and
+  `provenance.upstream.gitlink` (`schema/contracts.yaml`) in the same commit —
+  both validators compare them to the live gitlink — and re-run
+  `scripts/gen_coverage.py`. Drift compares content only: checkout `mtime` and
+  the executed-help family (`flags`, `help_*`, `schema_hint`) are recorded as
+  triage evidence but never compared (see `drift/diff.py` IGNORED_FIELDS),
+  because they are not pure functions of the file. Comparing them once
+  reported 177/177 surfaces changed for a single unchanged revision; one
+  surface's help printed a live watcher pid, another timed out under load.
+  `tests/fm-manifest.test.sh` derives the gitlink shape from the manifest, so
+  a repin needs no fixture edit.
 - Dual provenance: the Kun fingerprint (submodule gitlink + drift baseline,
   radar watched by drift/shift.py) and the trillium/firstmate working-copy pin
   (proven commit + date) live together in manifest/FEATURES.yaml

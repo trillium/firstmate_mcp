@@ -130,12 +130,15 @@ test_stale_gitlink_fails() {
   local bad="$TMP_ROOT/stalelink.yaml" out status
   cp "$SEED" "$bad"
   python3 - "$bad" <<'PYEOF'
+import re
 import sys
 text = open(sys.argv[1]).read()
-needle = "gitlink_at_seed: 1b1b6e051dafc9dcabe3ef0a7d4a64bd40a45567"
-assert needle in text, "seed shape changed; update this fixture"
+# Derive the pin shape instead of hardcoding one value: re-seeding the upstream
+# radar must not require editing this fixture.
+match = re.search(r"gitlink_at_seed: [0-9a-f]{40}", text)
+assert match, "seed shape changed; update this fixture"
 open(sys.argv[1], "w").write(
-    text.replace(needle, "gitlink_at_seed: aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", 1)
+    text.replace(match.group(0), "gitlink_at_seed: aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", 1)
 )
 PYEOF
   out=$(python3 "$VALIDATOR" "$bad" 2>&1)
