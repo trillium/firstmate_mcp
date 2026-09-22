@@ -34,6 +34,18 @@ Personal software, one owner, no external users. Standing owner instruction:
   so it can be undone.
 - The doorway's own safety core is the exception: default-deny, tier bounds, and
   audit logging stay load-bearing regardless of this posture.
+- The code-forbidden set is real (`FORBIDDEN_TOOLS`, `ts/src/auth.ts`): 48 surfaces
+  — the captain's landing/merge levers, daemon and watch control, un-gated public
+  emission, fleet sync, session machinery, every cross-machine verb, every
+  installs mutator — carry **no tier entry** and are refused before approval or
+  grant is considered. `repo_edit`/`repo_commit`/`repo_push`/`pr_open` are
+  deliberately allowed (Tier 3, the delivery chain is the point of the doorway);
+  `repo_merge` is forbidden because a local merge into a default branch bypasses
+  the pull request the chain exists to open. A committed test used to pin
+  `FORBIDDEN_TOOLS` as **empty** — that is how the docs and the code disagreed for
+  so long; it now pins the invariant instead. The adapter's deny list is
+  client-side and bypassable by any direct caller, so treat it as defence in
+  depth, never as the guard.
 - **Standing loop (infinite directive, 2026-09-22): "repin upstream, eval
   features, yolo forward."** Repeat indefinitely. One cycle is:
   1. `scripts/fm-mcp-repin.sh --check` — fetches upstream main, reports the

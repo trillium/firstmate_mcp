@@ -173,62 +173,15 @@ export const TOOL_TIERS: Record<string, Tier> = {
   remote_control: TIER_AUTHORITY,
   handoff_move: TIER_AUTHORITY,
   voice_queue: TIER_AUTHORITY,
-  promote_scout: TIER_AUTHORITY,
-  teardown_crew: TIER_AUTHORITY,
-  arm_pr_check: TIER_AUTHORITY,
-  merge_pr: TIER_AUTHORITY,
-  merge_local: TIER_AUTHORITY,
   repo_edit: TIER_AUTHORITY,
   repo_commit: TIER_AUTHORITY,
   repo_push: TIER_AUTHORITY,
-  repo_merge: TIER_AUTHORITY,
-  daemon_start: TIER_AUTHORITY,
-  daemon_stop: TIER_AUTHORITY,
-  watch_start: TIER_AUTHORITY,
-  watch_stop: TIER_AUTHORITY,
   daemon_status: TIER_OPEN,
-  daemon_restart: TIER_EXTERNAL,
   task_intake: TIER_AUTHORITY,
   worktree_allocate: TIER_AUTHORITY,
   lifecycle_drive: TIER_AUTHORITY,
   review_gate: TIER_AUTHORITY,
   reconcile_upstream: TIER_AUTHORITY,
-  public_followup_emit: TIER_AUTHORITY,
-  relay_link: TIER_AUTHORITY,
-  fleet_sync: TIER_AUTHORITY,
-  inactive_reconcile: TIER_AUTHORITY,
-  backlog_receive: TIER_AUTHORITY,
-  session_start: TIER_AUTHORITY,
-  sessionstart_run: TIER_AUTHORITY,
-  sessionstart_cursor: TIER_AUTHORITY,
-  herdr_lab: TIER_AUTHORITY,
-  herdr_ci_cleanup: TIER_AUTHORITY,
-  session_cleanup: TIER_AUTHORITY,
-  claude_trust: TIER_AUTHORITY,
-  agy_trust: TIER_AUTHORITY,
-  claude_stop_autoarm: TIER_AUTHORITY,
-  herdr_eventwait: TIER_AUTHORITY,
-  herdr_workspace_move: TIER_AUTHORITY,
-  on_execute: TIER_AUTHORITY,
-  config_push: TIER_AUTHORITY,
-  remote_entrypoint: TIER_AUTHORITY,
-  remote_herdr_guard: TIER_AUTHORITY,
-  remote_provision: TIER_AUTHORITY,
-  remote_seed: TIER_AUTHORITY,
-  inherit_push: TIER_AUTHORITY,
-  remote_inherit: TIER_AUTHORITY,
-  reap_orphans: TIER_AUTHORITY,
-  remote_worker: TIER_AUTHORITY,
-  bootstrap: TIER_AUTHORITY,
-  check_register: TIER_AUTHORITY,
-  check_unregister: TIER_AUTHORITY,
-  agents_md_ensure: TIER_AUTHORITY,
-  install_actionlint: TIER_AUTHORITY,
-  install_herdr: TIER_AUTHORITY,
-  install_shellcheck: TIER_AUTHORITY,
-  install_treehouse: TIER_AUTHORITY,
-  update: TIER_AUTHORITY,
-  workflow_lint: TIER_AUTHORITY,
   afk_contract: TIER_AUTHORITY,
   afk_launch: TIER_AUTHORITY,
   afk_return: TIER_AUTHORITY,
@@ -257,7 +210,77 @@ export const TOOL_TIERS: Record<string, Tier> = {
   grant_status: TIER_OPEN,
 };
 
+/**
+ * Code-forbidden tools: refused by the server itself, with no approval string and
+ * no standing grant able to authorize them.
+ *
+ * This list was empty while AUTH.md, this file's header, and
+ * docs/mcp-adapter.md all documented these surfaces as denied, and `tierOf`
+ * consulted TOOL_TIERS first — so a stale tier entry shadowed the list entirely
+ * and every one of these was reachable with an approval string (filed as
+ * project-2od.20, proven by calling merge_pr's tier through the dispatcher).
+ *
+ * Deliberately NOT here: the agent's own delivery chain. `repo_edit`,
+ * `repo_commit`, `repo_push` and `pr_open` are Tier 3 authority writes, because
+ * landing work through the doorway is the point of the doorway (autonomy gap 1).
+ * `repo_merge` IS here: merging into a default branch locally bypasses the pull
+ * request the chain exists to open.
+ */
 export const FORBIDDEN_TOOLS: readonly string[] = [
+  // Code-writing and landing surfaces the captain keeps
+  "promote_scout",
+  "teardown_crew",
+  "arm_pr_check",
+  "merge_pr",
+  "merge_local",
+  "repo_merge",
+  // Daemon and supervision control
+  "daemon_start",
+  "daemon_stop",
+  "daemon_restart",
+  "watch_start",
+  "watch_stop",
+  // Un-gated public emission, fleet sync, cross-home receipt
+  "public_followup_emit",
+  "relay_link",
+  "fleet_sync",
+  "inactive_reconcile",
+  "backlog_receive",
+  // Session launch and lifecycle machinery
+  "session_start",
+  "sessionstart_run",
+  "sessionstart_cursor",
+  "herdr_lab",
+  "herdr_ci_cleanup",
+  "session_cleanup",
+  "claude_trust",
+  "agy_trust",
+  "claude_stop_autoarm",
+  "herdr_eventwait",
+  "herdr_workspace_move",
+  "backend_select",
+  // Cross-machine verbs
+  "on_execute",
+  "config_push",
+  "remote_entrypoint",
+  "remote_herdr_guard",
+  "remote_provision",
+  "remote_seed",
+  "inherit_push",
+  "remote_inherit",
+  "reap_orphans",
+  "remote_worker",
+  // Installs mutators
+  "bootstrap",
+  "check_register",
+  "check_unregister",
+  "agents_md_ensure",
+  "install_actionlint",
+  "install_herdr",
+  "install_shellcheck",
+  "install_treehouse",
+  "update",
+  "workflow_lint",
 ] as const;
 
 export const TIER_NAMES: Record<string, string> = {
@@ -269,8 +292,12 @@ export const TIER_NAMES: Record<string, string> = {
 };
 
 export function tierOf(tool: string): Tier | null {
-  if (tool in TOOL_TIERS) return TOOL_TIERS[tool];
+  // Forbidden FIRST: a stale TOOL_TIERS entry must never shadow a code-forbidden
+  // tool. That precedence is the entire point of the list, and getting it
+  // backwards left every documented-denied surface reachable with an approval
+  // string.
   if ((FORBIDDEN_TOOLS as readonly string[]).includes(tool)) return TIER_FORBIDDEN;
+  if (tool in TOOL_TIERS) return TOOL_TIERS[tool];
   return null;
 }
 

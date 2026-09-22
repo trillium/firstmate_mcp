@@ -15,7 +15,7 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { TIER_AUTHORITY, requiresApproval, tierOf } from "../src/auth.js";
+import { TIER_AUTHORITY, TIER_FORBIDDEN, requiresApproval, tierOf } from "../src/auth.js";
 import { handleToolsCall } from "../src/server.js";
 import { TOOLS, type ToolContext } from "../src/tools.js";
 import type { RunResult } from "../src/runner.js";
@@ -66,7 +66,7 @@ describe("central authorization gate", () => {
   });
 
   // The tools that shipped unguarded: each must now refuse, and must not run.
-  for (const tool of ["repo_commit", "repo_push", "repo_merge", "repo_edit", "pr_open"]) {
+  for (const tool of ["repo_commit", "repo_push", "repo_edit", "pr_open"]) {
     it(`${tool} refuses without approval and executes nothing`, async () => {
       const rec: Recorder = { calls: [], sent: [] };
       const ctx = ctxRecording(rec);
@@ -114,7 +114,9 @@ describe("central authorization gate", () => {
 
   it("covers every registered authority tool, so none can ship unguarded", () => {
     const registered = Object.keys(TOOLS).filter((t) => tierOf(t) === TIER_AUTHORITY);
-    assert.ok(registered.length >= 40, `expected the authority surface, saw ${registered.length}`);
+    // 30 after the code-forbidden set was restored (was 49 tier entries, 19 of
+    // them retired tools, and the forbidden ones no longer count as authority).
+    assert.ok(registered.length >= 25, `expected the authority surface, saw ${registered.length}`);
     for (const tool of registered) {
       assert.notEqual(TOOLS[tool].handler, undefined, `${tool} has no handler`);
     }
@@ -147,8 +149,10 @@ describe("receipt path authorization", () => {
   it("refuses to detach every live approval-gated tool without approval", async () => {
     const rec: Recorder = { calls: [], sent: [] };
     const ctx = ctxRecording(rec);
-    const gated = Object.keys(TOOLS).filter((t) => requiresApproval(t) && t !== "receipt_submit");
-    assert.ok(gated.length >= 40, `expected the gated surface, saw ${gated.length}`);
+    const gated = Object.keys(TOOLS).filter(
+      (t) => requiresApproval(t) && tierOf(t) !== TIER_FORBIDDEN && t !== "receipt_submit",
+    );
+    assert.ok(gated.length >= 25, `expected the gated surface, saw ${gated.length}`);
     for (const tool of gated) {
       const res = await TOOLS["receipt_submit"].handler({ tool, arguments: {} }, ctx);
       assert.equal(res.isError, true, `${tool} must not be detached without approval`);
@@ -165,5 +169,36 @@ describe("receipt path authorization", () => {
     );
     assert.equal(res.isError, false, JSON.stringify(res.payload));
     assert.match(String(res.payload["receipt_id"]), /^rcpt-/);
+  });
+});
+
+/**
+ * Code-forbidden surfaces: refused by the server itself, never satisfiable.
+ *
+ * The list was empty while AUTH.md, auth.ts's header and docs/mcp-adapter.md all
+ * documented these as denied, and `tierOf` consulted the tier table first — so
+ * every one of them was reachable with an approval string (project-2od.20).
+ */
+describe("code-forbidden tools", () => {
+  const FORBIDDEN_SAMPLE = ["merge_pr", "promote_scout", "teardown_crew", "repo_merge", "daemon_start"];
+
+  it("refuses a forbidden tool at the dispatcher before any handler runs", async () => {
+    for (const tool of FORBIDDEN_SAMPLE) {
+      const rec: Recorder = { calls: [], sent: [] };
+      const payload = await callTool(rec, ctxRecording(rec), tool, { approval: APPROVAL, branch: "main" });
+      assert.equal(payload["isError"], true, `${tool} must be refused at the gate`);
+      assert.equal(payload["error"], "forbidden", `${tool} must be refused as forbidden`);
+      assert.deepEqual(rec.calls, [], `${tool} must execute nothing`);
+    }
+  });
+
+  it("refuses a forbidden tool on the receipt path too", async () => {
+    const rec: Recorder = { calls: [], sent: [] };
+    const res = await TOOLS["receipt_submit"].handler(
+      { tool: "merge_pr", arguments: { approval: APPROVAL, branch: "main" } },
+      ctxRecording(rec),
+    );
+    assert.equal(res.isError, true, "a forbidden tool must not be detached");
+    assert.deepEqual(rec.calls, []);
   });
 });
