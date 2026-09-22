@@ -1340,12 +1340,107 @@ async function toolHomeSummary(_args: ToolArgs, ctx: ToolContext): Promise<ToolR
   return { payload: summary, isError: false };
 }
 
+const PUBLISH_HINT =
+  "publishing walks live child state and can exceed the 30s envelope on a large home; " +
+  "submit home_summary_refresh through receipt_submit (180s budget), then read home_summary";
+
+/**
+ * Publish state/home-summary.json without the publisher script.
+ *
+ * The declared command for home_summary_refresh is bin/fm-home-summary-refresh.sh,
+ * which the served fork line does not ship (the same fork-vs-upstream shape gap
+ * that leaves 24 doorway scripts upstream-only). The bounded snapshot that
+ * script wraps *does* exist on the served line, so the doorway publishes from
+ * it, keeping the declared rules: schema-checked, mode-0600 temp on the state
+ * filesystem, renamed over the ledger, so torn output is impossible.
+ *
+ * Deliberately not ownedCall(): that tails stdout at TAIL_CAP_BYTES (8 KiB)
+ * while the summary document measures ~32 KiB on a live home, which would
+ * truncate the JSON mid-document and publish nothing parseable.
+ */
+async function publishHomeSummary(ctx: ToolContext, bestEffort: boolean): Promise<ToolResult> {
+  const snapshot = path.join(ctx.binDir, "fm-fleet-snapshot.sh");
+  if (!fs.existsSync(snapshot)) {
+    return {
+      payload: {
+        error: "home summary refresh unavailable",
+        expect:
+          "bin/fm-home-summary-refresh.sh, or bin/fm-fleet-snapshot.sh --secondmate-home-summary, in the served home",
+      },
+      isError: true,
+    };
+  }
+  const started = Date.now();
+  const res = await ctx.run(argv(snapshot, "--secondmate-home-summary"));
+  if (!isRunResult(res)) {
+    return { payload: { ...res, hint: PUBLISH_HINT }, isError: true };
+  }
+  if (res.exitCode !== 0) {
+    return {
+      payload: {
+        error: "home summary refresh failed",
+        exit: res.exitCode,
+        stderr: truncate(res.stderr ?? "")[0],
+        hint: PUBLISH_HINT,
+      },
+      isError: true,
+    };
+  }
+  const text = res.stdout ?? "";
+  let doc: Record<string, unknown>;
+  try {
+    doc = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return {
+      payload: { error: "home summary refresh produced non-JSON", stdout: truncate(text)[0] },
+      isError: true,
+    };
+  }
+  if (doc["schema"] !== HOME_SUMMARY_SCHEMA) {
+    return {
+      payload: {
+        error: "home summary refresh produced off-schema output",
+        schema: doc["schema"] ?? null,
+        expect: HOME_SUMMARY_SCHEMA,
+      },
+      isError: true,
+    };
+  }
+  const root = path.resolve(ctx.stateDir);
+  const file = path.resolve(root, "home-summary.json");
+  if (path.dirname(file) !== root) {
+    return { payload: { error: "no home summary" }, isError: true };
+  }
+  const tmp = path.join(root, `.home-summary.${process.pid}.${Date.now()}.tmp`);
+  fs.writeFileSync(tmp, text, { encoding: "utf8", mode: 0o600 });
+  fs.renameSync(tmp, file);
+  return {
+    payload: {
+      ok: true,
+      published: file,
+      schema: doc["schema"],
+      generated_epoch: doc["generated_epoch"] ?? null,
+      bytes: byteLength(text),
+      duration_ms: Date.now() - started,
+      best_effort: bestEffort,
+      source: "in-repo fallback (publisher script absent from the served line)",
+    },
+    isError: false,
+  };
+}
+
 async function toolHomeSummaryRefresh(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   const bestEffort = args["best_effort"] ?? false;
   if (typeof bestEffort !== "boolean") {
     return { payload: { error: "invalid best_effort", expect: "boolean" }, isError: true };
   }
-  const cmd = argv(path.join(ctx.binDir, "fm-home-summary-refresh.sh"));
+  const publisher = path.join(ctx.binDir, "fm-home-summary-refresh.sh");
+  // Prefer the firstmate-owned publisher wherever the line ships it: it stays
+  // authoritative, and the fallback is only for lines that do not.
+  if (!fs.existsSync(publisher)) {
+    return publishHomeSummary(ctx, bestEffort);
+  }
+  const cmd = argv(publisher);
   if (bestEffort) cmd.push("--best-effort");
   const { payload, isError } = await ownedCall(cmd, "home summary refresh failed", ctx.run);
   if (!isError) return { payload: { ...payload, best_effort: bestEffort }, isError: false };
