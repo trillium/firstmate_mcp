@@ -76,6 +76,11 @@ When updating this file, preserve this bar for all agents and keep entries conci
   generalized hook engine for MCP actions; auth tiers enforced per action
   (never launders authority from open reads to Tier 3/4 writes), bounded
   DAG loop termination (depth cap + cycle detection + action budget).
+- Paginated fleet reads (`ts/src/tools.ts`, bead `task-auxer`):
+  `fleet_snapshot` and `backlog` accept optional `cursor` (`<snapshot_id>:<offset>` or integer offset)
+  and `limit` (default 50, 1..200); return summary-first payload (`summary`, `page[]`, `next_cursor`, `truncated`)
+  with snapshots computed once and cached under `state/mcp-snapshots/` (`SNAPSHOT_TTL_S=3600`, per-home confinement);
+  unpaginated calls preserve canonical backwards compatibility.
 - Test runner: `pnpm run test:dev` selectively reruns
   recorded failing test files during local development, while CI and PR
   always run the full suite (`bun test` / `pnpm test`).

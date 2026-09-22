@@ -184,6 +184,32 @@
       "bounded": true
     },
     {
+      "id": "validators.validPageLimit",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "validPageLimit",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "function",
+        "targetName": "validPageLimit"
+      },
+      "description": "Integer bounds clamping and validation for pagination limits",
+      "bounded": true
+    },
+    {
+      "id": "validators.parseSnapshotCursor",
+      "testFile": "tests/validators.test.ts",
+      "testPattern": "parseSnapshotCursor",
+      "testKind": "describe",
+      "target": {
+        "targetFile": "src/validators.ts",
+        "targetKind": "function",
+        "targetName": "parseSnapshotCursor"
+      },
+      "description": "Pagination cursor parsing and validation for cached snapshots",
+      "bounded": true
+    },
+    {
       "id": "envelope.okEnvelope",
       "testFile": "tests/envelope.test.ts",
       "testPattern": "ok envelope",

@@ -14,6 +14,7 @@ import path from "node:path";
 import {
   APPROVAL_PREFIX,
   CORR_RE,
+  CURSOR_RE,
   DELTA_WAIT_MAX,
   DELTA_WAIT_MIN,
   HANDOFF_LINES_MAX,
@@ -29,6 +30,9 @@ import {
   REMOTE_FILE_BYTES_MIN,
   SEND_TEXT_MAX_CHARS,
   SHA256_RE,
+  SNAPSHOT_DEFAULT_LIMIT,
+  SNAPSHOT_MAX_LIMIT,
+  SNAPSHOT_MIN_LIMIT,
   STARTUP_MEMORY_MODES,
   VENDOR_AUTH_PROBES,
   VOICE_QUEUE_MAX_CHARS,
@@ -189,6 +193,142 @@ export function validDeltaWait(value: unknown): number | null {
 /** Coerce a remote-file byte bound into the 1..256KB window; null when bad. */
 export function validRemoteMaxBytes(value: unknown): number | null {
   return coerceBoundedInt(value, REMOTE_FILE_BYTES_MIN, REMOTE_FILE_BYTES_MAX);
+}
+
+/** Coerce / validate a page limit into the 1..200 window; null when out of bounds or not an integer. */
+export function validPageLimit(
+  value: unknown,
+  defaultLimit: number = SNAPSHOT_DEFAULT_LIMIT,
+): number | null {
+  if (value === undefined || value === null) return defaultLimit;
+  if (typeof value === "boolean") return null;
+  let n: number;
+  if (typeof value === "number") {
+    if (!Number.isInteger(value)) return null;
+    n = value;
+  } else if (typeof value === "string" && value.trim() !== "" && Number.isInteger(Number(value))) {
+    n = Number(value);
+  } else {
+    return null;
+  }
+  if (!Number.isFinite(n) || n < SNAPSHOT_MIN_LIMIT || n > SNAPSHOT_MAX_LIMIT) return null;
+  return n;
+}
+
+export interface ParsedCursorSuccess {
+  readonly ok: true;
+  readonly snapshotId: string | null;
+  readonly offset: number;
+}
+
+export interface ParsedCursorFailure {
+  readonly ok: false;
+  readonly error: string;
+  readonly expect: string;
+}
+
+export type ParsedCursor = ParsedCursorSuccess | ParsedCursorFailure;
+
+export function parseSnapshotCursor(
+  cursor: unknown,
+  snapshotIdArg?: unknown,
+): ParsedCursor {
+  let explicitSnapId: string | null = null;
+  if (snapshotIdArg !== undefined) {
+    if (!validId(snapshotIdArg)) {
+      return {
+        ok: false,
+        error: "invalid snapshot_id",
+        expect: "short snapshot id, no slashes or traversal",
+      };
+    }
+    explicitSnapId = snapshotIdArg;
+  }
+
+  if (cursor === undefined || cursor === null) {
+    return { ok: true, snapshotId: explicitSnapId, offset: 0 };
+  }
+
+  if (typeof cursor === "boolean") {
+    return {
+      ok: false,
+      error: "invalid cursor",
+      expect: "cursor string in format <snapshot_id>:<offset> or integer offset",
+    };
+  }
+
+  if (typeof cursor === "number") {
+    if (!Number.isInteger(cursor) || cursor < 0) {
+      return {
+        ok: false,
+        error: "invalid cursor",
+        expect: "nonnegative integer cursor or <snapshot_id>:<offset>",
+      };
+    }
+    if (cursor === 0) {
+      return { ok: true, snapshotId: explicitSnapId, offset: 0 };
+    }
+    if (explicitSnapId === null) {
+      return {
+        ok: false,
+        error: "invalid cursor",
+        expect: "cursor must include snapshot_id (<snapshot_id>:<offset>) when offset > 0",
+      };
+    }
+    return { ok: true, snapshotId: explicitSnapId, offset: cursor };
+  }
+
+  if (typeof cursor === "string") {
+    const trimmed = cursor.trim();
+    if (trimmed.length === 0) {
+      return {
+        ok: false,
+        error: "invalid cursor",
+        expect: "non-empty cursor string",
+      };
+    }
+
+    const match = CURSOR_RE.exec(trimmed);
+    if (match) {
+      const snapId = match[1]!;
+      const offset = parseInt(match[2]!, 10);
+      if (explicitSnapId !== null && explicitSnapId !== snapId) {
+        return {
+          ok: false,
+          error: "cursor snapshot_id mismatch",
+          expect: "cursor snapshot_id must match snapshot_id argument",
+        };
+      }
+      return { ok: true, snapshotId: snapId, offset };
+    }
+
+    if (/^\d+$/.test(trimmed)) {
+      const offset = parseInt(trimmed, 10);
+      if (offset === 0) {
+        return { ok: true, snapshotId: explicitSnapId, offset: 0 };
+      }
+      if (explicitSnapId === null) {
+        return {
+          ok: false,
+          error: "invalid cursor",
+          expect: "cursor must include snapshot_id (<snapshot_id>:<offset>) when offset > 0",
+        };
+      }
+      return { ok: true, snapshotId: explicitSnapId, offset };
+    }
+
+    return {
+      ok: false,
+      error: "invalid cursor",
+      expect: "cursor in format <snapshot_id>:<offset> or integer offset",
+    };
+  }
+
+  return {
+    ok: false,
+    error: "invalid cursor",
+    expect: "cursor string in format <snapshot_id>:<offset> or integer offset",
+  };
 }
 
 /** Coerce an outbox line count into the 1..20 window; null when not an integer. */

@@ -207,6 +207,34 @@ export function makeReceiptStubHome(): string {
   return home;
 }
 
+export function makeTasksStubHome(taskCount: number = 5): string {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "fm-mcp-ts-tasks-"));
+  fs.mkdirSync(path.join(home, "bin"));
+  for (const [name, body] of Object.entries(STUBS)) writeStub(home, name, body);
+  const tasks = [];
+  for (let i = 0; i < taskCount; i++) {
+    tasks.push({
+      task_id: `task-${String(i).padStart(3, "0")}`,
+      current_state: { state: i % 2 === 0 ? "in_flight" : "queued" },
+      title: `Task ${i}`,
+    });
+  }
+  const snapshotData = {
+    schema: "fm-fleet-snapshot.v1",
+    generated: "2026-09-21T12:00:00Z",
+    rev: "rev-test-1",
+    backlog: { path: "data/backlog.md", present: true, records: [] },
+    tasks,
+  };
+  writeStub(
+    home,
+    "fm-fleet-snapshot.sh",
+    `echo '${JSON.stringify(snapshotData)}'\n`,
+  );
+  fs.mkdirSync(path.join(home, "state"));
+  return home;
+}
+
 /** Path to the built TS server under test (dist/, compiled from src/). */
 export function serverEntry(): string {
   // testbuild/tests/helpers.js -> ts/testbuild/tests/helpers.js;

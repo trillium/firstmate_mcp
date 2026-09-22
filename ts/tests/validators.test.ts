@@ -21,6 +21,8 @@ import {
   validMailTo,
   validNonnegInt,
   validNote,
+  validPageLimit,
+  parseSnapshotCursor,
   validPeekLines,
   validProbe,
   validProject,
@@ -283,5 +285,121 @@ describe("confineStatePath", () => {
     assert.equal(confineStatePath(state, "../escape"), null);
     assert.equal(confineStatePath(state, "a/b"), null);
     fs.rmSync(home, { recursive: true, force: true });
+  });
+});
+
+describe("validPageLimit", () => {
+  it("defaults to 50 when omitted or null", () => {
+    assert.equal(validPageLimit(undefined), 50);
+    assert.equal(validPageLimit(null), 50);
+    assert.equal(validPageLimit(undefined, 25), 25);
+  });
+  it("accepts valid integers within 1..200", () => {
+    assert.equal(validPageLimit(1), 1);
+    assert.equal(validPageLimit(50), 50);
+    assert.equal(validPageLimit(200), 200);
+    assert.equal(validPageLimit("25"), 25);
+    assert.equal(validPageLimit(" 30 "), 30);
+  });
+  it("rejects out of bounds integers", () => {
+    assert.equal(validPageLimit(0), null);
+    assert.equal(validPageLimit(-5), null);
+    assert.equal(validPageLimit(500), null);
+    assert.equal(validPageLimit("0"), null);
+    assert.equal(validPageLimit("300"), null);
+  });
+  it("rejects non-integers, booleans, and non-numeric strings", () => {
+    assert.equal(validPageLimit(true), null);
+    assert.equal(validPageLimit(false), null);
+    assert.equal(validPageLimit("abc"), null);
+    assert.equal(validPageLimit({}), null);
+    assert.equal(validPageLimit([]), null);
+    assert.equal(validPageLimit(1.5), null);
+  });
+});
+
+describe("parseSnapshotCursor", () => {
+  it("handles empty / omitted cursor", () => {
+    assert.deepEqual(parseSnapshotCursor(undefined), { ok: true, snapshotId: null, offset: 0 });
+    assert.deepEqual(parseSnapshotCursor(null), { ok: true, snapshotId: null, offset: 0 });
+    assert.deepEqual(parseSnapshotCursor(undefined, "snap-12345678"), {
+      ok: true,
+      snapshotId: "snap-12345678",
+      offset: 0,
+    });
+  });
+  it("parses composite cursor <snapshot_id>:<offset>", () => {
+    assert.deepEqual(parseSnapshotCursor("snap-abcdef1234:25"), {
+      ok: true,
+      snapshotId: "snap-abcdef1234",
+      offset: 25,
+    });
+    assert.deepEqual(parseSnapshotCursor("snap-abcdef1234:0"), {
+      ok: true,
+      snapshotId: "snap-abcdef1234",
+      offset: 0,
+    });
+    assert.deepEqual(parseSnapshotCursor("snap-abcdef1234:25", "snap-abcdef1234"), {
+      ok: true,
+      snapshotId: "snap-abcdef1234",
+      offset: 25,
+    });
+  });
+  it("rejects mismatched composite cursor and snapshot_id arg", () => {
+    const res = parseSnapshotCursor("snap-11111111:10", "snap-22222222");
+    assert.equal(res.ok, false);
+    if (!res.ok) {
+      assert.equal(res.error, "cursor snapshot_id mismatch");
+    }
+  });
+  it("parses integer / numeric cursor with explicit snapshot_id", () => {
+    assert.deepEqual(parseSnapshotCursor(10, "snap-abcdef1234"), {
+      ok: true,
+      snapshotId: "snap-abcdef1234",
+      offset: 10,
+    });
+    assert.deepEqual(parseSnapshotCursor("10", "snap-abcdef1234"), {
+      ok: true,
+      snapshotId: "snap-abcdef1234",
+      offset: 10,
+    });
+    assert.deepEqual(parseSnapshotCursor(0), {
+      ok: true,
+      snapshotId: null,
+      offset: 0,
+    });
+    assert.deepEqual(parseSnapshotCursor("0"), {
+      ok: true,
+      snapshotId: null,
+      offset: 0,
+    });
+  });
+  it("rejects non-zero numeric cursor without snapshot_id", () => {
+    const res = parseSnapshotCursor(10);
+    assert.equal(res.ok, false);
+    if (!res.ok) {
+      assert.equal(res.error, "invalid cursor");
+    }
+    const resStr = parseSnapshotCursor("10");
+    assert.equal(resStr.ok, false);
+  });
+  it("rejects invalid snapshot_id with traversal or slashes", () => {
+    assert.equal(parseSnapshotCursor(undefined, "../bad").ok, false);
+    assert.equal(parseSnapshotCursor(undefined, "a/b").ok, false);
+    assert.equal(parseSnapshotCursor(undefined, "").ok, false);
+  });
+  it("rejects invalid cursor formats", () => {
+    assert.equal(parseSnapshotCursor(-5).ok, false);
+    assert.equal(parseSnapshotCursor(1.5).ok, false);
+    assert.equal(parseSnapshotCursor("").ok, false);
+    assert.equal(parseSnapshotCursor("   ").ok, false);
+    assert.equal(parseSnapshotCursor("bad_cursor").ok, false);
+    assert.equal(parseSnapshotCursor("snap-1234:-5").ok, false);
+    assert.equal(parseSnapshotCursor("../escape:10").ok, false);
+    assert.equal(parseSnapshotCursor("snap/sub:10").ok, false);
+    assert.equal(parseSnapshotCursor(true).ok, false);
+    assert.equal(parseSnapshotCursor(false).ok, false);
+    assert.equal(parseSnapshotCursor({}).ok, false);
+    assert.equal(parseSnapshotCursor([]).ok, false);
   });
 });
