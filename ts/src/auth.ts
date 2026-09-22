@@ -10,7 +10,7 @@
  *   home_summary, home_summary_refresh, contributions_snapshot, contributions_pending,
  *   mail_status, mail_read, mail_check, voice_status, lint_versions,
  *   tool_update_check, vendor_auth_probe, startup_memory, pr_state,
- *   relay_poll, public_followup_pending, public_followup_collect,
+ *   pr_poll, relay_poll, public_followup_pending, public_followup_collect,
  *   tasks_list, tasks_show, tasks_ready,
  *   receipt_submit, receipt_status — no approval.
  *   (receipt_submit detaches one call past the 30s budget; authority
@@ -87,6 +87,7 @@ export const TOOL_TIERS: Record<string, Tier> = {
   vendor_auth_probe: TIER_OPEN,
   startup_memory: TIER_OPEN,
   pr_state: TIER_OPEN,
+  pr_poll: TIER_OPEN,
   relay_poll: TIER_OPEN,
   public_followup_pending: TIER_OPEN,
   public_followup_collect: TIER_OPEN,

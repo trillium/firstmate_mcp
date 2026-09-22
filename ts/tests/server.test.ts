@@ -154,7 +154,7 @@ describe("expanded surface: 66 tools", () => {
     "home_summary", "home_summary_refresh", "contributions_snapshot", "contributions_pending",
     "mail_status", "mail_read", "mail_check", "voice_status",
     "lint_versions", "tool_update_check", "vendor_auth_probe",
-    "startup_memory", "pr_state", "relay_poll",
+    "startup_memory", "pr_state", "pr_poll", "relay_poll",
     "public_followup_pending", "public_followup_collect",
     "tasks_list", "tasks_show", "tasks_ready",
     "voice_queue", "mail_send",
@@ -170,10 +170,10 @@ describe("expanded surface: 66 tools", () => {
     "grant_mint", "grant_revoke", "grant_status",
   ];
 
-  it("server lists 97 tools", async () => {
+  it("server lists 98 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 97);
+    assert.equal(tools.length, 98);
   });
 
   for (const required of REQUIRED) {
@@ -201,7 +201,7 @@ describe("expanded surface: 66 tools", () => {
       "home_summary", "home_summary_refresh", "contributions_snapshot", "contributions_pending",
       "mail_status", "mail_read", "mail_check", "voice_status",
       "lint_versions", "tool_update_check", "vendor_auth_probe",
-      "startup_memory", "pr_state", "relay_poll",
+      "startup_memory", "pr_state", "pr_poll", "relay_poll",
       "public_followup_pending", "public_followup_collect",
       "tasks_list", "tasks_show", "tasks_ready",
       "receipt_submit", "receipt_status", "daemon_status", "grant_status",
@@ -999,6 +999,21 @@ describe("expanded surface: 66 tools", () => {
   });
   it("pr_state rejects malformed urls", async () => {
     assert.equal(isError(await boxed.call("pr_state", { url: "not a url" })), true);
+  });
+  it("pr_poll checks merge status with url echoed", async () => {
+    const resp = await boxed.call("pr_poll", { url: "https://github.com/octo/repo/pull/42" });
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["url"], "https://github.com/octo/repo/pull/42");
+    assert.ok(String(payload(resp)["stdout"] ?? "").includes("pr-poll-stub"));
+  });
+  it("pr_poll rejects non-GitHub urls", async () => {
+    assert.equal(
+      isError(await boxed.call("pr_poll", { url: "https://example.com/o/r/pull/1" })),
+      true,
+    );
+  });
+  it("pr_poll rejects malformed urls", async () => {
+    assert.equal(isError(await boxed.call("pr_poll", { url: "not a url" })), true);
   });
   it("relay_poll short-polls without error", async () => {
     const resp = await boxed.call("relay_poll", {});

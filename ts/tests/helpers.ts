@@ -76,6 +76,7 @@ export const STUBS: Record<string, string> = {
   "fm-vendor-auth-probe.sh": 'echo "probe=$1 status=unauthenticated version=none versionVerified=none"\n',
   "fm-startup-memory-budget.sh": 'echo "memory-stub:$1"\n',
   "fm-pr-state.sh": 'echo "pr-stub:$1"\n',
+  "fm-pr-poll.sh": 'echo "pr-poll-stub:$1 $2 $3"\n',
   "fm-x-poll.sh": 'echo "x-poll stub: empty"\n',
   "fm-public-followup.sh": 'echo "public-followup-stub:$1"\n',
   "fm-public-followup-collect.sh": 'echo "public-followup-collect-stub:$1 id=$2"\n',

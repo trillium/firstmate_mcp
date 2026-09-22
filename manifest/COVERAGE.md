@@ -19,12 +19,12 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Sessions](#sessions) | 4 | 0 | 21 |
 | [Backlog / decisions](#backlog-decisions) | 5 | 1 | 7 |
 | [Secondmates / remotes](#secondmates-remotes) | 7 | 0 | 13 |
-| [PR pipeline](#pr-pipeline) | 2 | 5 | 4 |
+| [PR pipeline](#pr-pipeline) | 3 | 5 | 3 |
 | [Relay](#relay) | 6 | 2 | 0 |
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 |
 | [Installs](#installs) | 4 | 0 | 19 |
-| **Total** | **49** | **14** | **95** |
+| **Total** | **50** | **14** | **94** |
 
 ## Fleet runs
 
@@ -178,7 +178,7 @@ Check arming, polls, reviews, and landing: the code-adjacent surface that stays 
 | `fm-pr-check-migrate.sh` (removed upstream) | gap | PR check migration; removed upstream since pin |
 | `fm-pr-check.sh` | denied-by-design — `arm_pr_check` | record PR-ready task + arm merge poll. arming a merge poll mutates CI/landing state |
 | `fm-pr-merge.sh` | denied-by-design — `merge_pr` | landing merge; merge authority owns this, never MCP. landing merges belong to the configured merge authority |
-| `fm-pr-poll.sh` | gap | merge-poll check source; unmirrored read |
+| `fm-pr-poll.sh` | mirrored — `pr_poll` (ts✔) | merge-poll check source; unmirrored read |
 | `fm-pr-reviewers.sh` | gap | reviewer assignment; unmirrored |
 | `fm-pr-state.sh` | mirrored — `pr_state` (ts✔) | PR state read; unmirrored |
 | `fm-promote.sh` | denied-by-design — `promote_scout` | promote scout to ship; code-writing path stays out. code-writing path: scouts report, ships launch separately |
