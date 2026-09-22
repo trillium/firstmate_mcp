@@ -66,6 +66,81 @@ describe("installs equivalence", () => {
     assert.equal(result.payload["error"], "invalid mode");
     assert.equal(fx.calls.length, before);
   });
+
+  it("startup_network_report matches direct stub", async () => {
+    const direct = directRun(fx, "fm-startup-network.sh", ["report"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "startup_network_report", {}));
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("doc_audience_check matches direct stub with home root", async () => {
+    const direct = directRun(fx, "fm-doc-audience-check.sh", ["--root", fx.scratch]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "doc_audience_check", {}));
+    assert.equal(result["root"], fx.scratch);
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("doc_audience_check refuses roots outside the home without spawn", async () => {
+    const before = fx.calls.length;
+    for (const root of ["../escape", "/abs", "a\0b"]) {
+      const result = await readOnlyCall(fx, "doc_audience_check", { root });
+      assert.equal(result.isError, true);
+      assert.equal(result.payload["error"], "invalid root");
+    }
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("home_seed_validate matches direct stub", async () => {
+    const direct = directRun(fx, "fm-home-seed.sh", ["validate"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "home_seed_validate", {}));
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("stow_cascade matches direct stub", async () => {
+    const direct = directRun(fx, "fm-stow-cascade.sh", []);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "stow_cascade", {}));
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("test_isolation_list matches direct stub with mode and pool echoed", async () => {
+    const direct = directRun(fx, "fm-test-isolation-proof.sh", ["--list", "--pool", "portable"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "test_isolation_list", {}));
+    assert.equal(result["mode"], "candidates");
+    assert.equal(result["pool"], "portable");
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("test_isolation_list refuses bad mode and pool without spawn", async () => {
+    const before = fx.calls.length;
+    const badMode = await readOnlyCall(fx, "test_isolation_list", { mode: "bogus" });
+    assert.equal(badMode.isError, true);
+    assert.equal(badMode.payload["error"], "invalid mode");
+    const badPool = await readOnlyCall(fx, "test_isolation_list", { pool: "../escape" });
+    assert.equal(badPool.isError, true);
+    assert.equal(badPool.payload["error"], "invalid pool");
+    assert.equal(fx.calls.length, before);
+  });
+
+  it("test_run_list matches direct stub with mode echoed", async () => {
+    const direct = directRun(fx, "fm-test-run.sh", ["--list-families"]);
+    assert.equal(direct.status, 0);
+    const result = okPayload(await readOnlyCall(fx, "test_run_list", {}));
+    assert.equal(result["mode"], "families");
+    assert.equal(result["stdout"], direct.stdout);
+  });
+
+  it("test_run_list refuses bad mode without spawn", async () => {
+    const before = fx.calls.length;
+    const result = await readOnlyCall(fx, "test_run_list", { mode: "bogus" });
+    assert.equal(result.isError, true);
+    assert.equal(result.payload["error"], "invalid mode");
+    assert.equal(fx.calls.length, before);
+  });
 });
 
 describe("small-gaps equivalence", () => {

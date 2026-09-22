@@ -88,6 +88,16 @@ DENY_LIST = frozenset(
         "remote_inherit",
         "reap_orphans",
         "remote_worker",
+        "bootstrap",
+        "check_register",
+        "check_unregister",
+        "agents_md_ensure",
+        "install_actionlint",
+        "install_herdr",
+        "install_shellcheck",
+        "install_treehouse",
+        "update",
+        "workflow_lint",
     }
 )
 
@@ -172,6 +182,12 @@ TOOLS = {
     "tasks_ready": ("fm-tasks-axi.sh", None, False),
     "dispatch_resolve": ("fm-dispatch-resolve.sh", None, False),
     "sessionstart_nudge": ("fm-sessionstart-nudge.sh", None, False),
+    "startup_network_report": ("fm-startup-network.sh", None, False),
+    "doc_audience_check": ("fm-doc-audience-check.sh", None, False),
+    "home_seed_validate": ("fm-home-seed.sh", None, False),
+    "stow_cascade": ("fm-stow-cascade.sh", None, False),
+    "test_isolation_list": ("fm-test-isolation-proof.sh", None, False),
+    "test_run_list": ("fm-test-run.sh", None, False),
 }
 
 TOOL_TIERS = {
@@ -190,6 +206,9 @@ TOOL_TIERS = {
     "public_followup_pending": 1, "public_followup_collect": 1,
     "tasks_list": 1, "tasks_show": 1, "tasks_ready": 1,
     "dispatch_resolve": 1, "sessionstart_nudge": 1,
+    "startup_network_report": 1, "doc_audience_check": 1,
+    "home_seed_validate": 1, "stow_cascade": 1,
+    "test_isolation_list": 1, "test_run_list": 1,
     "receipt_submit": 1, "receipt_status": 1, "grant_status": 1,
     "decision_verify": 1, "decision_open": 1, "decision_diverged": 1,
     "send_message": 2,
@@ -209,6 +228,10 @@ TOOL_TIERS = {
     "remote_herdr_guard": 3, "remote_provision": 3, "remote_seed": 3,
     "inherit_push": 3, "remote_inherit": 3, "reap_orphans": 3,
     "remote_worker": 3,
+    "bootstrap": 3, "check_register": 3, "check_unregister": 3,
+    "agents_md_ensure": 3, "install_actionlint": 3, "install_herdr": 3,
+    "install_shellcheck": 3, "install_treehouse": 3, "update": 3,
+    "workflow_lint": 3,
     "mail_send": 4, "relay_reply": 4, "relay_dismiss": 4, "relay_followup": 4,
 }
 

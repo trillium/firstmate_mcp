@@ -9,7 +9,9 @@
  *   lease_check, bearings_board_path, inbox_status, inbox_list,
  *   home_summary, home_summary_refresh, contributions_snapshot, contributions_pending,
  *   mail_status, mail_read, mail_check, voice_status, lint_versions,
- *   tool_update_check, vendor_auth_probe, startup_memory, pr_state,
+ *   tool_update_check, vendor_auth_probe, startup_memory,
+ *   startup_network_report, doc_audience_check, home_seed_validate,
+ *   stow_cascade, test_isolation_list, test_run_list, pr_state,
  *   pr_poll, relay_poll, public_followup_pending, public_followup_collect,
  *   tasks_list, tasks_show, tasks_ready, dispatch_resolve, sessionstart_nudge,
  *   extension_list, extension_inspect,
@@ -24,7 +26,10 @@
  *   remote_control, handoff_move, voice_queue, session_start,
  *   sessionstart_run, sessionstart_cursor, herdr_lab, herdr_ci_cleanup,
  *   session_cleanup, claude_trust, agy_trust, claude_stop_autoarm,
- *   herdr_eventwait, herdr_workspace_move — explicit per-call approval required.
+ *   herdr_eventwait, herdr_workspace_move, bootstrap, check_register,
+ *   check_unregister, agents_md_ensure, install_actionlint, install_herdr,
+ *   install_shellcheck, install_treehouse, update, workflow_lint —
+ *   explicit per-call approval required.
  * - Tier 4 (external sends): relay_reply, relay_dismiss, relay_followup,
  *   mail_send —
  *   approval plus relay consent inside the owning scripts.
@@ -35,7 +40,10 @@
  *   claude_trust, agy_trust, claude_stop_autoarm, herdr_eventwait,
  *   herdr_workspace_move, backend_select, on_execute, config_push,
  *   remote_entrypoint, remote_herdr_guard, remote_provision, remote_seed,
- *   inherit_push, remote_inherit, reap_orphans, remote_worker — no tool,
+ *   inherit_push, remote_inherit, reap_orphans, remote_worker,
+ *   bootstrap, check_register, check_unregister, agents_md_ensure,
+ *   install_actionlint, install_herdr, install_shellcheck,
+ *   install_treehouse, update, workflow_lint — no tool,
  *   refused as unknown.
  */
 import { createHash } from "node:crypto";
@@ -108,6 +116,12 @@ export const TOOL_TIERS: Record<string, Tier> = {
   sessionstart_nudge: TIER_OPEN,
   extension_list: TIER_OPEN,
   extension_inspect: TIER_OPEN,
+  startup_network_report: TIER_OPEN,
+  doc_audience_check: TIER_OPEN,
+  home_seed_validate: TIER_OPEN,
+  stow_cascade: TIER_OPEN,
+  test_isolation_list: TIER_OPEN,
+  test_run_list: TIER_OPEN,
   receipt_submit: TIER_OPEN,
   receipt_status: TIER_OPEN,
   send_message: TIER_STEER,
@@ -178,6 +192,16 @@ export const TOOL_TIERS: Record<string, Tier> = {
   remote_inherit: TIER_AUTHORITY,
   reap_orphans: TIER_AUTHORITY,
   remote_worker: TIER_AUTHORITY,
+  bootstrap: TIER_AUTHORITY,
+  check_register: TIER_AUTHORITY,
+  check_unregister: TIER_AUTHORITY,
+  agents_md_ensure: TIER_AUTHORITY,
+  install_actionlint: TIER_AUTHORITY,
+  install_herdr: TIER_AUTHORITY,
+  install_shellcheck: TIER_AUTHORITY,
+  install_treehouse: TIER_AUTHORITY,
+  update: TIER_AUTHORITY,
+  workflow_lint: TIER_AUTHORITY,
   mail_send: TIER_EXTERNAL,
   relay_reply: TIER_EXTERNAL,
   relay_dismiss: TIER_EXTERNAL,

@@ -983,3 +983,99 @@ contracts:
       header: bin/fm-sessionstart-nudge.sh:1-35
       doc: INVENTORY.md
     notes: Bounded session-start nudge read; running the bootstrap stays firstmate-owned.
+  - name: startup_network_report
+    command: bin/fm-startup-network.sh
+    flags: ["report"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: current stage state plus the last run's per-step timings; exits 0 without changing anything
+      nonzero: unreadable status record; stderr carries reason
+    stability: evolving
+    pinned: fm-startup-network.report.v1
+    evidence:
+      header: bin/fm-startup-network.sh:1-40
+      doc: INVENTORY.md
+    notes: "Read-only deferred-network stage report. start/run/harvest/wait stay out (start detaches a worker, run executes sweeps, harvest writes the delivered acknowledgement, wait blocks past the envelope)."
+  - name: doc_audience_check
+    command: bin/fm-doc-audience-check.sh
+    flags: ["--root"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: inventory and local links validate; prints the ok line with surface and link counts; exits 0
+      nonzero: inventory or link failure; stderr names the first failure; exit 1
+    stability: evolving
+    pinned: fm-doc-audience-check.v1
+    evidence:
+      header: bin/fm-doc-audience-check.sh:1-40
+      doc: INVENTORY.md
+    notes: "Structure-only docs inventory + local-link validation for one home-confined repo root (default this home). The inventory path stays at the upstream default under root."
+  - name: home_seed_validate
+    command: bin/fm-home-seed.sh
+    flags: ["validate"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: secondmate registry parses for operational consumers; exits 0
+      nonzero: unparseable, duplicate, or unsafe registry record; stderr carries reason
+    stability: evolving
+    pinned: fm-home-seed.validate.v1
+    evidence:
+      header: bin/fm-home-seed.sh:1-40
+      doc: INVENTORY.md
+    notes: Read-only secondmate-registry validation. Provisioning (clones, markers, registry writes, treehouse leases) stays out.
+  - name: stow_cascade
+    command: bin/fm-stow-cascade.sh
+    flags: ["<none>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: every home reported cleanly (or no homes registered); exits 0
+      nonzero: unusable cascade input (exit 1), invalid use (exit 2), or at least one home reported an exception with every home still reported (exit 3)
+    stability: evolving
+    pinned: fm-stow-cascade.v1
+    evidence:
+      header: bin/fm-stow-cascade.sh:1-40
+      doc: INVENTORY.md
+    notes: "Read-only cascade enumeration (per-home budget report + transport judgement). Curation stays with the /stow skill; remote homes that do not answer inside the envelope surface as a typed timeout."
+  - name: test_isolation_list
+    command: bin/fm-test-isolation-proof.sh
+    flags: ["--list", "--pool"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: proven candidate paths (or kept-serial basenames + reasons for exclusions), one per line; exits 0
+      nonzero: unknown pool or option; stderr carries reason
+    stability: evolving
+    pinned: fm-test-isolation-proof.list.v1
+    evidence:
+      header: bin/fm-test-isolation-proof.sh:1-40
+      doc: INVENTORY.md
+    notes: Read-only isolation-proof topology (candidates or exclusions for one pool). Proof runs with concurrent workers and timing artifacts stay out.
+  - name: test_run_list
+    command: bin/fm-test-run.sh
+    flags: ["--list-families"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: family/lane topology or the parallel coverage guard report; exits 0
+      nonzero: unknown lane or family selection; stderr carries reason
+    stability: evolving
+    pinned: fm-test-run.list.v1
+    evidence:
+      header: bin/fm-test-run.sh:1-40
+      doc: INVENTORY.md
+    notes: Read-only test-runner topology (families, lanes, concurrent-safe families, coverage guard). Suite runs stay out.

@@ -116,7 +116,11 @@ When updating this file, preserve this bar for all agents and keep entries conci
   `remote_file put`). Verbs that would reach another machine over SSH
   (execute/provision/push/launch/reap) get a Tier 3 name but NO handler in
   `ts/src/tools.ts`, so tools/call refuses them as unknown even with approval
-  (`ts/tests/server.test.ts` asserts the refusal).
+  (`ts/tests/server.test.ts` asserts the refusal). Same no-handler shape
+  covers installs mutators (bootstrap/seed/install/update/lint-run); mixed
+  read+mutating scripts (home-seed validate, startup-network report,
+  test topology lists) mirror the read with the kept-out verb in the
+  divergence reason and no DENY entry.
 - Supervised deployment (`docs/DEPLOYMENT.md`): launchd unit template (`deploy/com.firstmate.mcp.plist.template`), fail-closed stdio smoke gate (`scripts/fm-mcp-smoke.sh`, `tests/fm-mcp-smoke.test.sh`), plist renderer (`scripts/fm-mcp-render-plist.sh`, `tests/fm-mcp-deploy.test.sh`), and copytruncate log rotation (`scripts/fm-mcp-logrotate.sh`, `tests/fm-mcp-logrotate.test.sh`).
 - Commit hooks: `bash scripts/setup-hooks.sh` configures `core.hooksPath = .githooks`
   (enforcing conventional commits `feat|fix|chore|docs|refactor|test|ci|perf|build|revert|style`

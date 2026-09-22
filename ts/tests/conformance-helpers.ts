@@ -63,6 +63,12 @@ export const READ_TOOLS: ReadonlySet<string> = new Set([
   "tasks_ready",
   "dispatch_resolve",
   "sessionstart_nudge",
+  "startup_network_report",
+  "doc_audience_check",
+  "home_seed_validate",
+  "stow_cascade",
+  "test_isolation_list",
+  "test_run_list",
 ]);
 
 // Scripts the suite may execute. Anything else fails closed at the runner.
@@ -103,6 +109,12 @@ export const READ_SCRIPTS: ReadonlySet<string> = new Set([
   "fm-tasks-axi.sh",
   "fm-dispatch-resolve.sh",
   "fm-sessionstart-nudge.sh",
+  "fm-startup-network.sh",
+  "fm-doc-audience-check.sh",
+  "fm-home-seed.sh",
+  "fm-stow-cascade.sh",
+  "fm-test-isolation-proof.sh",
+  "fm-test-run.sh",
 ]);
 
 export const SNAPSHOT_STUB = `node -e '
@@ -182,6 +194,12 @@ export const TASKS_AXI_STUB =
   'else echo "tasks-axi-stub:dashboard"; fi\n';
 export const DISPATCH_RESOLVE_STUB = 'echo "dispatch-resolve-stub:$1"\n';
 export const SESSIONSTART_NUDGE_STUB = 'echo "sessionstart-nudge-stub"\n';
+export const STARTUP_NETWORK_STUB = 'echo "network-stub:$1"\n';
+export const DOC_AUDIENCE_STUB = 'echo "doc-audience-stub:$2"\n';
+export const HOME_SEED_STUB = 'echo "home-seed-stub:$1"\n';
+export const STOW_CASCADE_STUB = 'echo "stow-cascade-stub"\n';
+export const TEST_ISOLATION_STUB = 'echo "isolation-stub:$1 pool=$3"\n';
+export const TEST_RUN_STUB = 'echo "test-run-stub:$1"\n';
 export const HOME_SUMMARY_FIXTURE = {
   schema: "fm-secondmate-home-summary.v1",
   generated: "stub",
@@ -250,6 +268,12 @@ export function setup(): Fixture {
   writeStub(path.join(scratch, "bin"), "fm-tasks-axi.sh", TASKS_AXI_STUB);
   writeStub(path.join(scratch, "bin"), "fm-dispatch-resolve.sh", DISPATCH_RESOLVE_STUB);
   writeStub(path.join(scratch, "bin"), "fm-sessionstart-nudge.sh", SESSIONSTART_NUDGE_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-startup-network.sh", STARTUP_NETWORK_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-doc-audience-check.sh", DOC_AUDIENCE_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-home-seed.sh", HOME_SEED_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-stow-cascade.sh", STOW_CASCADE_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-test-isolation-proof.sh", TEST_ISOLATION_STUB);
+  writeStub(path.join(scratch, "bin"), "fm-test-run.sh", TEST_RUN_STUB);
 
   const savedFmHome = process.env.FM_HOME;
   const savedStateOverride = process.env.FM_STATE_OVERRIDE;

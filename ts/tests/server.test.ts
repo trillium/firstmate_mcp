@@ -160,6 +160,8 @@ describe("expanded surface: 66 tools", () => {
     "public_followup_pending", "public_followup_collect",
     "tasks_list", "tasks_show", "tasks_ready",
     "dispatch_resolve", "sessionstart_nudge",
+    "startup_network_report", "doc_audience_check", "home_seed_validate",
+    "stow_cascade", "test_isolation_list", "test_run_list",
     "session_start", "sessionstart_run", "sessionstart_cursor",
     "herdr_lab", "herdr_ci_cleanup", "session_cleanup",
     "claude_trust", "agy_trust", "claude_stop_autoarm",
@@ -177,10 +179,10 @@ describe("expanded surface: 66 tools", () => {
     "grant_mint", "grant_revoke", "grant_status",
   ];
 
-  it("server lists 113 tools", async () => {
+  it("server lists 119 tools", async () => {
     const resp = await boxed.request("tools/list");
     const tools = (resp.result as Record<string, unknown>)["tools"] as Array<{ name: string }>;
-    assert.equal(tools.length, 113);
+    assert.equal(tools.length, 119);
   });
 
   for (const required of REQUIRED) {
@@ -212,6 +214,8 @@ describe("expanded surface: 66 tools", () => {
       "public_followup_pending", "public_followup_collect",
       "tasks_list", "tasks_show", "tasks_ready",
       "dispatch_resolve", "sessionstart_nudge",
+      "startup_network_report", "doc_audience_check", "home_seed_validate",
+      "stow_cascade", "test_isolation_list", "test_run_list",
       "receipt_submit", "receipt_status", "daemon_status", "grant_status",
       "decision_verify", "decision_open", "decision_diverged",
     ]);
@@ -1207,6 +1211,66 @@ describe("expanded surface: 66 tools", () => {
     const resp = await boxed.call("sessionstart_nudge", {});
     assert.equal(isError(resp), false);
     assert.equal(payload(resp)["fired"], true);
+  });
+  it("startup_network_report returns the report stub", async () => {
+    const resp = await boxed.call("startup_network_report", {});
+    assert.equal(isError(resp), false);
+    assert.match(String(payload(resp)["stdout"] ?? ""), /network-stub:report/);
+  });
+  it("doc_audience_check defaults root to this home", async () => {
+    const resp = await boxed.call("doc_audience_check", {});
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["root"], sandbox);
+  });
+  it("doc_audience_check rejects roots outside the home", async () => {
+    assert.equal(isError(await boxed.call("doc_audience_check", { root: "../escape" })), true);
+    assert.equal(isError(await boxed.call("doc_audience_check", { root: "/abs" })), true);
+  });
+  it("home_seed_validate returns the validate stub", async () => {
+    const resp = await boxed.call("home_seed_validate", {});
+    assert.equal(isError(resp), false);
+    assert.match(String(payload(resp)["stdout"] ?? ""), /home-seed-stub:validate/);
+  });
+  it("stow_cascade returns the cascade stub", async () => {
+    const resp = await boxed.call("stow_cascade", {});
+    assert.equal(isError(resp), false);
+    assert.match(String(payload(resp)["stdout"] ?? ""), /stow-cascade-stub/);
+  });
+  it("test_isolation_list defaults to portable candidates", async () => {
+    const resp = await boxed.call("test_isolation_list", {});
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["mode"], "candidates");
+    assert.equal(payload(resp)["pool"], "portable");
+    assert.match(String(payload(resp)["stdout"] ?? ""), /isolation-stub:--list pool=portable/);
+  });
+  it("test_isolation_list rejects bad mode and pool without spawn", async () => {
+    assert.equal(isError(await boxed.call("test_isolation_list", { mode: "bogus" })), true);
+    assert.equal(
+      isError(await boxed.call("test_isolation_list", { pool: "../escape" })),
+      true,
+    );
+  });
+  it("test_run_list defaults to families", async () => {
+    const resp = await boxed.call("test_run_list", {});
+    assert.equal(isError(resp), false);
+    assert.equal(payload(resp)["mode"], "families");
+    assert.match(String(payload(resp)["stdout"] ?? ""), /test-run-stub:--list-families/);
+  });
+  it("test_run_list rejects bad mode without spawn", async () => {
+    assert.equal(isError(await boxed.call("test_run_list", { mode: "bogus" })), true);
+  });
+  it("installs-mutating verbs are refused as unknown, even with approval", async () => {
+    for (const name of [
+      "bootstrap", "check_register", "check_unregister", "agents_md_ensure",
+      "install_actionlint", "install_herdr", "install_shellcheck", "install_treehouse",
+      "update", "workflow_lint",
+    ]) {
+      for (const args of [{}, { approval: APPROVAL }]) {
+        const resp = await boxed.call(name, args);
+        assert.ok("error" in resp && resp.error!.code === -32602, `${name} ${JSON.stringify(args)}`);
+        assert.match(String(resp.error!.message ?? ""), /unknown tool/i, name);
+      }
+    }
   });
   it("session_start refuses without approval", async () => {
     const resp = await boxed.call("session_start", {});

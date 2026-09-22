@@ -125,6 +125,14 @@ export type VoiceScope = (typeof VOICE_SCOPES)[number];
 export const STARTUP_MEMORY_MODES = ["read", "report"] as const;
 export type StartupMemoryMode = (typeof STARTUP_MEMORY_MODES)[number];
 
+export const TEST_ISOLATION_LIST_MODES = ["candidates", "exclusions"] as const;
+export type TestIsolationListMode = (typeof TEST_ISOLATION_LIST_MODES)[number];
+
+export const TEST_RUN_LIST_MODES = ["families", "lanes", "concurrent_safe", "coverage"] as const;
+export type TestRunListMode = (typeof TEST_RUN_LIST_MODES)[number];
+
+export const ISOLATION_POOL_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+
 export const MAIL_TO_MAX_CHARS = 200;
 export const MAIL_SUBJECT_MAX_CHARS = 200;
 export const MAIL_BODY_MAX_CHARS = 5000;
