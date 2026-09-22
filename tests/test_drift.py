@@ -62,39 +62,94 @@ class DiffClassesTest(unittest.TestCase):
         self.assertEqual(report["removed"], ["b.sh"])
         self.assertEqual(report["summary"]["feature_drift"], 1)
 
-    def test_flag_change_is_feature_drift_only(self):
+    def test_flag_change_is_not_drift(self):
+        """Flags come from executing --help: evidence, never a drift trigger."""
         old = snapshot(["a.sh"])
         new = snapshot(["a.sh"])
         new["surfaces"][0]["flags"] = ["--json", "--verbose"]
-        (entry,) = diff_snapshots(old, new)["changed"]
-        self.assertTrue(entry["feature_drift"])
-        self.assertFalse(entry["behavior_drift"])
-        self.assertTrue(all(c["class"] == "feature" for c in entry["changes"]))
+        report = diff_snapshots(old, new)
+        self.assertEqual(report["changed"], [])
+        self.assertTrue(report["summary"]["clean"])
 
-    def test_help_only_change_is_behavior_drift_only(self):
+    def test_help_change_is_not_drift(self):
         old = snapshot(["a.sh"])
         new = snapshot(["a.sh"])
         new["surfaces"][0]["help_excerpt"] = "usage: a.sh --json (new docs)"
         new["surfaces"][0]["help_hash"] = "bbb"
+        report = diff_snapshots(old, new)
+        self.assertEqual(report["changed"], [])
+        self.assertTrue(report["summary"]["clean"])
+
+    def test_content_change_is_behavior_drift_only(self):
+        old = snapshot(["a.sh"])
+        new = snapshot(["a.sh"])
+        new["surfaces"][0]["file_hash"] = "ggg"
+        new["surfaces"][0]["size"] = 120
         (entry,) = diff_snapshots(old, new)["changed"]
         self.assertTrue(entry["behavior_drift"])
         self.assertFalse(entry["feature_drift"])
 
+    def test_header_contract_change_is_feature_drift_only(self):
+        old = snapshot(["a.sh"])
+        new = snapshot(["a.sh"])
+        new["surfaces"][0]["header_contract"] = "Output contract: --json prints an array"
+        (entry,) = diff_snapshots(old, new)["changed"]
+        self.assertTrue(entry["feature_drift"])
+        self.assertFalse(entry["behavior_drift"])
+
+    def test_mtime_only_change_is_not_drift(self):
+        """A checkout timestamp is not upstream drift.
+
+        Regression: every surface once reported drift because two checkouts
+        were made at different times (2026-09-21), drowning the real signal.
+        """
+        old = snapshot(["a.sh"])
+        new = snapshot(["a.sh"])
+        new["surfaces"][0]["mtime"] = 9999
+        report = diff_snapshots(old, new)
+        self.assertEqual(report["changed"], [])
+        self.assertTrue(report["summary"]["clean"])
+
+    def test_mtime_is_still_recorded_in_snapshots(self):
+        """Excluded from comparison, not from the observed inventory."""
+        import tempfile
+        from drift.snapshot import inspect_script
+        with tempfile.TemporaryDirectory() as tmp:
+            probe = Path(tmp) / "fm-probe.sh"
+            probe.write_text("#!/bin/sh\necho hi\n", encoding="utf-8")
+            entry = inspect_script(probe)
+        self.assertIn("mtime", entry)
+
     def test_mixed_change_carries_both_classes(self):
         old = snapshot(["a.sh"])
         new = snapshot(["a.sh"])
-        new["surfaces"][0]["flags"] = ["--json", "--verbose"]
+        new["surfaces"][0]["header_contract"] = "Output contract: --json prints an array"
         new["surfaces"][0]["file_hash"] = "ggg"
         (entry,) = diff_snapshots(old, new)["changed"]
         self.assertTrue(entry["feature_drift"])
         self.assertTrue(entry["behavior_drift"])
 
 
+class NormalizeHelpTest(unittest.TestCase):
+    def test_checkout_path_is_normalized_away(self):
+        """Identical content at two paths must snapshot identically."""
+        from drift.snapshot import normalize_help
+        text = "fm-mail: add FM_MAIL_USER to /a/b/sources/firstmate/.env"
+        norm = normalize_help(text, "/a/b/sources/firstmate")
+        self.assertNotIn("/a/b/sources/firstmate", norm)
+        self.assertIn("<FM_HOME>", norm)
+
+    def test_no_home_is_a_noop(self):
+        from drift.snapshot import normalize_help
+        text = "fm-mail: add FM_MAIL_USER to /a/b/.env"
+        self.assertEqual(text, normalize_help(text))
+
+
 class ReportShapesTest(unittest.TestCase):
     def report(self):
         old = snapshot(["a.sh", "gone.sh"])
         new = snapshot(["a.sh", "new.sh"])
-        new["surfaces"][0]["flags"] = ["--json", "--verbose"]
+        new["surfaces"][0]["header_contract"] = "Output contract: --json prints an array"
         return diff_snapshots(old, new)
 
     def test_json_shape_has_summary_and_sections(self):
