@@ -113,6 +113,7 @@ export const TOOL_TIERS: Record<string, Tier> = {
   mail_read: TIER_OPEN,
   mail_check: TIER_OPEN,
   voice_status: TIER_OPEN,
+  doctor: TIER_OPEN,
   lint_versions: TIER_OPEN,
   tool_update_check: TIER_OPEN,
   vendor_auth_probe: TIER_OPEN,
