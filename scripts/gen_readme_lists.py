@@ -78,6 +78,16 @@ DENY_LIST = frozenset(
         "herdr_eventwait",
         "herdr_workspace_move",
         "backend_select",
+        "on_execute",
+        "config_push",
+        "remote_entrypoint",
+        "remote_herdr_guard",
+        "remote_provision",
+        "remote_seed",
+        "inherit_push",
+        "remote_inherit",
+        "reap_orphans",
+        "remote_worker",
     }
 )
 
@@ -105,6 +115,8 @@ TOOLS = {
     "remote_doctor": ("fm-remote-doctor.sh", None, False),
     "remote_file": ("fm-remote-file.sh", None, False),
     "remote_delta": ("fm-remote-delta-read.sh", None, False),
+    "extension_list": ("fm-extension.sh", None, False),
+    "extension_inspect": ("fm-extension.sh", None, False),
     "handoff_status": (None, None, False),
     "secondmate_nudge": ("fm-secondmate-reconcile.sh", None, True),
     "secondmate_restart": ("fm-secondmate-restart.sh", None, True),
@@ -167,6 +179,7 @@ TOOL_TIERS = {
     "fleet_poll": 1, "peek": 1, "fleet_view": 1, "review_diff": 1,
     "bearings_snapshot": 1, "wake_drain": 1, "guard_check": 1,
     "remote_doctor": 1, "remote_file": 1, "remote_delta": 1,
+    "extension_list": 1, "extension_inspect": 1,
     "handoff_status": 1, "harness_detect": 1, "project_mode": 1,
     "lock_status": 1, "lease_check": 1, "bearings_board_path": 1,
     "inbox_status": 1, "inbox_list": 1, "home_summary": 1, "home_summary_refresh": 1,
@@ -192,6 +205,10 @@ TOOL_TIERS = {
     "herdr_lab": 3, "herdr_ci_cleanup": 3, "session_cleanup": 3,
     "claude_trust": 3, "agy_trust": 3, "claude_stop_autoarm": 3,
     "herdr_eventwait": 3, "herdr_workspace_move": 3,
+    "on_execute": 3, "config_push": 3, "remote_entrypoint": 3,
+    "remote_herdr_guard": 3, "remote_provision": 3, "remote_seed": 3,
+    "inherit_push": 3, "remote_inherit": 3, "reap_orphans": 3,
+    "remote_worker": 3,
     "mail_send": 4, "relay_reply": 4, "relay_dismiss": 4, "relay_followup": 4,
 }
 

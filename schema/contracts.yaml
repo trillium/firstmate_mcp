@@ -359,6 +359,38 @@ contracts:
       header: bin/fm-remote-delta-read.sh:1-30
       doc: INVENTORY.md
     notes: Read-only poll; the wait is clamped to 0..10s so no call nears the 30s envelope.
+  - name: extension_list
+    command: bin/fm-extension.sh
+    flags: ["list"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: enabled home-local bindings table, or quiet "no extension bindings" on an absent registry
+      nonzero: unreadable registry or unsafe registry modes/ownership; stderr carries the reason
+    stability: stable
+    pinned: fm-extension.v1
+    evidence:
+      header: bin/fm-extension.sh:1-16
+      doc: INVENTORY.md
+    notes: Read-only home-local binding list; never spawns a package executable and never touches SSH.
+  - name: extension_inspect
+    command: bin/fm-extension.sh
+    flags: ["inspect", "<extension-id>"]
+    output:
+      format: json
+      schema_id: firstmate.extension-binding.v1
+      fields: ["id", "stdout"]
+    exits:
+      zero: one validated binding as deterministic JSON, with id echoed
+      nonzero: unknown id, malformed id, or unreadable binding/package; stderr carries the reason
+    stability: stable
+    pinned: fm-extension.v1
+    evidence:
+      header: bin/fm-extension.sh:1-16
+      doc: INVENTORY.md
+    notes: Read-only single-binding read; local file reads and digest checks only, never the verify handshake that executes package code.
   - name: handoff_status
     command: "file: data/handoff/<id>.outbox.md"
     flags: ["<id>", "lines=1..20"]
