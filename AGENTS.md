@@ -268,6 +268,26 @@ Personal software, one owner, no external users. Standing owner instruction:
   test topology lists) mirror the read with the kept-out verb in the
   divergence reason and no DENY entry.
 - Supervised deployment (`docs/DEPLOYMENT.md`): launchd unit template (`deploy/com.firstmate.mcp.plist.template`), fail-closed stdio smoke gate (`scripts/fm-mcp-smoke.sh`, `tests/fm-mcp-smoke.test.sh`), plist renderer (`scripts/fm-mcp-render-plist.sh`, `tests/fm-mcp-deploy.test.sh`), and copytruncate log rotation (`scripts/fm-mcp-logrotate.sh`, `tests/fm-mcp-logrotate.test.sh`).
+  Installed 2026-09-22 on this host: `com.firstmate.mcp` (the server unit) plus
+  `com.firstmate.mcp.maintenance` (daily `scripts/fm-mcp-maintenance.sh`,
+  `tests/fm-mcp-maintenance.test.sh`), which smoke-gates the live home and then
+  rotates logs under a hard watchdog. Two things learned by deploying, not by
+  reading:
+  - The **server unit is an idle anchor, not a serving process**. It is a stdio
+    server: under launchd it reads EOF, exits 0, and
+    `KeepAlive{SuccessfulExit:false}` deliberately leaves it stopped
+    (`runs=1, last exit code=0, state=not running`). Serving is done by whatever
+    spawns the server (mcpjungle here); the unit exists so
+    `launchctl kickstart -k gui/$(id -u)/com.firstmate.mcp` is a real cutover
+    target.
+  - **Never let a launchd unit inherit an interactive PATH.** A rendered unit
+    carried pyenv shims, and `pyenv-exec python3` hung indefinitely under
+    launchd — the smoke gate calls python3 — parking the maintenance job in
+    "running" with an empty log. `fm-mcp-render-plist.sh` now defaults to a
+    shim-free PATH (runtime dir + homebrew + system dirs); the maintenance
+    script also avoids python3 entirely (bash-native `EPOCHREALTIME`), uses temp
+    files instead of command substitution (a `$( )` capture waits for EOF, which
+    a surviving grandchild can hold open forever), and bounds every stage.
 - Commit hooks: `bash scripts/setup-hooks.sh` configures `core.hooksPath = .githooks`
   (enforcing conventional commits `feat|fix|chore|docs|refactor|test|ci|perf|build|revert|style`
   matching observed history, shared across checkouts and linked worktrees; escape hatch `--no-verify`

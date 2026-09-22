@@ -32,7 +32,7 @@ All paths, binaries, log destinations, and tokens are parameterized via environm
 | `FM_LOG_DIR` | `--log-dir` | `$FM_HOME/logs` | Base directory for supervisor and stderr logs |
 | `STDERR_LOG` | `--stderr` | `$FM_LOG_DIR/mcp-stderr.log` | Destination for server stderr output |
 | `STDOUT_LOG` | `--stdout` | `/dev/null` | Destination for stdout (managed by MCP client pipe) |
-| `PATH` | `--path` | System PATH | PATH environment variable provided to launchd unit |
+| `PATH` | `--path` | Shim-free (runtime dir + `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`) | PATH environment variable provided to launchd unit. Never inherit an interactive PATH: pyenv shims hang under launchd (2026-09-22). |
 | `FMX_PAIRING_TOKEN` | `--pairing-token` | *(None)* | Optional pairing token for relay tools |
 | `FM_RELEASE_GRANT` | `--release-grant` | `0` | Captain-hold release grant flag (`1` enables 3rd-party release) |
 | `SMOKE_TIMEOUT_S` | `--timeout` | `15` | Timeout in seconds for the smoke gate run |
@@ -144,7 +144,9 @@ Because long-running Node/Bun processes maintain open file descriptors, `fm-mcp-
 4. Prunes archives older than `RETENTION_DAYS` (default: 14 days).
 
 ### Running Log Rotation
-Manually or in cron:
+Manually, by the maintenance agent (`com.firstmate.mcp.maintenance`, which runs
+`scripts/fm-mcp-maintenance.sh` on a 24h interval: smoke gate first, rotation
+only if it passes), or in cron:
 ```bash
 ./scripts/fm-mcp-logrotate.sh --home /path/to/firstmate --max-size-mb 50 --retention-days 14
 ```
