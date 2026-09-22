@@ -1159,6 +1159,22 @@ contracts:
       header: bin/fm-test-isolation-proof.sh:1-40
       doc: INVENTORY.md
     notes: Read-only isolation-proof topology (candidates or exclusions for one pool). Proof runs with concurrent workers and timing artifacts stay out.
+  - name: test_run
+    command: bin/fm-test-run.sh
+    flags: ["--all", "--family", "--changed", "--lane", "--proven-isolated", "--list", "--check-coverage"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout", "mode", "selection"]
+    exits:
+      zero: the selected suite or inspection report completed; stdout carries the runner output
+      nonzero: unknown selection or failing suite; stderr carries the reason
+    stability: evolving
+    pinned: fm-test-run.v1
+    evidence:
+      header: bin/fm-test-run.sh:1-40
+      doc: INVENTORY.md
+    notes: Execution counterpart to test_run_list, which deliberately keeps suite runs out. Long selections belong on the receipt path (180s budget).
   - name: test_run_list
     command: bin/fm-test-run.sh
     flags: ["--list-families"]

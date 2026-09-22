@@ -128,9 +128,14 @@ import {
   validQuotaSnapshot,
   validRelpath,
   validBaseBranch,
+  validGitRef,
   validPrBody,
   validPrTitle,
   validSubagentTool,
+  validTestFamily,
+  validTestLane,
+  validTestRunMode,
+  validTestScriptPath,
   validSupervisionAfkMode,
   validSupervisionHarness,
   validRemoteMaxBytes,
@@ -3035,6 +3040,102 @@ async function toolTestRunList(args: ToolArgs, ctx: ToolContext): Promise<ToolRe
   return { payload, isError: true };
 }
 
+export async function toolTestRun(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const mode = args["mode"];
+  if (!validTestRunMode(mode)) {
+    return {
+      payload: {
+        error: "invalid mode",
+        expect: "one of all, family, changed, lane, proven-isolated, scripts",
+      },
+      isError: true,
+    };
+  }
+  const listOnly = args["list"] === true;
+  const checkCoverage = args["check_coverage"] === true;
+  if (args["list"] !== undefined && typeof args["list"] !== "boolean") {
+    return { payload: { error: "invalid list", expect: "boolean" }, isError: true };
+  }
+  if (args["check_coverage"] !== undefined && typeof args["check_coverage"] !== "boolean") {
+    return { payload: { error: "invalid check_coverage", expect: "boolean" }, isError: true };
+  }
+
+  const cmd = argv(path.join(ctx.binDir, "fm-test-run.sh"));
+  const selection: string[] = [];
+  switch (mode) {
+    case "all":
+      selection.push("--all");
+      break;
+    case "proven-isolated":
+      selection.push("--proven-isolated");
+      break;
+    case "family": {
+      const family = args["family"];
+      if (!validTestFamily(family)) {
+        return { payload: { error: "invalid family", expect: "family name from --list-families" }, isError: true };
+      }
+      selection.push("--family", family);
+      break;
+    }
+    case "changed": {
+      selection.push("--changed");
+      const base = args["base"];
+      if (base !== undefined) {
+        if (!validGitRef(base)) {
+          return { payload: { error: "invalid base", expect: "git ref, no revision range" }, isError: true };
+        }
+        selection.push("--base", base);
+      }
+      break;
+    }
+    case "lane": {
+      const lane = args["lane"];
+      if (!validTestLane(lane)) {
+        return {
+          payload: { error: "invalid lane", expect: "portable-parallel-1|2, portable-serial, portable-serial-<k>of<n>" },
+          isError: true,
+        };
+      }
+      selection.push("--lane", lane);
+      break;
+    }
+    case "scripts": {
+      const scripts = args["scripts"];
+      if (!Array.isArray(scripts) || scripts.length === 0 || !scripts.every(validTestScriptPath)) {
+        return {
+          payload: { error: "invalid scripts", expect: "non-empty list of tests/<name>.test.sh paths" },
+          isError: true,
+        };
+      }
+      selection.push(...(scripts as string[]));
+      break;
+    }
+  }
+  // --list is the inspection form: it composes with all/family/lane and never
+  // executes the suite. --check-coverage is standalone.
+  if (listOnly) cmd.push("--list");
+  cmd.push(...selection);
+  if (checkCoverage) cmd.push("--check-coverage");
+
+  const { payload, isError } = await ownedCall(cmd, "test run failed", ctx.run);
+  if (isError) return { payload, isError };
+  const executes = !listOnly && !checkCoverage;
+  return {
+    payload: {
+      ...payload,
+      mode,
+      selection: selection.join(" "),
+      list_only: listOnly,
+      // Suite runs take minutes and can exceed the 30s envelope; say so up front
+      // instead of letting the caller discover it as a bare timeout.
+      ...(executes
+        ? { long_running: true, hint: "suite runs can exceed the 30s envelope; submit test_run through receipt_submit (180s budget)" }
+        : {}),
+    },
+    isError: false,
+  };
+}
+
 async function toolPrState(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   const url = args["url"];
   if (!validPrUrl(url)) {
@@ -5013,6 +5114,31 @@ export const TOOLS: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolTestRunList,
+  },
+  test_run: {
+    description:
+      "Authority write: run the firstmate behavior-test runner for one selection (all, family, changed, lane, proven-isolated, or explicit scripts); --list and --check-coverage inspect without executing.",
+    inputSchema: approvalSchema(
+      {
+        mode: {
+          type: "string",
+          enum: ["all", "family", "changed", "lane", "proven-isolated", "scripts"],
+          description: "What to run",
+        },
+        family: { type: "string", description: "Family name for mode=family" },
+        lane: { type: "string", description: "Lane name for mode=lane" },
+        base: { type: "string", description: "Git ref for mode=changed (defaults to the runner's own base)" },
+        scripts: {
+          type: "array",
+          items: { type: "string" },
+          description: "tests/<name>.test.sh paths for mode=scripts",
+        },
+        list: { type: "boolean", description: "Inspect the selection without executing it" },
+        check_coverage: { type: "boolean", description: "Run the parallel coverage guard instead of a suite" },
+      },
+      ["mode"],
+    ),
+    handler: toolTestRun,
   },
   pr_state: {
     description: "Read-only blockers on one GitHub pull request; never posts, requests, or merges.",
