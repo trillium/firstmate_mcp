@@ -11,6 +11,51 @@ Do not repeat what the codebase already shows; point to the authoritative file o
 Prefer rewriting or pruning existing entries over appending new ones.
 When updating this file, preserve this bar for all agents and keep entries concise.
 
+## Beads and the store registry
+
+- "Beads" (the captain's word for issues) are the `bd`-backed stores, but they
+  are addressed by their own CLI name, never by bare `bd`: `projects list`,
+  `task ready`, `review show`, `robots ...`. Each name is a wrapper that pins
+  `BEADS_DIR` + `BD_NAME` and execs `bd "$@"`.
+- Shared registry of every store: `~/.config/pai/stores.yaml` — list with
+  `brain stores list`; wrappers consume `~/.config/pai/stores.env`. Do not
+  hand-edit; use `brain stores add/remove/create/alias`.
+- This repo has no `.beads`, so bare `bd` fails here. firstmate_mcp's tracking
+  lives in the `projects` store, epic `project-2od`; query it as
+  `projects ...` from any cwd.
+- Cross-store ids in notes (`task-*`, `brain-*`, `review-*`) live in other
+  registered stores; resolve them with the matching CLI.
+
+## Client wiring (how agents reach the doorway)
+
+- Pi has no built-in MCP; the fleet client is the `pi-mcp-adapter` package (in
+  `~/.pi/agent/settings.json` `packages`). Servers live in `~/.pi/agent/mcp.json`
+  (adapter-owned; `~/.config/mcp/mcp.json` is the cross-host shared file).
+- The doorway is served by **mcpjungle**, never spawned by the client: the Pi
+  entry `firstmate` points at the scoped tool group endpoint
+  `http://127.0.0.1:8338/v0/groups/firstmate/mcp` (`toolPrefix: none`,
+  `lifecycle: lazy`). The group (`included_servers: [firstmate_mcp]`) is what
+  keeps the gateway's other namespaces (interceptor, apple-notes, beads-bridge)
+  out of the client: 190 aggregate tools -> 125 doorway tools, named
+  `firstmate_mcp__<tool>`. Add/refresh it with
+  `mcpjungle --registry http://127.0.0.1:8338 create group --conf <file>`.
+- Reach tools lazily through the proxy surface — `mcp` (`search` -> `describe`
+  -> `call`) and `mcpScript` — not by flooding the client with 125 direct tools.
+  A freshly written config needs a Pi `/reload`/new session, but
+  `mcp({action:"install", url})` registers a server live with no reload.
+- The adapter's approval layer is separate from the doorway's own tiers: Tier 3+
+  calls still need the tool's `approval` string or a minted standing grant.
+- Sharp edge: the served child is `ts/dist/server.js`, gitignored and never
+  built by a fresh checkout or by a merge — run `cd ts && pnpm run build` after
+  pulling. mcpjungle also **caches tool metadata at register time**, so a
+  rebuilt `dist` is invisible until
+  `mcpjungle --registry http://127.0.0.1:8338 register --conf <export> --force`
+  (`mcpjungle export -d <dir>`); the CLI defaults to :8080, so always pass
+  `--registry http://127.0.0.1:8338`.
+- Whole-home reads (`backlog`, `bearings_snapshot`, `fleet_snapshot`) exceed the
+  30s envelope on a real home and return a typed `{"error":"timed out"}`; that
+  is the envelope working, not a client bug — use the receipt path.
+
 ## Build, test, and envelope
 
 - Server proof: `cd ts && bun test` (or `pnpm test`) is the full standalone
