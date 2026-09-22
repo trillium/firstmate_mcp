@@ -171,6 +171,17 @@ Personal software, one owner, no external users. Standing owner instruction:
   `drift/baseline.json: firstmate_revision`; server order is
   `CHECKOUT_BIN` > `FM_HOME/bin`, with `FIRSTMATE_HOME` > `FM_REAL_HOME` >
   `FM_CHECKOUT` for reference lookup.
+- `doctor` (Tier 1, `ts/src/tools.ts`): one read that reports whether the doorway
+  can actually work on *this* home — contract resolution parsed from
+  `schema/matrix.md` (dependency-free; ts has no YAML parser), envelope budgets,
+  snapshot and ledger freshness with ages, usable-grant count, audit size and last
+  timestamp, and gh resolution — with `status: healthy|degraded` plus one named
+  reason per problem, returned as a non-error either way. It exists because both
+  silent failures of 2026-09-22 (18 dead contracts; an orientation cache that
+  expired into 35s timeouts) were found by measuring from *outside*; doctor
+  surfaces them to any client. It counts **usable** grants, not records —
+  `listGrants` returns revoked and expired ones too, which made it report
+  "1 active grant" for a revoked grant until a live check caught it.
 - Ledger-backed orientation (`ts/src/tools.ts` `publishHomeSummary`):
   `home_summary` reads `state/home-summary.json` in O(1) — 3ms live, against
   110s for the full `fm-fleet-snapshot.sh --json` walk that used to serve it —
