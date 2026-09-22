@@ -36,7 +36,11 @@ ACTOR_ARG="${FM_ACTOR:-mcp-agent}"
 LOG_DIR_ARG=""
 STDERR_ARG=""
 STDOUT_ARG=""
-PATH_ARG="${PATH:-/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin}"
+# PATH is resolved after arg parsing. A rendered launchd unit must NOT inherit
+# the interactive shell's PATH: measured 2026-09-22, a unit carrying pyenv shims
+# hung forever in `pyenv-exec python3` (the smoke gate calls python3), parking
+# the job in "running" with an empty log. Pass --path to override.
+PATH_ARG="${FM_MCP_UNIT_PATH:-}"
 PAIRING_TOKEN_ARG="${FMX_PAIRING_TOKEN:-}"
 RELEASE_GRANT_ARG="${FM_RELEASE_GRANT:-0}"
 OUTPUT_ARG=""
@@ -116,6 +120,17 @@ case "$RUNTIME_ARG" in
   bun|node) : ;;
   *) fail "--runtime must be 'bun' or 'node', got: $RUNTIME_ARG" 2 ;;
 esac
+
+# Shim-free unit PATH: system dirs plus homebrew and the runtime's own
+# directory, so a launchd job never resolves a tool through an interactive-shell
+# version manager.
+if [ -z "$PATH_ARG" ]; then
+  PATH_ARG="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  runtime_bin="$(command -v "$RUNTIME_ARG" 2>/dev/null || true)"
+  case "$runtime_bin" in
+    /*) PATH_ARG="$(dirname "$runtime_bin"):$PATH_ARG" ;;
+  esac
+fi
 
 # Default audit log
 if [ -z "$AUDIT_LOG_ARG" ]; then
