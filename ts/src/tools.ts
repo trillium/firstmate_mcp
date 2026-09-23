@@ -1074,470 +1074,51 @@ import {
   toolPrReviewers,
 } from "./tools/pr-reads.js";
 
-async function toolArmPolicyCheck(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const command = args["command"];
-  if (!validPolicyCommand(command)) {
-    return {
-      payload: { error: "invalid command", expect: "shell text, 1..4000 chars, no NUL" },
-      isError: true,
-    };
-  }
-  // Classification only: the hook never executes, sources, evaluates,
-  // or expands the submitted command. Fail-open (missing node/policy)
-  // reports allow with empty outputs, exactly like the hook.
-  const result = await classifyCall(
-    argv(path.join(ctx.binDir, "fm-arm-pretool-check.sh"), "--command", command as string),
-    "arm policy check failed",
-    ctx.run,
-  );
-  if (!result.isError) return { payload: { ...result.payload, command }, isError: false };
-  return result;
-}
+// Policy/quota/followup reads live in ./tools/policy.ts (slice 13, task-8pqjb).
+// Imported for the TOOLS registry below; module-private as before.
+import {
+  toolArmPolicyCheck,
+  toolCdPolicyCheck,
+  toolSubagentPolicyCheck,
+  toolSupervisionInstructions,
+  toolQuotaChoose,
+  toolPublicFollowupPending,
+  toolPublicFollowupCollect,
+} from "./tools/policy.js";
 
-async function toolCdPolicyCheck(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const command = args["command"];
-  if (!validPolicyCommand(command)) {
-    return {
-      payload: { error: "invalid command", expect: "shell text, 1..4000 chars, no NUL" },
-      isError: true,
-    };
-  }
-  // Classification only, scoped to the real primary checkout: outside
-  // it the guard is inert (allow), exactly like the hook.
-  const result = await classifyCall(
-    argv(path.join(ctx.binDir, "fm-cd-pretool-check.sh"), "--command", command as string),
-    "cd policy check failed",
-    ctx.run,
-  );
-  if (!result.isError) return { payload: { ...result.payload, command }, isError: false };
-  return result;
-}
+// Denied-by-design handlers live in ./tools/denied.ts (slice 13, task-8pqjb).
+// Imported for the TOOLS registry below; re-exported, public as before.
+import {
+  toolPublicFollowupEmit,
+  toolRelayLink,
+  toolFleetSync,
+  toolInactiveReconcile,
+} from "./tools/denied.js";
+export {
+  toolPublicFollowupEmit,
+  toolRelayLink,
+  toolFleetSync,
+  toolInactiveReconcile,
+};
 
-async function toolSubagentPolicyCheck(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const tool = args["tool"];
-  if (!validSubagentTool(tool)) {
-    return {
-      payload: { error: "invalid tool", expect: "harness tool name, 1..128 chars, single line" },
-      isError: true,
-    };
-  }
-  // Classification only: matches the delegation shape of the tool name.
-  // FM_ALLOW_SUBAGENT=1 escapes in the hook; the tool reports the
-  // guard as configured without setting it.
-  const result = await classifyCall(
-    argv(path.join(ctx.binDir, "fm-subagent-pretool-check.sh"), "--tool", tool as string),
-    "subagent policy check failed",
-    ctx.run,
-  );
-  if (!result.isError) return { payload: { ...result.payload, tool }, isError: false };
-  return result;
-}
-
-async function toolSupervisionInstructions(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  // Pure render of the tracked supervision protocol for one harness;
-  // no state read beyond the optional x-mode env file, no writes.
-  // An omitted harness auto-detects, exactly like the script.
-  const parts: string[] = [path.join(ctx.binDir, "fm-supervision-instructions.sh")];
-  const echoed: Record<string, unknown> = {};
-  const harness = args["harness"];
-  if (harness !== undefined) {
-    if (!validSupervisionHarness(harness)) {
-      return {
-        payload: {
-          error: "invalid harness",
-          expect: "one of claude, codex, opencode, pi, pi-signed, grok, cursor, omp",
-        },
-        isError: true,
-      };
-    }
-    parts.push("--harness", harness as string);
-    echoed["harness"] = harness;
-  }
-  for (const [key, flag] of [
-    ["read_only", "--read-only"],
-    ["afk", "--afk"],
-    ["x_mode", "--x-mode"],
-    ["queue_pending", "--queue-pending"],
-  ] as const) {
-    const value = args[key];
-    if (value !== undefined) {
-      if (typeof value !== "boolean") {
-        return {
-          payload: { error: `invalid ${key}`, expect: "boolean" },
-          isError: true,
-        };
-      }
-      parts.push(flag, value ? "1" : "0");
-      echoed[key] = value;
-    }
-  }
-  const afkMode = args["afk_mode"];
-  if (afkMode !== undefined) {
-    if (!validSupervisionAfkMode(afkMode)) {
-      return {
-        payload: { error: "invalid afk_mode", expect: "away or quiet" },
-        isError: true,
-      };
-    }
-    parts.push("--afk-mode", afkMode as string);
-    echoed["afk_mode"] = afkMode;
-  }
-  const repairLine = args["repair_line"];
-  if (repairLine !== undefined) {
-    if (typeof repairLine !== "boolean") {
-      return {
-        payload: { error: "invalid repair_line", expect: "boolean" },
-        isError: true,
-      };
-    }
-    if (repairLine) parts.push("--repair-line");
-    echoed["repair_line"] = repairLine;
-  }
-  const { payload, isError } = await ownedCall(
-    argv(...parts),
-    "supervision instructions failed",
-    ctx.run,
-  );
-  if (!isError) return { payload: { ...payload, ...echoed }, isError: false };
-  return { payload, isError: true };
-}
-
-async function toolQuotaChoose(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const snapshot = args["snapshot"];
-  if (!validQuotaSnapshot(snapshot)) {
-    return {
-      payload: { error: "invalid snapshot", expect: "captured quota-axi text, 1..65536 chars" },
-      isError: true,
-    };
-  }
-  const candidates = args["candidates"];
-  if (!validQuotaCandidates(candidates)) {
-    return {
-      payload: {
-        error: "invalid candidates",
-        expect: "1..16 <harness>:<model> tokens, no leading colon",
-      },
-      isError: true,
-    };
-  }
-  // Deterministic selection over an already-captured snapshot piped on
-  // stdin (never a path, never a fresh quota-axi run): no side effects.
-  // Exit 0 prints "<harness> <model>"; exit 1 prints "none".
-  const list = candidates as string[];
-  const cmd = [path.join(ctx.binDir, "fm-quota-choose.sh")];
-  for (const candidate of list) cmd.push("--candidate", candidate);
-  const res = await ctx.run(argv(...cmd), { input: snapshot as string });
-  if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
-  const [out, outTrunc] = truncate(res.stdout ?? "");
-  const [errOut, errTrunc] = truncate(res.stderr ?? "");
-  if (res.exitCode === 0) {
-    const [harness, model] = out.trim().split(/\s+/, 2);
-    return {
-      payload: {
-        eligible: true,
-        harness,
-        model,
-        stdout: out,
-        stdout_truncated: outTrunc,
-      },
-      isError: false,
-    };
-  }
-  if (res.exitCode === 1 && out.trim() === "none") {
-    return {
-      payload: { eligible: false, stdout: out, stdout_truncated: outTrunc },
-      isError: false,
-    };
-  }
-  return {
-    payload: { error: "quota choose failed", exit: res.exitCode, stdout: out, stderr: errOut },
-    isError: true,
-  };
-}
-
-async function toolPublicFollowupPending(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  // Open public-followup loop digest; reports unresolved and delivered public loops without mutating state.
-  return ownedCall(
-    argv(path.join(ctx.binDir, "fm-public-followup.sh"), "pending"),
-    "public followup pending failed",
-    ctx.run,
-  );
-}
-
-async function toolPublicFollowupCollect(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  // Non-destructively read typed terminal events staged in this home's outbox.
-  const obligationId = args["obligation_id"];
-  if (!validId(obligationId)) {
-    return {
-      payload: { error: "invalid obligation_id", expect: "short slug, no slashes or traversal" },
-      isError: true,
-    };
-  }
-  const { payload, isError } = await ownedCall(
-    argv(path.join(ctx.binDir, "fm-public-followup-collect.sh"), "drain", obligationId as string),
-    "public followup collect failed",
-    ctx.run,
-  );
-  if (!isError) return { payload: { ...payload, obligation_id: obligationId }, isError: false };
-  return { payload, isError: true };
-}
-
-export async function toolPublicFollowupEmit(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const obligationId = args["obligation_id"];
-  const relationId = args["relation_id"];
-  const sourceHome = args["source_home"];
-  const workId = args["work_id"];
-  const generation = args["generation"];
-  const outcome = args["outcome"];
-  const outcomeText = args["outcome_text"];
-  if (!validId(obligationId)) {
-    return { payload: { error: "invalid obligation_id", expect: "short slug, no slashes" }, isError: true };
-  }
-  if (!validId(relationId)) {
-    return { payload: { error: "invalid relation_id", expect: "short slug, no slashes" }, isError: true };
-  }
-  if (typeof sourceHome !== "string" || (!sourceHome.startsWith("secondmate:") && sourceHome !== "main")) {
-    return { payload: { error: "invalid source_home", expect: "main or secondmate:<id>" }, isError: true };
-  }
-  if (!validId(workId)) {
-    return { payload: { error: "invalid work_id", expect: "short slug, no slashes" }, isError: true };
-  }
-  if (typeof generation !== "number" || generation < 1 || !Number.isInteger(generation)) {
-    return { payload: { error: "invalid generation", expect: "integer >= 1" }, isError: true };
-  }
-  if (!validId(outcome)) {
-    return { payload: { error: "invalid outcome", expect: "short slug" }, isError: true };
-  }
-  if (typeof outcomeText !== "string" || outcomeText.length < 1 || outcomeText.length > 2000) {
-    return { payload: { error: "invalid outcome_text", expect: "1..2000 chars" }, isError: true };
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const cmd = [
-    path.join(ctx.binDir, "fm-public-followup-emit.sh"),
-    "--obligation", obligationId as string,
-    "--relation", relationId as string,
-    "--source-home", sourceHome as string,
-    "--work-id", workId as string,
-    "--generation", String(generation),
-    "--outcome", outcome as string,
-    "--outcome-text", outcomeText as string,
-  ];
-  return ownedCall(cmd, "public_followup_emit", ctx.run);
-}
-
-export async function toolRelayLink(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const taskId = args["task_id"];
-  const requestId = args["request_id"];
-  if (!validId(taskId)) {
-    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
-  }
-  if (!validId(requestId)) {
-    return { payload: { error: "invalid request_id", expect: "short slug, no slashes" }, isError: true };
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const cmd = [path.join(ctx.binDir, "fm-x-link.sh"), taskId as string, requestId as string];
-  return ownedCall(cmd, "relay_link", ctx.run);
-}
-
-export async function toolFleetSync(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const project = args["project"];
-  if (project !== undefined && typeof project !== "string") {
-    return { payload: { error: "invalid project", expect: "string" }, isError: true };
-  }
-  if (typeof project === "string" && (project.includes("..") || project.startsWith("/"))) {
-    return { payload: { error: "invalid project", expect: "project name or relative path without traversal" }, isError: true };
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const cmd = [path.join(ctx.binDir, "fm-fleet-sync.sh"), ...(project ? [project as string] : [])];
-  return ownedCall(cmd, "fleet_sync", ctx.run);
-}
-
-export async function toolInactiveReconcile(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const mode = args["mode"] !== undefined ? args["mode"] : "scan";
-  const startup = args["startup"];
-  const taskId = args["task_id"];
-  const fingerprint = args["fingerprint"];
-  if (typeof mode !== "string" || !["scan", "report", "acknowledge"].includes(mode)) {
-    return { payload: { error: "invalid mode", expect: "must be scan, report, or acknowledge" }, isError: true };
-  }
-  if (mode === "report") {
-    if (!validId(taskId)) {
-      return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
-    }
-  } else if (mode === "acknowledge") {
-    if (typeof fingerprint !== "string" || !/^[A-Fa-f0-9]+$/.test(fingerprint)) {
-      return { payload: { error: "invalid fingerprint", expect: "hex string" }, isError: true };
-    }
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  let cmd: string[];
-  if (mode === "report") {
-    cmd = [path.join(ctx.binDir, "fm-inactive-reconcile.sh"), "report", taskId as string];
-  } else if (mode === "acknowledge") {
-    cmd = [path.join(ctx.binDir, "fm-inactive-reconcile.sh"), "acknowledge", fingerprint as string];
-  } else {
-    cmd = [path.join(ctx.binDir, "fm-inactive-reconcile.sh"), "scan", ...(startup ? ["--startup"] : [])];
-  }
-  return ownedCall(cmd, "inactive_reconcile", ctx.run);
-}
-
-export async function toolTasksList(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const state = args["state"];
-  const repo = args["repo"];
-  const kind = args["kind"];
-  const blocked = args["blocked"];
-  const limit = args["limit"];
-  const fields = args["fields"];
-
-  if (state !== undefined && (typeof state !== "string" || !["queued", "in_flight", "done", "held", "all"].includes(state))) {
-    return { payload: { error: "invalid state", expect: "queued, in_flight, done, held, or all" }, isError: true };
-  }
-  if (repo !== undefined) {
-    if (typeof repo !== "string" || repo.includes("..") || repo.startsWith("/")) {
-      return { payload: { error: "invalid repo", expect: "repo name without traversal" }, isError: true };
-    }
-  }
-  if (kind !== undefined) {
-    if (typeof kind !== "string" || !validId(kind)) {
-      return { payload: { error: "invalid kind", expect: "short slug, no slashes" }, isError: true };
-    }
-  }
-  if (blocked !== undefined && typeof blocked !== "boolean") {
-    return { payload: { error: "invalid blocked", expect: "boolean" }, isError: true };
-  }
-  if (limit !== undefined) {
-    if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1 || limit > 1000) {
-      return { payload: { error: "invalid limit", expect: "integer between 1 and 1000" }, isError: true };
-    }
-  }
-  if (fields !== undefined) {
-    if (typeof fields !== "string" || fields.includes(" ") || fields.includes("\n") || fields.length > 200) {
-      return { payload: { error: "invalid fields", expect: "comma-separated field names without spaces" }, isError: true };
-    }
-  }
-
-  const cmd = [
-    path.join(ctx.binDir, "fm-tasks-axi.sh"),
-    "list",
-    ...(state ? ["--state", state] : []),
-    ...(repo ? ["--repo", repo] : []),
-    ...(kind ? ["--kind", kind] : []),
-    ...(blocked ? ["--blocked"] : []),
-    ...(limit !== undefined ? ["--limit", String(limit)] : []),
-    ...(fields ? ["--fields", fields] : []),
-  ];
-  return ownedCall(cmd, "tasks list failed", ctx.run);
-}
-
-export async function toolTasksShow(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const id = args["id"];
-  const full = args["full"];
-  if (!validId(id)) {
-    return { payload: { error: "invalid id", expect: "short slug, no slashes" }, isError: true };
-  }
-  if (full !== undefined && typeof full !== "boolean") {
-    return { payload: { error: "invalid full", expect: "boolean" }, isError: true };
-  }
-  const cmd = [
-    path.join(ctx.binDir, "fm-tasks-axi.sh"),
-    "show",
-    id as string,
-    ...(full ? ["--full"] : []),
-  ];
-  return ownedCall(cmd, "tasks show failed", ctx.run);
-}
-
-export async function toolTasksReady(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const repo = args["repo"];
-  const includeHeld = args["include_held"];
-  if (repo !== undefined) {
-    if (typeof repo !== "string" || repo.includes("..") || repo.startsWith("/")) {
-      return { payload: { error: "invalid repo", expect: "repo name without traversal" }, isError: true };
-    }
-  }
-  if (includeHeld !== undefined && typeof includeHeld !== "boolean") {
-    return { payload: { error: "invalid include_held", expect: "boolean" }, isError: true };
-  }
-  const cmd = [
-    path.join(ctx.binDir, "fm-tasks-axi.sh"),
-    "ready",
-    ...(repo ? ["--repo", repo] : []),
-    ...(includeHeld ? ["--include-held"] : []),
-  ];
-  return ownedCall(cmd, "tasks ready failed", ctx.run);
-}
-
-export async function toolBacklogReceive(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const relPath = args["path"];
-  const bytes = args["bytes"];
-  const sha256 = args["sha256"];
-  const generation = args["generation"];
-
-  if (typeof relPath !== "string" || !relPath.startsWith("state/handoff/") || !relPath.endsWith(".outbox.md") || relPath.includes("..")) {
-    return { payload: { error: "invalid path", expect: "state/handoff/<id>.outbox.md without traversal" }, isError: true };
-  }
-  if (typeof bytes !== "number" || !Number.isInteger(bytes) || bytes < 0 || bytes > 1048576) {
-    return { payload: { error: "invalid bytes", expect: "non-negative integer <= 1048576" }, isError: true };
-  }
-  if (typeof sha256 !== "string" || !/^[A-Fa-f0-9]{64}$/.test(sha256)) {
-    return { payload: { error: "invalid sha256", expect: "64 hex chars" }, isError: true };
-  }
-  if (typeof generation !== "number" || !Number.isInteger(generation) || generation < 1) {
-    return { payload: { error: "invalid generation", expect: "positive integer" }, isError: true };
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const cmd = [
-    path.join(ctx.binDir, "fm-backlog-receive.sh"),
-    relPath,
-    String(bytes),
-    sha256,
-    String(generation),
-  ];
-  return ownedCall(cmd, "backlog_receive", ctx.run);
-}
-
-// --- Sessions gap area: dispatch resolution + session-start nudge reads ---
-//
-// The session-launch and lifecycle machinery behind these tools never runs
-// through the doorway except as explicitly approval-gated denied-by-design
-// verbs (below): spawning, trusting, cleaning up, arming, or switching a
-// real session/backend stays firstmate-owned. The two reads here print a
-// plan without launching anything.
-
-export async function toolDispatchResolve(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const taskId = args["task_id"];
-  const project = args["project"];
-  if (!validId(taskId)) {
-    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
-  }
-  if (project !== undefined && !validProject(project)) {
-    return { payload: { error: "invalid project", expect: "bare name or projects/<name>, no absolute paths or traversal" }, isError: true };
-  }
-  // Canonical brief path only (data/<task-id>/brief.md, where fm-brief.sh
-  // scaffolds it): arbitrary brief-file argv stays out so the resolver can
-  // never be pointed at files outside this home.
-  const brief = path.join(ctx.dataDir, taskId as string, "brief.md");
-  const cmd = [
-    path.join(ctx.binDir, "fm-dispatch-resolve.sh"),
-    brief,
-    ...(project ? ["--project", project as string] : []),
-  ];
-  const { payload, isError } = await ownedCall(cmd, "dispatch resolve failed", ctx.run);
-  if (isError) return { payload, isError: true };
-  return { payload: { ...payload, task_id: taskId, ...(project ? { project } : {}) }, isError: false };
-}
-
-export async function toolSessionstartNudge(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const { payload, isError } = await ownedCall(
-    argv(path.join(ctx.binDir, "fm-sessionstart-nudge.sh")),
-    "session-start nudge failed",
-    ctx.run,
-  );
-  if (isError) return { payload, isError: true };
-  const line = ((payload["stdout"] as string) || "").trim();
-  return { payload: { ...payload, fired: line.length > 0 }, isError: false };
-}
-
+// Task-store reads + backlog receive/dispatch/nudge live in ./tools/tasks.ts (slice 13, task-8pqjb).
+// Imported for the TOOLS registry below; re-exported, public as before.
+import {
+  toolTasksList,
+  toolTasksShow,
+  toolTasksReady,
+  toolBacklogReceive,
+  toolDispatchResolve,
+  toolSessionstartNudge,
+} from "./tools/tasks.js";
+export {
+  toolTasksList,
+  toolTasksShow,
+  toolTasksReady,
+  toolBacklogReceive,
+  toolDispatchResolve,
+  toolSessionstartNudge,
+};
 // --- Sessions gap area: denied-by-design lifecycle verbs ---
 //
 // Every verb below spawns, launches, trusts, cleans up, arms, or switches a
