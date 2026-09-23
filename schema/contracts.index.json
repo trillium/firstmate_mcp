@@ -38,6 +38,7 @@
     "inbox_list": "bin/fm-inbox.sh",
     "inbox_status": "bin/fm-inbox.sh",
     "lease_check": "bin/fm-lease.sh",
+    "ledger_list": "bin/fm-ledger.sh",
     "lifecycle_exit": "bin/fm-control.sh",
     "lifecycle_interrupt": "bin/fm-control.sh",
     "lifecycle_relaunch": "bin/fm-control.sh",

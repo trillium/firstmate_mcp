@@ -9,7 +9,8 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { validMirrorView } from "../validators.js";
+import { ownedCall } from "../runner.js";
+import { validMirrorView, validStaleDays } from "../validators.js";
 import type { ToolArgs, ToolContext, ToolResult } from "../tools.js";
 
 const MIRROR_MAX_AGE_S = 900;
@@ -88,4 +89,33 @@ export async function toolBeadsQueue(args: ToolArgs, ctx: ToolContext): Promise<
   };
   if (oldest["malformed"] === true) payload["oldest"] = { malformed: true };
   return { payload, isError: false };
+}
+
+export async function toolLedgerList(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  if (args["close"] !== undefined || args["close_all"] !== undefined) {
+    return {
+      payload: {
+        error: "close verbs are not exposed",
+        expect: "ledger_list is read-only; closing beads stays outside the doorway",
+      },
+      isError: true,
+    };
+  }
+  const staleDays = args["stale_days"] ?? 2;
+  if (!validStaleDays(staleDays)) {
+    return {
+      payload: {
+        error: "invalid stale_days",
+        expect: "integer 1..30 (doorway-bounded sweep window)",
+      },
+      isError: true,
+    };
+  }
+  const cmd = [
+    path.join(ctx.binDir, "fm-ledger.sh"),
+    "--json",
+    "--stale-days",
+    String(staleDays),
+  ];
+  return ownedCall(cmd, "ledger list failed", ctx.run);
 }

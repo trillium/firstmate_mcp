@@ -34,7 +34,7 @@ Mirror parity is not capability parity: the denied-by-design set is the point of
   - kind `upstream-mirror`: 85
   - kind `fork`: 18
   - kind `local`: 15
-- TypeScript status: implemented 104, missing 11, retired 3
+- TypeScript status: implemented 105, missing 10, retired 3
 - divergence status: intentional 100, none 3, not-applicable 15
 
 ## The fork line: proof basis vs the line the fleet runs

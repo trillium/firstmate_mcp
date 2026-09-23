@@ -57,6 +57,17 @@ export function validIdList(value: unknown, maxItems: number): string[] | null {
 /** Named vendor auth probe: closed allowlist, nothing else. */
 /** Beads mirror view name: [a-z0-9_-]+, non-empty, bounded. Mirrors
  * fm_beads_mirror_view_name_ok (empty or out-of-class is invalid). */
+/** Ledger stale-days window: integer 1..30. Bounds the doorway sweep so
+ * one call cannot scan a year of store history (project-pv66 divergence). */
+export function validStaleDays(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= 30
+  );
+}
+
 export function validMirrorView(value: unknown): value is string {
   if (typeof value !== "string") return false;
   if (value.length < 1 || value.length > 64) return false;

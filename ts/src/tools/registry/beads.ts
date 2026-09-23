@@ -5,7 +5,11 @@
  * final (new tools append at the fragment end). Assembled by index.ts in
  * canonical order.
  */
-import { toolBeadsMirror, toolBeadsQueue } from "../beads.js";
+import {
+  toolBeadsMirror,
+  toolBeadsQueue,
+  toolLedgerList,
+} from "../beads.js";
 import type { ToolDef } from "./shared.js";
 
 export const BeadsRegistry: Record<string, ToolDef> = {
@@ -34,5 +38,23 @@ export const BeadsRegistry: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolBeadsQueue,
+  },
+  ledger_list: {
+    description:
+      "Read-only leaked-bead safety net: claimed, unclosed beads quiet longer than the stale-days window. Close verbs are not exposed.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        stale_days: {
+          type: "integer",
+          minimum: 1,
+          maximum: 30,
+          default: 2,
+          description: "Quiet threshold in days (doorway-bounded 1..30)",
+        },
+      },
+      additionalProperties: false,
+    },
+    handler: toolLedgerList,
   },
 };

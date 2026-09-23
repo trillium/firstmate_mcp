@@ -1611,10 +1611,10 @@ features:
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-ledger.sh
     summary: Leaked-bead safety net read surfacing claimed-but-quiet beads for review and close.
-    contract: drift/baseline.json
+    contract: schema/contracts.yaml#ledger_list
     upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub"
     py: {status: implemented, evidence: ["drift/baseline.json:\"fm-ledger.sh\""]}
-    ts: {status: missing}
+    ts: {status: implemented, evidence: ["ts/src/tools/beads.ts:toolLedgerList"]}
     divergence:
       status: intentional
       reason: >-

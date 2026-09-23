@@ -1273,3 +1273,19 @@ contracts:
       header: bin/fm-beads-resilience-lib.sh:1-40
       doc: docs/BEADS-STORE-CONTRACT.md
     notes: "O(1) JSONL line count over state/.beads-write-queue; mutations shown, never executed."
+  - name: ledger_list
+    command: bin/fm-ledger.sh
+    flags: ["--json", "--stale-days"]
+    output:
+      format: json
+      schema_id: none
+      fields: ["id", "title", "status", "updated_at", "likely_dropped"]
+    exits:
+      zero: likely-dropped bead projections (claimed, unclosed, quiet past the window)
+      nonzero: bad window, missing jq/task CLI, or store unreadable; stderr carries the reason
+    stability: stable
+    pinned: fm-ledger.list.v1
+    evidence:
+      header: bin/fm-ledger.sh:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Read-only surface only; --close/--close-all stay out (authority writes). stale-days doorway-bounded 1..30."

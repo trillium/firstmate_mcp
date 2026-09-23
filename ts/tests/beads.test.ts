@@ -112,3 +112,74 @@ describe("beads durability reads", () => {
     assert.equal((p["oldest"] as Record<string, unknown>)["malformed"], true);
   });
 });
+
+describe("ledger list read", () => {
+  const stubRun = (stdout: string) => async (): Promise<RunResult> => ({
+    stdout,
+    stderr: "",
+    exitCode: 0,
+  });
+  type RunResult = import("../src/runner.js").RunResult;
+
+  function ledgerCtx(home: string, stdout: string): ToolContext {
+    return {
+      ...liveContext(),
+      binDir: path.join(home, "bin"),
+      stateDir: path.join(home, "state"),
+      run: stubRun(stdout),
+    };
+  }
+
+  test("lists likely-dropped beads through the owning script", async () => {
+    const home = makeStubHome();
+    const scriptOut = JSON.stringify([
+      { id: "task-1", title: "old work", status: "open", updated_at: "2026-09-01", likely_dropped: true },
+    ]);
+    const res = await TOOLS["ledger_list"].handler({}, ledgerCtx(home, scriptOut));
+    assert.equal(res.isError, false);
+    assert.ok(JSON.stringify(res.payload).includes("task-1"));
+  });
+
+  test("stale_days outside 1..30 is refused", async () => {
+    const home = makeStubHome();
+    for (const stale of [0, 31, -1, 1.5, "x"]) {
+      const res = await TOOLS["ledger_list"].handler(
+        { stale_days: stale },
+        ledgerCtx(home, "[]"),
+      );
+      assert.equal(res.isError, true, String(stale));
+    }
+  });
+
+  test("close verbs are refused", async () => {
+    const home = makeStubHome();
+    for (const args of [{ close: ["task-1"] }, { close_all: true }]) {
+      const res = await TOOLS["ledger_list"].handler(args, ledgerCtx(home, "[]"));
+      assert.equal(res.isError, true);
+      assert.ok(JSON.stringify(res.payload).includes("not exposed"));
+    }
+  });
+});
+
+describe("ledger envelope", () => {
+  test("oversized store output truncates with flags, never errors", async () => {
+    const home = makeStubHome();
+    const big = JSON.stringify([{ id: "x".repeat(100), title: "y".repeat(1000) }]).repeat(200);
+    const run = async (): Promise<RunResult> => ({ stdout: big, stderr: "", exitCode: 0 });
+    type RunResult = import("../src/runner.js").RunResult;
+    const res = await TOOLS["ledger_list"].handler(
+      {},
+      {
+        ...liveContext(),
+        binDir: `${home}/bin`,
+        stateDir: `${home}/state`,
+        run,
+      },
+    );
+    assert.equal(res.isError, false);
+    assert.equal(
+      (res.payload as Record<string, unknown>)["stdout_truncated"],
+      true,
+    );
+  });
+});
