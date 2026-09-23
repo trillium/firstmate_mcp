@@ -38,7 +38,7 @@ import {
   validApproval,
 } from "./auth.js";
 import { validId, validNote, validProject } from "./validators.js";
-import type { ToolArgs, ToolContext } from "./tools.js";
+import type { ToolArgs, ToolContext, ToolResult } from "./tools.js";
 import { ValidationError, type ToolError } from "./errors.js";
 
 export type GrantTier = 1 | 2 | 3 | 4;
@@ -595,3 +595,33 @@ export const GrantLive: Layer.Layer<GrantService> = Layer.succeed(
       Effect.promise(() => checkAuthorization(tool, args, ctx)),
   }),
 );
+
+/**
+ * Per-call approval gate shared by all authority handlers (moved from
+ * tools.ts, slice 3 of task-8pqjb). Returns ok:false with a ToolResult the
+ * caller returns directly, so handlers stay branch-flat.
+ */
+export function approvalError(): Record<string, unknown> {
+  return {
+    error: "approval required",
+    expect: "explicit approval string starting with 'I authorize'",
+  };
+}
+
+export async function requireAuth(
+  tool: string,
+  args: ToolArgs,
+  ctx: ToolContext,
+): Promise<{ ok: true } | { ok: false; result: ToolResult }> {
+  const auth = await checkAuthorization(tool, args, ctx);
+  if (!auth.ok) {
+    return {
+      ok: false,
+      result: {
+        payload: auth.payload ?? approvalError(),
+        isError: true,
+      },
+    };
+  }
+  return { ok: true };
+}

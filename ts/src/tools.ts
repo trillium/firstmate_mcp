@@ -100,9 +100,11 @@ import {
   type Tier,
 } from "./auth.js";
 import {
+  approvalError,
   checkAuthorization,
   listGrants,
   mintGrant,
+  requireAuth,
   revokeGrant,
   getGrantStatus,
   type MintGrantParams,
@@ -433,31 +435,7 @@ export function argvEffect(
   return Effect.succeed([...parts]);
 }
 
-function approvalError(): Record<string, unknown> {
-  return {
-    error: "approval required",
-    expect: "explicit approval string starting with 'I authorize'",
-  };
-}
-
-async function requireAuth(
-  tool: string,
-  args: ToolArgs,
-  ctx: ToolContext,
-): Promise<{ ok: true } | { ok: false; result: ToolResult }> {
-  const auth = await checkAuthorization(tool, args, ctx);
-  if (!auth.ok) {
-    return {
-      ok: false,
-      result: {
-        payload: auth.payload ?? approvalError(),
-        isError: true,
-      },
-    };
-  }
-  return { ok: true };
-}
-
+// approvalError + requireAuth live in ./grants.js (slice 3, task-8pqjb).
 function sleepSyncMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -2902,147 +2880,16 @@ async function toolFleetPoll(args: ToolArgs, ctx: ToolContext): Promise<ToolResu
 }
 
 // --- Wave 4: installs, voice/mail, and small PR/relay gaps ---
-
-async function toolMailStatus(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  // Config + cursor only: no network, no wake.
-  return ownedCall(argv(path.join(ctx.binDir, "fm-mail.sh"), "status"), "mail status failed", ctx.run);
-}
-
-async function toolMailRead(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  // BODY.PEEK digest: mail stays unseen until firstmate answers.
-  const { payload, isError } = await ownedCall(
-    argv(path.join(ctx.binDir, "fm-mail.sh"), "read"),
-    "mail read failed",
-    ctx.run,
-  );
-  if (!isError) {
-    return {
-      payload: {
-        ...payload,
-        warning: "BODY.PEEK digest; mail stays unseen until firstmate answers",
-      },
-      isError: false,
-    };
-  }
-  return { payload, isError: true };
-}
-
-async function toolMailCheck(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  // Inbound received-mail check only; arm/disarm mutate watcher trust state and stay out of MCP.
-  return ownedCall(
-    argv(path.join(ctx.binDir, "fm-mail-check.sh"), "check"),
-    "mail check failed",
-    ctx.run,
-  );
-}
-
-async function toolMailSend(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const to = args["to"];
-  const subject = args["subject"];
-  const body = args["body"];
-  if (!validMailTo(to)) {
-    return {
-      payload: {
-        error: "invalid to",
-        expect: "single-line recipient address with @, 3..200 chars, no whitespace",
-      },
-      isError: true,
-    };
-  }
-  if (!validMailSubject(subject)) {
-    return {
-      payload: { error: "invalid subject", expect: "single line, 1..200 chars" },
-      isError: true,
-    };
-  }
-  if (!validMailBody(body)) {
-    return { payload: { error: "invalid body", expect: "1..5000 chars" }, isError: true };
-  }
-  const auth = await requireAuth("mail_send", args, ctx);
-  if (!auth.ok) return auth.result;
-  // Body via stdin ("-" form), exactly like the owning script: never argv.
-  const res = await ctx.run(
-    argv(path.join(ctx.binDir, "fm-mail.sh"), "send", to as string, subject as string, "-"),
-    { input: body as string },
-  );
-  if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
-  const [out, outTrunc] = truncate(res.stdout ?? "");
-  const [errOut, errTrunc] = truncate(res.stderr ?? "");
-  if (res.exitCode !== 0) {
-    return {
-      payload: { error: "mail send refused or failed", exit: res.exitCode, stdout: out, stderr: errOut },
-      isError: true,
-    };
-  }
-  return {
-    payload: {
-      ok: true,
-      to,
-      subject,
-      stdout: out,
-      stdout_truncated: outTrunc,
-      stderr: errOut,
-      stderr_truncated: errTrunc,
-    },
-    isError: false,
-  };
-}
-
-async function toolVoiceStatus(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const scope = args["scope"] ?? "counts";
-  if (!validVoiceScope(scope)) {
-    return {
-      payload: { error: "invalid scope", expect: "one of counts, full" },
-      isError: true,
-    };
-  }
-  // Counts is safe by construction; full only via the captain's own
-  // read-scope with the helper's deny list enforced inside.
-  const res = await ctx.run(
-    argv(path.join(ctx.binDir, "fm_voice_records.py"), "status", "--scope", scope as string),
-  );
-  if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
-  if (res.exitCode !== 0) {
-    const [out] = truncate(res.stderr || res.stdout || "");
-    return {
-      payload: { error: "voice status failed", exit: res.exitCode, output: out },
-      isError: true,
-    };
-  }
-  let status: Record<string, unknown>;
-  try {
-    status = JSON.parse(res.stdout) as Record<string, unknown>;
-  } catch {
-    const [out] = truncate(res.stdout);
-    return { payload: { error: "voice status was not JSON", output: out }, isError: true };
-  }
-  if (typeof status !== "object" || status === null || Array.isArray(status)) {
-    const [out] = truncate(res.stdout);
-    return { payload: { error: "voice status was not JSON", output: out }, isError: true };
-  }
-  return { payload: status, isError: false };
-}
-
-async function toolVoiceQueue(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const text = args["text"];
-  if (!validVoiceQueueText(text)) {
-    return {
-      payload: { error: "invalid text", expect: "single line, 1..500 chars" },
-      isError: true,
-    };
-  }
-  const auth = await requireAuth("voice_queue", args, ctx);
-  if (!auth.ok) return auth.result;
-  // Handover queue only: no microphone, no audio, no Bedrock session.
-  const { payload, isError } = await ownedCall(
-    argv(path.join(ctx.binDir, "fm_voice_records.py"), "queue", text as string),
-    "voice queue refused or failed",
-    ctx.run,
-  );
-  if (!isError) return { payload: { ...payload, queued: true }, isError: false };
-  return { payload, isError: true };
-}
-
+// Voice/mail handlers live in ./tools/voicemail.ts (slice 3, task-8pqjb).
+// Imported for the TOOLS registry below; module-private as before.
+import {
+  toolMailStatus,
+  toolMailRead,
+  toolMailCheck,
+  toolMailSend,
+  toolVoiceStatus,
+  toolVoiceQueue,
+} from "./tools/voicemail.js";
 async function toolLintVersions(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   // Version probes only: the required ShellCheck/actionlint pins.
   const shellcheckRes = await ctx.run([path.join(ctx.binDir, "fm-lint.sh"), "--required-version"]);
