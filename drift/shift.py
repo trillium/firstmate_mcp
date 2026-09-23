@@ -174,9 +174,26 @@ def _record(mapping, name, command):
 
 
 def changed_scripts(pinned, upstream):
+    # Fail LOUD on an uninitialized submodule (task-eyl89): running git with
+    # cwd inside an empty submodule dir resolves upward to the parent repo,
+    # where `-- bin/` matches nothing and the diff silently reports 0/0 while
+    # depended-on surfaces moved. Never fetch-or-infer around it.
+    sub = ROOT / SUBMODULE
+    if not (sub / ".git").exists():
+        raise ValueError(
+            f"submodule worktree absent at {SUBMODULE} (no .git): initialize "
+            "it before diffing — an empty dir would report a silent 0/0 no-shift"
+        )
+    try:
+        run("git", "cat-file", "-t", pinned, cwd=sub)
+    except ValueError:
+        raise ValueError(
+            f"pinned commit {pinned[:12]} unreadable inside {SUBMODULE}: "
+            "cannot diff what cannot be read"
+        )
     out = run(
         "git", "diff", "--name-only", pinned, upstream, "--", "bin/",
-        cwd=ROOT / SUBMODULE,
+        cwd=sub,
     )
     return sorted(
         Path(p).name for p in out.splitlines() if p.endswith(".sh")

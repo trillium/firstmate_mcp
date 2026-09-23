@@ -201,8 +201,31 @@ test_workflow_does_not_inline_gh() {
   return 0
 }
 
+# Layer A2: empty submodule worktree fails LOUD (task-eyl89), never 0/0.
+test_empty_submodule_fails_loud() {
+  local out
+  out=$(cd "$ROOT" && python3 - <<'PYEOF2'
+import tempfile, os
+from pathlib import Path
+import drift.shift as shift
+
+d = tempfile.mkdtemp()
+os.makedirs(os.path.join(d, "sources", "firstmate"))  # empty: no .git
+shift.ROOT = Path(d)
+try:
+    shift.changed_scripts("a" * 40, "b" * 40)
+    print("SILENT-FALSE-NEGATIVE")
+except ValueError as exc:
+    assert "submodule worktree absent" in str(exc), exc
+    print("LOUD-OK")
+PYEOF2
+) || fail "empty-submodule probe raised"
+  assert_contains "$out" "LOUD-OK" "empty submodule did not fail loud: $out"
+}
+
 test_moved_upstream_fires_port_ignore
 test_no_move_reports_silence
+test_empty_submodule_fails_loud
 test_scheduler_fires_on_movement
 test_scheduler_silent_on_no_move
 test_scheduler_error_stays_silent
