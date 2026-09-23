@@ -1592,7 +1592,9 @@ features:
       status: intentional
       reason: >-
         Trillium fork-origin convention for fork-contribution clones; upstream
-        firstmate does not enforce or scan fork remote setup.
+        firstmate does not enforce or scan fork remote setup. Verdict:
+        not-planned (no denial — simply unbuilt; needs separate authorization
+        to port as an advisory Tier-1 read).
   - id: afk_daemon_launch
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
