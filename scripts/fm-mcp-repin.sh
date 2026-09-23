@@ -69,6 +69,10 @@ printf 'fm-mcp-repin: shift pending — pinned %s -> upstream %s (%s commit(s))\
 # Evaluate: which surfaces moved, and which of those anything actually depends on.
 python3 drift/shift.py --no-fetch --format markdown || true
 printf '\n'
+# Support join (project-bx3x): for added surfaces, say whether we support
+# them, not just that upstream moved. Best-effort: needs a fork home.
+FM_HOME="${FM_HOME:-$HOME/code/firstmate}" python3 scripts/gen_support.py --shift "$PINNED" "$UPSTREAM" 2>/dev/null | head -n 30 || true
+printf '\n'
 
 if [ "$MODE" = "check" ]; then
   printf 'fm-mcp-repin: run with --apply to bump the pin, then evaluate the depended-on moves above.\n'
