@@ -8,7 +8,9 @@ Every firstmate command area with its mirror status: **mirrored**
 upstream — classified by the git-derived spine, `drift/fork-spine.json`),
 or **unmirrored gap**. Captain area order.
 
-Source: `bin/fm-*.sh top-level + backends/` at the pinned submodule `9296f9b` (baseline `drift/baseline.json`, rev `aaf67489`, 163 surfaces).
+Upstream enumeration: `bin/fm-*.sh top-level + backends/` at the pinned submodule `9296f9b`.
+Fork inventory `drift/baseline.json` (rev `aaf67489`, 163 surfaces) is the submodule-absent fallback
+and the existence proof for fork-extension rows (spine `drift/fork-spine.json`).
 Backends ship per-harness session adapters; voice helpers outside `fm-*.sh`
 are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 

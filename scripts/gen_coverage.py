@@ -584,9 +584,12 @@ def generate(upstream_root=UPSTREAM_BIN, spine_path=None):
     A("upstream — classified by the git-derived spine, `drift/fork-spine.json`),")
     A("or **unmirrored gap**. Captain area order.")
     A("")
-    A("Source: `%s` at the pinned submodule `%s` (baseline `%s`, rev `%s`, %d surfaces)." % (
+    A("Upstream enumeration: `%s` at the pinned submodule `%s`." % (
         "bin/fm-*.sh top-level + backends/" if source == "sources/firstmate" else source,
-        gitlink[:7], "drift/baseline.json", rev, n_surfaces))
+        gitlink[:7]))
+    A("Fork inventory `%s` (rev `%s`, %d surfaces) is the submodule-absent fallback" % (
+        "drift/baseline.json", rev, n_surfaces))
+    A("and the existence proof for fork-extension rows (spine `drift/fork-spine.json`).")
     A("Backends ship per-harness session adapters; voice helpers outside `fm-*.sh`")
     A("are noted, not enumerated. `-lib.sh` helpers are owned by their commands.")
     A("")
