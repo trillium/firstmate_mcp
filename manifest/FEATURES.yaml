@@ -902,7 +902,7 @@ features:
     contract: schema/contracts.yaml#public_followup_pending
     upstream_test: "ts/tests/conformance-system.test.ts::small-gaps equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:public_followup_pending"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/tasks.ts:public_followup_pending"]}
     divergence:
       status: intentional
       reason: >-
@@ -917,7 +917,7 @@ features:
     contract: schema/contracts.yaml#public_followup_collect
     upstream_test: "ts/tests/conformance-system.test.ts::small-gaps equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:public_followup_collect"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/tasks.ts:public_followup_collect"]}
     divergence:
       status: intentional
       reason: >-
@@ -932,7 +932,7 @@ features:
     contract: schema/contracts.yaml#tasks_list
     upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub (adapter-vs-script equivalence under a scratch FM_HOME)"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:tasks_list"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/tasks.ts:tasks_list"]}
     divergence:
       status: intentional
       reason: >-
@@ -946,7 +946,7 @@ features:
     contract: schema/contracts.yaml#tasks_show
     upstream_test: "ts/tests/conformance-system.test.ts::tasks_show matches direct stub (adapter-vs-script equivalence under a scratch FM_HOME)"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:tasks_show"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/tasks.ts:tasks_show"]}
     divergence:
       status: intentional
       reason: >-
@@ -960,7 +960,7 @@ features:
     contract: schema/contracts.yaml#tasks_ready
     upstream_test: "ts/tests/conformance-system.test.ts::tasks_ready matches direct stub (adapter-vs-script equivalence under a scratch FM_HOME)"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:tasks_ready"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/tasks.ts:tasks_ready"]}
     divergence:
       status: intentional
       reason: >-
@@ -990,7 +990,7 @@ features:
     contract: ts/src/tools.ts#lifecycle_exit (safe verb subset + approval gate)
     upstream_test: "ts/tests/http.test.ts::Streamable HTTP Transport: Session Lifecycle & MCP Protocol"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_exit"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/spawn.ts:lifecycle_exit"]}
     divergence:
       status: intentional
       reason: >-
@@ -1005,7 +1005,7 @@ features:
     contract: ts/src/tools.ts#lifecycle_relaunch (safe verb subset + approval gate)
     upstream_test: "ts/tests/http.test.ts::Streamable HTTP Transport: Session Lifecycle & MCP Protocol"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_relaunch"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/spawn.ts:lifecycle_relaunch"]}
     divergence:
       status: intentional
       reason: >-
@@ -1020,7 +1020,7 @@ features:
     contract: ts/src/tools.ts#lifecycle_suspend (safe verb subset + approval gate)
     upstream_test: "ts/tests/http.test.ts::Streamable HTTP Transport: Session Lifecycle & MCP Protocol"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_suspend"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/spawn.ts:lifecycle_suspend"]}
     divergence:
       status: intentional
       reason: >-
@@ -1035,7 +1035,7 @@ features:
     contract: ts/src/tools.ts#lifecycle_resume (safe verb subset + approval gate)
     upstream_test: "ts/tests/http.test.ts::Streamable HTTP Transport: Session Lifecycle & MCP Protocol"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_resume"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/spawn.ts:lifecycle_resume"]}
     divergence:
       status: intentional
       reason: >-
@@ -1110,7 +1110,7 @@ features:
     contract: ts/src/tools.ts#decision_release (safe resolve/release subset + approval gate + self-holds default)
     upstream_test: "ts/tests/server.test.ts (stub-home server proof) + ts/tests/server.test.ts::decision_release records decision_digest in audit log"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_release"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/decisions.ts:decision_release"]}
     divergence:
       status: intentional
       reason: >-
@@ -1125,7 +1125,7 @@ features:
     contract: ts/src/tools.ts#decision_complete (attestation write + approval gate)
     upstream_test: "ts/tests/auth.test.ts::allow line records decision_digest when provided"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_complete"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/decisions.ts:decision_complete"]}
     divergence:
       status: intentional
       reason: >-
@@ -1139,7 +1139,7 @@ features:
     contract: ts/src/tools.ts#decision_verify (open-read attestation query)
     upstream_test: "ts/tests/auth.test.ts::allow line records decision_digest when provided"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_verify"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/decisions.ts:decision_verify"]}
     divergence:
       status: intentional
       reason: >-
@@ -1152,7 +1152,7 @@ features:
     contract: ts/src/tools.ts#decision_open (open-read predicate query)
     upstream_test: "ts/tests/auth.test.ts::tier 1 is open reads"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_open"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/decisions.ts:decision_open"]}
     divergence:
       status: intentional
       reason: >-
@@ -1165,7 +1165,7 @@ features:
     contract: ts/src/tools.ts#decision_diverged (open-read divergence query)
     upstream_test: "ts/tests/auth.test.ts::allow line records decision_digest when provided"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_diverged"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/decisions.ts:decision_diverged"]}
     divergence:
       status: intentional
       reason: >-
@@ -1211,7 +1211,7 @@ features:
     contract: ts/src/tools.ts#relay_dismiss (approval + external relay consent)
     upstream_test: "ts/tests/conformance-system.test.ts::relay_poll matches direct stub"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:relay_dismiss"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/relay.ts:relay_dismiss"]}
     divergence:
       status: intentional
       reason: >-
@@ -1226,7 +1226,7 @@ features:
     contract: ts/src/tools.ts#relay_followup (approval + external relay consent)
     upstream_test: "ts/tests/conformance-system.test.ts::relay_poll matches direct stub"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:relay_followup"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/relay.ts:relay_followup"]}
     divergence:
       status: intentional
       reason: >-
@@ -1257,7 +1257,7 @@ features:
     contract: schema/contracts.yaml#secondmate_restart
     upstream_test: "ts/tests/conformance-remote.test.ts::secondmate-remote-read equivalence"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:secondmate_restart"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/relay.ts:secondmate_restart"]}
     divergence:
       status: intentional
       reason: >-
@@ -1273,7 +1273,7 @@ features:
     contract: schema/contracts.yaml#secondmate_report
     upstream_test: "ts/tests/conformance-system.test.ts::startup_network_report matches direct stub"
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:secondmate_report"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/registry/relay.ts:secondmate_report"]}
     divergence:
       status: intentional
       reason: >-
