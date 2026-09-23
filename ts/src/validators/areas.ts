@@ -55,6 +55,14 @@ export function validIdList(value: unknown, maxItems: number): string[] | null {
 }
 
 /** Named vendor auth probe: closed allowlist, nothing else. */
+/** Beads mirror view name: [a-z0-9_-]+, non-empty, bounded. Mirrors
+ * fm_beads_mirror_view_name_ok (empty or out-of-class is invalid). */
+export function validMirrorView(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 1 || value.length > 64) return false;
+  return /^[a-z0-9_-]+$/.test(value);
+}
+
 export function validProbe(value: unknown): value is string {
   return typeof value === "string" && (VENDOR_AUTH_PROBES as readonly string[]).includes(value);
 }

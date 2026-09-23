@@ -1241,3 +1241,35 @@ contracts:
       header: bin/fm-tasks-axi-lib.sh:1279-1316
       doc: docs/BEADS-STORE-CONTRACT.md
     notes: Bounded single-bead read through one array-unwrap owner (fm_beads_status). Absent counts as not-closed here (unlike the resilience lib's already-applied check, which treats absent as applied for queue replay).
+  - name: beads_mirror
+    command: "file: state/.beads-mirror-<view>.json"
+    flags: ["<view>"]
+    output:
+      format: json
+      schema_id: none
+      fields: ["view", "present", "output", "written_at", "age_s", "stale"]
+    exits:
+      zero: mirror document with freshness age; absent or malformed file returns typed degraded state, never an error
+      nonzero: invalid view name (empty or outside [a-z0-9_-]); stderr carries the reason
+    stability: stable
+    pinned: fm-beads.mirror.v1
+    evidence:
+      header: bin/fm-beads-resilience-lib.sh:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "O(1) home-state file read (state/.beads-mirror-<view>.json); 900s staleness threshold mirrors FM_BEADS_MIRROR_MAX_AGE."
+  - name: beads_queue
+    command: "file: state/.beads-write-queue"
+    flags: ["<none>"]
+    output:
+      format: json
+      schema_id: none
+      fields: ["present", "pending", "oldest"]
+    exits:
+      zero: pending count plus oldest entry (task, description, age); pending-write argv never surfaces
+      nonzero: never for missing files (typed empty); malformed oldest is flagged with count preserved
+    stability: stable
+    pinned: fm-beads.queue.v1
+    evidence:
+      header: bin/fm-beads-resilience-lib.sh:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "O(1) JSONL line count over state/.beads-write-queue; mutations shown, never executed."

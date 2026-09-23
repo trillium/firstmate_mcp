@@ -1652,21 +1652,22 @@ features:
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-beads-resilience-lib.sh
     summary: Stage-5 beads resilience layer — opportunistic read mirror plus durable lock-protected write queue with ordered replay.
-    contract: drift/baseline.json
+    contract: schema/contracts.yaml#beads_queue
     upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub"
     py: {status: implemented, evidence: ["drift/baseline.json:\"fm-beads-resilience-lib.sh\""]}
-    ts: {status: missing}
+    ts: {status: implemented, evidence: ["ts/src/tools/beads.ts:toolBeadsMirror", "ts/src/tools/beads.ts:toolBeadsQueue"]}
     divergence:
       status: intentional
       reason: >-
         Outage-proofing for the Dolt-backed store; upstream has no bead store.
-        Sourced library, no CLI — port the mechanism, not a tool (project-s00r).
+        Doorway reads the mirror + queue depth through the owning files (Tier-1
+        beads_mirror/beads_queue); the queue keeps one owner and stamping stays out.
   - id: tasks_axi_lib
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-tasks-axi-lib.sh
     summary: Single owner of beads store resolution — backend selector, fleet label scoping, home-scoped idempotency labels, closed-bead reads.
-    contract: drift/baseline.json
+    contract: schema/contracts.yaml#beads_scope
     upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub"
     py: {status: implemented, evidence: ["drift/baseline.json:\"fm-tasks-axi-lib.sh\""]}
     ts: {status: missing}
@@ -1715,3 +1716,46 @@ features:
       reason: >-
         Proactive dispatch generation with off-by-default safety rails;
         upstream has no idea store and no groom path (project-xrqi).
+  - id: beads_backend_select
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-tasks-axi-lib.sh
+    summary: Backend selection (tasks-axi default, beads, manual) with store reachability probing.
+    contract: schema/contracts.yaml#beads_backend
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub"
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-tasks-axi-lib.sh\""]}
+    ts: {status: missing}
+    divergence:
+      status: intentional
+      reason: >-
+        Backend-gated store resolution; upstream has no bead store and no
+        backend selector. The doorway consumes it by delegating to the owning
+        scripts, never by re-resolving (project-iptk).
+  - id: beads_closed_read
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-tasks-axi-lib.sh
+    summary: Bounded single-bead status read with fail-open closed predicate.
+    contract: schema/contracts.yaml#beads_is_closed
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub"
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-tasks-axi-lib.sh\""]}
+    ts: {status: missing}
+    divergence:
+      status: intentional
+      reason: >-
+        Authoritative completion signal over the bead store; upstream has no
+        bead store. Absent counts as not-closed (project-iptk).
+  - id: beads_mirror_read
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-beads-resilience-lib.sh
+    summary: Tier-1 durability mirror read with freshness age over home-state files.
+    contract: schema/contracts.yaml#beads_mirror
+    upstream_test: "ts/tests/conformance-read.test.ts::backlog derives counts from the same snapshot"
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-beads-resilience-lib.sh\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools/beads.ts:toolBeadsMirror", "ts/src/tools/beads.ts:toolBeadsQueue"]}
+    divergence:
+      status: intentional
+      reason: >-
+        O(1) mirror/queue reads behind Tier-1 tools; upstream has no bead
+        store. Queue keeps one owner; argv never surfaces (project-s00r).

@@ -81,6 +81,8 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | beads_backend | bin/fm-tasks-axi-lib.sh | stable | fm_backlog_backend_value, fm_tasks_axi_backend_available, fm_beads_backend_available | backend selection + store reachability probes |
 | beads_scope | bin/fm-tasks-axi-lib.sh | stable | fm_beads_fleet_label, fm_beads_home_scope, fm_beads_task_label | fleet label + home scope + idempotency label derivation |
 | beads_is_closed | bin/fm-tasks-axi-lib.sh | stable | fm_beads_status, fm_beads_is_closed | bounded single-bead status + closed predicate |
+| beads_mirror | file: state/.beads-mirror-<view>.json | stable | <view> | durability mirror read with freshness age |
+| beads_queue | file: state/.beads-write-queue | stable | (none) | write-queue count + oldest without argv |
 
 ## How to use this view
 

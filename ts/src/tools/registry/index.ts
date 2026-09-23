@@ -21,6 +21,7 @@ import { TasksRegistry } from "./tasks.js";
 import { SessionHerdrRegistry } from "./session-herdr.js";
 import { MixedRegistry } from "./mixed.js";
 import { LandingDaemonRegistry } from "./landing-daemon.js";
+import { BeadsRegistry } from "./beads.js";
 import { LifecycleGrantsRegistry } from "./lifecycle-grants.js";
 
 import type { ToolDef } from "./shared.js";
@@ -43,6 +44,7 @@ export const TOOLS: Record<string, ToolDef> = {
   ...MixedRegistry,
   ...LandingDaemonRegistry,
   ...LifecycleGrantsRegistry,
+  ...BeadsRegistry,
 };
 
 export const TOOL_NAMES: ReadonlySet<string> = new Set(Object.keys(TOOLS));
