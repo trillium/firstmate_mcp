@@ -1,0 +1,18 @@
+# Large file allowlist — one glob pattern per line.
+# Files matching these patterns are exempt from the 250-line pre-commit warning.
+#
+# Seeded 2026-09-23 with the 12 legacy violators that predate the guard
+# (measured ts/src + ts/scripts). They stay exempt until split; anything NEW
+# over 250 lines warns. Remove entries as files are decomposed.
+ts/src/tools.ts
+ts/src/followon.ts
+ts/src/server.ts
+ts/src/validators.ts
+ts/src/grants.ts
+ts/src/http.ts
+ts/src/auth.ts
+ts/src/proof/engine.ts
+ts/src/runner.ts
+ts/src/proof/fingerprint.ts
+ts/scripts/test-runner.mjs
+ts/scripts/conformance-runner.mjs

@@ -246,11 +246,59 @@ test_real_git_commits() {
   )
 }
 
+# 7. pre-commit large-file guard (canon 250-line warning, never rejects)
+test_precommit_large_file_guard() {
+  local test_repo="$TMP_DIR/real_precommit_repo"
+  mkdir -p "$test_repo/.githooks"
+  cp "$ROOT/.githooks/pre-commit" "$test_repo/.githooks/pre-commit"
+  cp "$ROOT/.githooks/large-files-allowlist.txt" "$test_repo/.githooks/large-files-allowlist.txt"
+  cp "$ROOT/.githooks/commit-msg" "$test_repo/.githooks/commit-msg"
+  chmod +x "$test_repo/.githooks/pre-commit"
+
+  (
+    cd "$test_repo"
+    git init --quiet -b main
+    git config user.name "Test Committer"
+    git config user.email "test@example.com"
+
+    # 1) New file over 250 lines warns but exits 0 (warning-only)
+    awk 'BEGIN{for(i=1;i<=300;i++)print "const x" i " = " i ";"}' > newfile.ts
+    git add newfile.ts .githooks
+    out=$("$test_repo/.githooks/pre-commit" 2>&1)
+    status=$?
+    expect_code 0 "$status" "pre-commit warns but never rejects" "$out"
+    assert_contains "$out" "newfile.ts" "warning should name the large file"
+    assert_contains "$out" "250" "warning should state the limit"
+
+    # 2) Allowlisted legacy file is silent
+    mkdir -p ts/src
+    awk 'BEGIN{for(i=1;i<=6000;i++)print "const y" i " = " i ";"}' > ts/src/tools.ts
+    git add ts/src/tools.ts
+    out=$("$test_repo/.githooks/pre-commit" 2>&1)
+    status=$?
+    expect_code 0 "$status" "allowlisted file stays silent" "$out"
+    case "$out" in
+      *tools.ts*) fail "allowlisted ts/src/tools.ts should not warn" ;;
+    esac
+
+    # 3) Test files are auto-exempt
+    awk 'BEGIN{for(i=1;i<=500;i++)print "const z" i " = " i ";"}' > big.test.ts
+    git add big.test.ts
+    out=$("$test_repo/.githooks/pre-commit" 2>&1)
+    status=$?
+    expect_code 0 "$status" "test files stay silent" "$out"
+    case "$out" in
+      *big.test.ts*) fail "*.test.ts should be auto-exempt" ;;
+    esac
+  )
+}
+
 test_valid_commit_messages
 test_invalid_commit_messages
 test_exemptions
 test_env_var_escape_hatch
 test_setup_script_lifecycle
 test_real_git_commits
+test_precommit_large_file_guard
 
 pass "all commit-msg hook and setup tests passed"

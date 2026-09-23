@@ -366,9 +366,11 @@ Personal software, one owner, no external users. Standing owner instruction:
     files instead of command substitution (a `$( )` capture waits for EOF, which
     a surviving grandchild can hold open forever), and bounds every stage.
 - Commit hooks: `bash scripts/setup-hooks.sh` configures `core.hooksPath = .githooks`
-  (enforcing conventional commits `feat|fix|chore|docs|refactor|test|ci|perf|build|revert|style`
-  matching observed history, shared across checkouts and linked worktrees; escape hatch `--no-verify`
-  or `FM_SKIP_HOOKS=1`; test suite `tests/mcp-hooks.test.sh`).
+  (commit-msg enforcing conventional commits `feat|fix|chore|docs|refactor|test|ci|perf|build|revert|style`
+  matching observed history, plus pre-commit with the canon 250-line large-file guard as warning-only
+  (never rejects; legacy violators grandfathered in `.githooks/large-files-allowlist.txt`), shared across
+  checkouts and linked worktrees; escape hatch `--no-verify` or `FM_SKIP_HOOKS=1`;
+  test suite `tests/mcp-hooks.test.sh`).
 - Cutover: `scripts/fm-mcp-launch.sh --home $FM_HOME` serves the fleet
   local-only over stdio via the TypeScript server (`ts/dist/server.js`); pins
   `FM_HOME`, refuses network flags, never add a repo-root `bin/` (it would

@@ -31,11 +31,11 @@ check_hooks() {
   local current_path
   current_path="$(git config core.hooksPath 2>/dev/null || true)"
   if [ "$current_path" = ".githooks" ]; then
-    if [ -x "$HOOKS_DIR/commit-msg" ]; then
+    if [ -x "$HOOKS_DIR/commit-msg" ] && [ -x "$HOOKS_DIR/pre-commit" ]; then
       echo "✓ Git hooks are configured and executable (core.hooksPath = .githooks)"
       return 0
     else
-      echo "! core.hooksPath is .githooks, but $HOOKS_DIR/commit-msg is not executable"
+      echo "! core.hooksPath is .githooks, but a hook is not executable (commit-msg and pre-commit must both be +x)"
       return 1
     fi
   else
@@ -59,12 +59,16 @@ install_hooks() {
   if [ -f "$HOOKS_DIR/commit-msg" ]; then
     chmod +x "$HOOKS_DIR/commit-msg"
   fi
+  if [ -f "$HOOKS_DIR/pre-commit" ]; then
+    chmod +x "$HOOKS_DIR/pre-commit"
+  fi
 
   # Configure core.hooksPath in repo git config
   git config core.hooksPath .githooks
 
   echo "✓ Configured git hooks (core.hooksPath = .githooks)"
   echo "  Active hook: $HOOKS_DIR/commit-msg (enforces conventional/semantic commit format)"
+  echo "  Active hook: $HOOKS_DIR/pre-commit (canon 250-line large-file warning, never rejects)"
   echo "  Applies to this checkout and all linked worktrees."
 }
 

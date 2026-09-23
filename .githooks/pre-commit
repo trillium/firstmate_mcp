@@ -1,0 +1,52 @@
+#!/usr/bin/env sh
+# Large file guard (warning only, never rejects).
+#
+# Ported from code/canon modules/hooks/pre-commit: flags staged files over
+# 250 lines to encourage decomposition. Warning-only by design, so legacy
+# large files never block work; the allowlist grandfathers known violators
+# so new large files are the ones that get noticed.
+#
+# Allowlist: .githooks/large-files-allowlist.txt (one glob per line).
+# Escape hatch: git commit --no-verify (or FM_SKIP_HOOKS=1).
+set -u
+
+if [ -n "${FM_SKIP_HOOKS:-}" ]; then
+  exit 0
+fi
+
+LARGE_FILE_LIMIT=250
+ALLOWLIST=".githooks/large-files-allowlist.txt"
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$STAGED" ] && exit 0
+
+echo "$STAGED" | while IFS= read -r file; do
+  [ -z "$file" ] && continue
+
+  # Skip auto-exempt patterns: tests, fixtures, deprecated, docs, config formats
+  case "$file" in
+    *.test.*|*.spec.*|*.stories.*|*fixture*|*Fixture*) continue ;;
+    *deprecated*|*DEPRECATED*) continue ;;
+    *.md|*.mdx|*.toml|*.json|*.yaml|*.yml|*.csv) continue ;;
+  esac
+
+  # Skip files in allowlist
+  if [ -f "$ALLOWLIST" ]; then
+    skip=false
+    while IFS= read -r pattern || [ -n "$pattern" ]; do
+      case "$pattern" in \#*|"") continue ;; esac
+      case "$file" in $pattern) skip=true; break ;; esac
+    done < "$ALLOWLIST"
+    [ "$skip" = true ] && continue
+  fi
+
+  # Count lines (only for text files that exist)
+  [ -f "$file" ] || continue
+  lines=$(wc -l < "$file" | tr -d ' ')
+  case "$lines" in ''|*[!0-9]*) continue ;; esac
+  if [ "$lines" -gt "$LARGE_FILE_LIMIT" ]; then
+    echo "warning: $file has $lines lines (limit: $LARGE_FILE_LIMIT). Consider decomposing."
+  fi
+done
+
+exit 0
