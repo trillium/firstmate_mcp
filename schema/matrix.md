@@ -87,12 +87,16 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | reap_triage | bin/fm-agent-axi.sh | stable | --json | fail-closed reap triage (no reap verb exists) |
 | coderabbit_state | bin/fm-coderabbit-review-state.sh | stable | <owner>, <repo>, <pr> | reviews-list verdict (never the status check) | stable | (none) | write-queue count + oldest without argv |
 
+| fleet_ledger | file: state/fleet-ledger.jsonl | stable | (none) | activity ledger tail with counts |
+| devin_config | bin/fm-devin-config.sh | stable | <state-dir>, <task-id>, <busy-gen> | scoped worker config (state_dir pinned) |
+
+| git_history | native: git | stable | log, --oneline, --max-count | bounded repo log, path-scoped, confined |
+| git_blame | native: git | stable | blame, -L, --line-porcelain | line-range excerpt, max 200 lines |
+| ci_history | native: gh | stable | run, list, --branch, --limit, --json | run conclusions per branch |
+
 ## How to use this view
 
 Filter schema/contracts.yaml by stability to answer what breaks when a script header changes.
 A stable row pins an exact output schema id and fails validation when the pin goes stale.
 An evolving row pins a safe flag subset and fails when flags outside the subset appear.
 Nothing in this map is observed-only yet; when an observed surface arrives, it enters with tier experimental and no pin.
-| git_history | native: git | stable | log, --oneline, --max-count | bounded repo log, path-scoped, confined |
-| git_blame | native: git | stable | blame, -L, --line-porcelain | line-range excerpt, max 200 lines |
-| ci_history | native: gh | stable | run, list, --branch, --limit, --json | run conclusions per branch |

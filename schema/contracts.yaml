@@ -1369,3 +1369,35 @@ contracts:
       header: ts/src/tools/archaeology.ts:1-40
       doc: docs/BEADS-STORE-CONTRACT.md
     notes: "Default branches allowed (reading main history is the point); runs with repo cwd. Resolves gh via resolveGhBin (launchd PATH)."
+  - name: fleet_ledger
+    command: "file: state/fleet-ledger.jsonl"
+    flags: ["<none>"]
+    output:
+      format: json
+      schema_id: none
+      fields: ["present", "total_lines", "returned", "dropped_malformed", "records"]
+    exits:
+      zero: tailed records with counts; absent file returns typed degraded state
+      nonzero: bad limit; stderr carries the reason
+    stability: stable
+    pinned: fm-fleet-ledger.v1
+    evidence:
+      header: ts/src/tools/fleet-ledger.ts:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "O(1) tail over the opt-in activity ledger; malformed lines dropped with count, never fatal."
+  - name: devin_config
+    command: bin/fm-devin-config.sh
+    flags: ["<state-dir>", "<task-id>", "<busy-gen>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout", "task_id", "state_dir"]
+    exits:
+      zero: scoped per-worker Devin config written (mode 600)
+      nonzero: bad identifiers, missing state dir, or script failure; doorway pins state_dir to the served home
+    stability: stable
+    pinned: fm-devin-config.v1
+    evidence:
+      header: bin/fm-devin-config.sh:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Authority write behind approval. Divergence: upstream takes arbitrary state-dir; doorway pins served home."

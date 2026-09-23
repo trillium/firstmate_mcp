@@ -18,9 +18,9 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 
 | Area | Mirrored | Denied | Gap | Fork |
 | --- | --- | --- | --- | --- |
-| [Fleet runs](#fleet-runs) | 3 | 2 | 1 | 3 |
+| [Fleet runs](#fleet-runs) | 4 | 2 | 0 | 3 |
 | [Supervision](#supervision) | 13 | 23 | 0 | 4 |
-| [Sessions](#sessions) | 6 | 18 | 1 | 1 |
+| [Sessions](#sessions) | 7 | 18 | 0 | 1 |
 | [Backlog / decisions](#backlog-decisions) | 5 | 2 | 0 | 6 |
 | [Secondmates / remotes](#secondmates-remotes) | 8 | 10 | 0 | 2 |
 | [PR pipeline](#pr-pipeline) | 4 | 5 | 0 | 2 |
@@ -28,7 +28,7 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 | 0 |
 | [Installs](#installs) | 10 | 10 | 0 | 3 |
-| **Total** | **65** | **72** | **2** | **21** |
+| **Total** | **67** | **72** | **0** | **21** |
 
 ## Fleet runs
 
@@ -37,7 +37,7 @@ Whole-fleet reads and fleet hygiene: snapshot, views, and reconciliation.
 | Command | Mirror status | Notes |
 | --- | --- | --- |
 | `fm-agent-axi.sh` | fork extension | fork extension (present in trillium/firstmate, absent upstream): read-only reap-triage |
-| `fm-fleet-ledger.sh` | gap | opt-in fleet activity ledger writer; off by default, new since pin |
+| `fm-fleet-ledger.sh` | mirrored — `fleet_ledger_read` (ts✔) | opt-in fleet activity ledger writer; off by default, new since pin |
 | `fm-fleet-snapshot.sh` | mirrored — `fleet_snapshot` (ts✔), `fleet_poll` (ts✔), `backlog` (derived, ts✔) | canonical read; backlog counts derive from it |
 | `fm-fleet-sync.sh` | denied-by-design — `fleet_sync` | project sync across the fleet. refreshing project clones mutates local checkouts and branch tracking; only session start and teardown own fleet sync |
 | `fm-fleet-view.sh` | mirrored — `fleet_view` (ts✔) | human render of the snapshot |
@@ -111,7 +111,7 @@ Launching and owning agent sessions: start, harness, backends, spawn, briefs.
 | `fm-brief.sh` | mirrored — `scaffold_brief` (ts✔) | scaffold one crewmate brief; launches nothing |
 | `fm-claude-stop-autoarm.sh` | denied-by-design — `claude_stop_autoarm` | disable auto-arm in claude sessions. arming the watcher from a Stop hook drives shared supervision continuity; only the owning session's Stop hook fires it |
 | `fm-claude-trust.sh` | denied-by-design — `claude_trust` | workspace-trust preregistration for spawns. pre-registering workspace trust writes the operator trust store on a spawn's behalf; only the launching spawn path owns trust |
-| `fm-devin-config.sh` | gap | per-worker Devin config writer (persona isolation); new since pin |
+| `fm-devin-config.sh` | mirrored — `devin_config_write` (ts✔) | per-worker Devin config writer (persona isolation); new since pin |
 | `fm-dispatch-resolve.sh` | mirrored — `dispatch_resolve` (ts✔) | resolve one concrete dispatch |
 | `fm-harness.sh` | mirrored — `harness_detect` (ts✔) | harness detection for the process tree |
 | `fm-herdr-ci-cleanup.sh` | denied-by-design — `herdr_ci_cleanup` | CI session cleanup. stopping and deleting lab sessions is destructive even when scoped; only CI teardown owns it |

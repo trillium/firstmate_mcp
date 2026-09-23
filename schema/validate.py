@@ -101,6 +101,8 @@ CURRENT_PINS = {
     "git_history": "git-log.v1",
     "git_blame": "git-blame.v1",
     "ci_history": "gh-run-list.v1",
+    "fleet_ledger": "fm-fleet-ledger.v1",
+    "devin_config": "fm-devin-config.v1",
     "grant_status": "mcp-grant.v1",
     "public_followup_pending": "fm-public-followup.pending.v1",
     "public_followup_collect": "fm-public-followup-collect.drain.v1",

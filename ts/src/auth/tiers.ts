@@ -152,6 +152,8 @@ export const TOOL_TIERS: Record<string, Tier> = {
   git_history: TIER_OPEN,
   git_blame: TIER_OPEN,
   ci_history: TIER_OPEN,
+  fleet_ledger: TIER_OPEN,
+  devin_config: TIER_AUTHORITY,
 };
 
 /**

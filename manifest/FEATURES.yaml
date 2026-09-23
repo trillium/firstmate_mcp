@@ -1828,3 +1828,27 @@ features:
     divergence:
       status: not-applicable
       reason: ""
+  - id: fleet_ledger_read
+    kind: upstream-mirror
+    upstream_command: bin/fm-fleet-ledger.sh
+    summary: Bounded tail reads over the opt-in fleet activity ledger.
+    contract: schema/contracts.yaml#fleet_ledger
+    upstream_test: "ts/tests/beads.test.ts::ledger tails records with counts"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools/fleet-ledger.ts:toolFleetLedger"]}
+    divergence:
+      status: none
+      reason: ""
+  - id: devin_config_write
+    kind: upstream-mirror
+    upstream_command: bin/fm-devin-config.sh
+    summary: Scoped per-worker Devin config writes pinned to the served home.
+    contract: schema/contracts.yaml#devin_config
+    upstream_test: "ts/tests/beads.test.ts::devin config validates identifiers"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools/fleet-ledger.ts:toolDevinConfig"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Doorway pins state_dir to the served home; upstream accepts an
+        arbitrary state directory. Authority write behind approval.

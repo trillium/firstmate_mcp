@@ -313,3 +313,72 @@ describe("archaeology reads", () => {
     assert.equal(bad.isError, true);
   });
 });
+
+describe("fleet activity ledger + devin config", () => {
+  type RunResult = import("../src/runner.js").RunResult;
+  const stubRun =
+    (stdout: string) =>
+    async (): Promise<RunResult> => ({ stdout, stderr: "", exitCode: 0 });
+
+  function actCtx(home: string, stdout = ""): ToolContext {
+    return {
+      ...liveContext(),
+      binDir: `${home}/bin`,
+      stateDir: `${home}/state`,
+      run: stubRun(stdout),
+    };
+  }
+
+  function writeLedger(home: string, lines: string[]): void {
+    fs.mkdirSync(path.join(home, "state"), { recursive: true });
+    fs.writeFileSync(path.join(home, "state", "fleet-ledger.jsonl"), lines.join("\n"));
+  }
+
+  test("ledger tails records with counts", async () => {
+    const home = makeStubHome();
+    writeLedger(home, [
+      JSON.stringify({ v: 1, ts: 100, event: "dispatched", task: "a" }),
+      JSON.stringify({ v: 1, ts: 200, event: "merged", task: "b" }),
+      "{broken",
+    ]);
+    const res = await TOOLS["fleet_ledger"].handler({ limit: 10 }, actCtx(home));
+    assert.equal(res.isError, false);
+    const p = res.payload as Record<string, unknown>;
+    assert.equal(p["present"], true);
+    assert.equal(p["total_lines"], 3);
+    assert.equal((p["records"] as unknown[]).length, 2);
+    assert.equal(p["dropped_malformed"], 1);
+  });
+
+  test("ledger absent file is typed degraded state", async () => {
+    const home = makeStubHome();
+    const res = await TOOLS["fleet_ledger"].handler({}, actCtx(home));
+    assert.equal(res.isError, false);
+    assert.equal((res.payload as Record<string, unknown>)["present"], false);
+  });
+
+  test("ledger rejects bad limits", async () => {
+    const home = makeStubHome();
+    for (const limit of [0, 101, -1, "x"]) {
+      const res = await TOOLS["fleet_ledger"].handler({ limit }, actCtx(home));
+      assert.equal(res.isError, true, String(limit));
+    }
+  });
+
+  test("devin config validates identifiers", async () => {
+    const home = makeStubHome();
+    const ok = await TOOLS["devin_config"].handler(
+      { task_id: "task-1", busy_gen: "g7", approval: "I authorize" },
+      actCtx(home, "ok"),
+    );
+    assert.equal(ok.isError, false);
+    for (const args of [
+      { task_id: "../x", busy_gen: "g7", approval: "I authorize" },
+      { task_id: "task-1", busy_gen: "", approval: "I authorize" },
+      { task_id: "task-1", busy_gen: "g 7", approval: "I authorize" },
+    ]) {
+      const res = await TOOLS["devin_config"].handler(args, actCtx(home, "ok"));
+      assert.equal(res.isError, true, JSON.stringify(args));
+    }
+  });
+});
