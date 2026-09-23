@@ -55,17 +55,31 @@ fork:
   proven_commit: 86c035336bf9e136dd44d76e7d46e16d260fac8f
   proven_date: "2026-09-17"
   proven_subject: "feat(wake): fold inbox-supervision delivery into one PR (task-z8sn4) (#160)"
+  served_commit: aaf67489ec7644f3bdfd4043ba0c898ab928bcd9
+  served_date: "2026-09-06"
   merge_base_with_upstream: 53ecbc7961ac066461ea3104c713d81d40fb32d6
   merge_base_date: 2026-08-10
   commits_ahead_at_seed: 204
   basis: UPSTREAM-RESULTS.md seed 2026-09-18 plus CUTOVER-PROOF.md basis 2026-09-17
   role: working-copy
   note: >-
-    Working-copy pin: the trillium/firstmate line the adapter was proven
-    against (fork HEAD at both proofs, ~204 commits ahead of the Aug-10
-    merge base with upstream, carrying the beads-substrate migration).
-    Everything runs against this line; re-pin here whenever the adapter is
-    re-proven against a newer fork commit.
+    Working-copy pin, in two parts because they are two different revs and a
+    single pin made that ambiguous (owner asked 2026-09-22 and the manifest could
+    not answer cleanly).
+    `proven_commit` is the PROOF BASIS: the fork HEAD when CUTOVER-PROOF.md and
+    UPSTREAM-RESULTS.md were produced. It is history and does not move unless the
+    adapter is re-proven.
+    `served_commit` is the line the fleet actually runs (FM_HOME). It must equal
+    `drift/baseline.json: firstmate_revision`, which is the observed inventory of
+    that same checkout — manifest/validate.py fails loudly when they disagree, so a
+    moved fleet home cannot leave this file quietly wrong.
+    As of 2026-09-22 these are aaf67489 (served, 2026-09-06) and 86c03533 (proof
+    basis, 2026-09-17): the fleet runs a line 11 days OLDER than the proof basis,
+    while the fork's own origin/main tip is 9894cd27 (2026-09-22), 11 commits ahead
+    of the served home. That gap is operational, not a doorway defect, and is
+    tracked as project-2od.13 — serving a stale fleet line is the owner's call, and
+    the doorway cannot fix it by itself because the served checkout also carries
+    uncommitted work.
 features:
   # ---- SUPPORTED: behavior-identical reads + safe steer (no approval) ----
   - id: fleet_snapshot

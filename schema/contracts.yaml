@@ -20,6 +20,8 @@ provenance:
     repo: https://github.com/trillium/firstmate.git
     proven_commit: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     proven_date: "2026-09-17"
+    served_commit: aaf67489ec7644f3bdfd4043ba0c898ab928bcd9
+    served_date: "2026-09-06"
     basis: UPSTREAM-RESULTS.md seed 2026-09-18 plus CUTOVER-PROOF.md basis 2026-09-17
     role: working-copy
 contracts:

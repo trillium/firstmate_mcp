@@ -139,7 +139,7 @@ def check_provenance(data):
                   "baseline_rev_at_seed", "baseline_surfaces_at_seed", "role"):
         if up.get(field) in (None, ""):
             structural.append(f"upstream provenance is missing '{field}'")
-    for field in ("repo", "proven_commit", "proven_date", "basis", "role"):
+    for field in ("repo", "proven_commit", "proven_date", "served_commit", "served_date", "basis", "role"):
         if fork.get(field) in (None, ""):
             structural.append(f"fork provenance is missing '{field}'")
     if structural:
@@ -149,18 +149,25 @@ def check_provenance(data):
     import datetime
     if isinstance(fork.get("proven_date"), (datetime.date, datetime.datetime)):
         fork["proven_date"] = fork["proven_date"].isoformat()
+    if isinstance(fork.get("served_date"), (datetime.date, datetime.datetime)):
+        fork["served_date"] = fork["served_date"].isoformat()
     if not SHA40_RE.match(up["gitlink_at_seed"]):
         structural.append("upstream gitlink_at_seed must be a 40-char hex commit")
     if up.get("role") != "radar":
         structural.append("upstream provenance role must be 'radar' (early-warning only)")
     if not SHA40_RE.match(fork["proven_commit"]):
         structural.append("fork proven_commit must be a 40-char hex commit")
+    if not SHA40_RE.match(fork["served_commit"]):
+        structural.append("fork served_commit must be a 40-char hex commit")
     if not DATE_RE.match(fork["proven_date"]):
         structural.append("fork proven_date must be YYYY-MM-DD")
+    if not DATE_RE.match(fork["served_date"]):
+        structural.append("fork served_date must be YYYY-MM-DD")
     if fork.get("role") != "working-copy":
         structural.append("fork provenance role must be 'working-copy'")
     if structural:
         return structural, stale
+
 
     # Stale checks against the live tree — fail loudly, never silently.
     gitlink, err = live_gitlink()
@@ -177,6 +184,20 @@ def check_provenance(data):
     except OSError as exc:
         stale.append(f"cannot read {baseline_path}: {exc}")
         baseline = {}
+    # The fork block carries two revs on purpose: `proven_commit` is the proof
+    # basis (history, moves only when the adapter is re-proven) and `served_commit`
+    # is the line the fleet runs. They are different revs, which a single pin made
+    # ambiguous — the owner asked "what are we pinned at" on 2026-09-22 and the
+    # manifest could not answer cleanly. `served_commit` must match the observed
+    # inventory of that same checkout in drift/baseline.json, so a moved fleet home
+    # cannot leave this file quietly wrong.
+    baseline_served = baseline.get("firstmate_revision", "") if isinstance(baseline, dict) else ""
+    if baseline_served and not baseline_served.startswith(fork["served_commit"][:8]):
+        stale.append(
+            f"fork served_commit {fork['served_commit'][:9]} is stale: "
+            f"drift/baseline.json records {baseline_served!r} — re-seed served_commit "
+            "to the line the fleet actually runs"
+        )
     if isinstance(baseline, dict):
         rev = baseline.get("firstmate_revision", "")
         if rev and not rev.startswith(up["baseline_rev_at_seed"]):
