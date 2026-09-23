@@ -517,95 +517,12 @@ import {
   toolContributionsPending,
 } from "./tools/digests-write.js";
 
-async function toolSpawnCrew(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const taskId = args["task_id"];
-  const project = args["project"];
-  const mode = args["mode"];
-  const yolo = args["yolo"];
-  if (!validId(taskId)) {
-    return {
-      payload: { error: "invalid task_id", expect: "short task id, no slashes or traversal" },
-      isError: true,
-    };
-  }
-  if (!validProject(project)) {
-    return {
-      payload: {
-        error: "invalid project",
-        expect: "bare name or projects/<name>, no absolute paths or traversal",
-      },
-      isError: true,
-    };
-  }
-  if (!(MODES as readonly unknown[]).includes(mode)) {
-    return {
-      payload: { error: "invalid mode", expect: "one of no-mistakes, direct-PR, local-only" },
-      isError: true,
-    };
-  }
-  if (!(YOLO as readonly unknown[]).includes(yolo)) {
-    return { payload: { error: "invalid yolo", expect: "one of on, off" }, isError: true };
-  }
-  const auth = await requireAuth("spawn_crew", args, ctx);
-  if (!auth.ok) return auth.result;
-  const { payload, isError } = await ownedCall(
-    argv(
-      path.join(ctx.binDir, "fm-spawn.sh"),
-      taskId as string,
-      project as string,
-      "--mode",
-      mode as string,
-      "--yolo",
-      yolo as string,
-    ),
-    "spawn refused or failed",
-    ctx.run,
-  );
-  if (!isError) {
-    return { payload: { ...payload, task_id: taskId, project, mode }, isError: false };
-  }
-  return { payload, isError: true };
-}
-
-async function toolScaffoldBrief(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const taskId = args["task_id"];
-  const project = args["project"];
-  const mode = args["mode"];
-  if (!validId(taskId)) {
-    return {
-      payload: { error: "invalid task_id", expect: "short task id, no slashes or traversal" },
-      isError: true,
-    };
-  }
-  if (!validProject(project)) {
-    return {
-      payload: {
-        error: "invalid project",
-        expect: "bare name or projects/<name>, no absolute paths or traversal",
-      },
-      isError: true,
-    };
-  }
-  if (!(BRIEF_MODES as readonly unknown[]).includes(mode)) {
-    return {
-      payload: {
-        error: "invalid mode",
-        expect: "one of no-mistakes, direct-PR, local-only, scout",
-      },
-      isError: true,
-    };
-  }
-  const auth = await requireAuth("scaffold_brief", args, ctx);
-  if (!auth.ok) return auth.result;
-  const base = [path.join(ctx.binDir, "fm-brief.sh"), taskId as string, project as string];
-  const cmd =
-    mode === "scout" ? argv(...base, "--scout") : argv(...base, "--mode", mode as string);
-  const { payload, isError } = await ownedCall(cmd, "brief refused or failed", ctx.run);
-  if (!isError) {
-    return { payload: { ...payload, task_id: taskId, project, mode }, isError: false };
-  }
-  return { payload, isError: true };
-}
+// Crew spawn + brief scaffolding live in ./tools/spawn.ts (slice 12, task-8pqjb).
+// Imported for the TOOLS registry below; module-private as before.
+import {
+  toolSpawnCrew,
+  toolScaffoldBrief,
+} from "./tools/spawn.js";
 
 // Decision hold lives in ./tools/decisions-hold.ts (slice 7, task-8pqjb).
 // Imported for the TOOLS registry below; module-private as before.
@@ -1147,133 +1064,15 @@ export async function toolDoctor(_args: ToolArgs, ctx: ToolContext): Promise<Too
   };
 }
 
-async function toolPrState(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const url = args["url"];
-  if (!validPrUrl(url)) {
-    return {
-      payload: {
-        error: "invalid url",
-        expect: "https://github.com/<owner>/<repo>/pull/<number>",
-      },
-      isError: true,
-    };
-  }
-  // One-shot read-only blockers read; never posts, requests, or merges.
-  const { payload, isError } = await ownedCall(
-    argv(path.join(ctx.binDir, "fm-pr-state.sh"), url as string),
-    "pr state failed",
-    ctx.run,
-  );
-  if (!isError) return { payload: { ...payload, url }, isError: false };
-  return { payload, isError: true };
-}
-
-async function toolPrPoll(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const url = args["url"];
-  if (!validPrUrl(url)) {
-    return {
-      payload: {
-        error: "invalid url",
-        expect: "https://github.com/<owner>/<repo>/pull/<number>",
-      },
-      isError: true,
-    };
-  }
-  const match = PR_URL_RE.exec(url as string);
-  if (!match) {
-    return {
-      payload: {
-        error: "invalid url",
-        expect: "https://github.com/<owner>/<repo>/pull/<number>",
-      },
-      isError: true,
-    };
-  }
-  const owner = match[1];
-  const repo = match[2];
-  const number = match[3];
-
-  const cmd = [
-    path.join(ctx.binDir, "fm-pr-poll.sh"),
-    "--validated",
-    "github",
-    url as string,
-    "github.com",
-    `${owner}/${repo}`,
-    number,
-  ];
-  const { payload, isError } = await ownedCall(cmd, "pr poll failed", ctx.run);
-  if (!isError) return { payload: { ...payload, url }, isError: false };
-  return { payload, isError: true };
-}
-
-async function toolRelayPoll(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  // Short bounded poll; hard no-op without relay consent (FMX token).
-  return ownedCall(argv(path.join(ctx.binDir, "fm-x-poll.sh")), "relay poll failed", ctx.run);
-}
-
-async function toolPrReviewers(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const url = args["url"];
-  if (!validPrUrl(url)) {
-    return {
-      payload: {
-        error: "invalid url",
-        expect: "https://github.com/<owner>/<repo>/pull/<number>",
-      },
-      isError: true,
-    };
-  }
-  // Read-only advisory reviewer candidates from the PR's changed files
-  // and recent authorship; never requests, assigns, or posts reviews.
-  // Wide PRs cost one API read per changed path and may time out past
-  // the envelope instead of completing.
-  const { payload, isError } = await ownedCall(
-    argv(path.join(ctx.binDir, "fm-pr-reviewers.sh"), url as string),
-    "pr reviewers failed",
-    ctx.run,
-  );
-  if (!isError) return { payload: { ...payload, url }, isError: false };
-  return { payload, isError: true };
-}
-
-/**
- * Shared PreToolUse classifier shape: the guard never executes the
- * submitted command or tool name, it only classifies. Exit 0 is an
- * allow, exit 2 is a deny with the reason on its outputs, anything
- * else is a failed classification. Both verdicts are answers, not errors.
- */
-async function classifyCall(
-  cmd: string[],
-  label: string,
-  run: typeof runScript,
-): Promise<ToolResult> {
-  const res = await run(cmd);
-  if (!isRunResult(res)) return { payload: res as Record<string, unknown>, isError: true };
-  const [out, outTrunc] = truncate(res.stdout ?? "");
-  const [errOut, errTrunc] = truncate(res.stderr ?? "");
-  if (res.exitCode === 0) {
-    return {
-      payload: { verdict: "allow", stdout: out, stdout_truncated: outTrunc },
-      isError: false,
-    };
-  }
-  if (res.exitCode === 2) {
-    return {
-      payload: {
-        verdict: "deny",
-        stdout: out,
-        stdout_truncated: outTrunc,
-        stderr: errOut,
-        stderr_truncated: errTrunc,
-      },
-      isError: false,
-    };
-  }
-  return {
-    payload: { error: label, exit: res.exitCode, stdout: out, stderr: errOut },
-    isError: true,
-  };
-}
+// PR pipeline reads live in ./tools/pr-reads.ts (slice 12, task-8pqjb).
+// Imported for the TOOLS registry below; module-private as before.
+import {
+  classifyCall,
+  toolPrState,
+  toolPrPoll,
+  toolRelayPoll,
+  toolPrReviewers,
+} from "./tools/pr-reads.js";
 
 async function toolArmPolicyCheck(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   const command = args["command"];
