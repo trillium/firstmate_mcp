@@ -264,6 +264,15 @@ def main():
         seen.add(fid)
         if entry.get("kind") not in KINDS:
             fail(2, f"feature '{fid}' kind must be one of {list(KINDS)}")
+        # Fork/local extensions must point at their bead: the brain store is the basis
+        # of that data (owner directive 2026-09-22), so one here without a bead id only
+        # exists in markdown — exactly what is being retired.
+        if entry.get("kind") in ("fork", "local") and not entry.get("bead"):
+            fail(
+                2,
+                f"feature '{fid}' is kind '{entry['kind']}' with no 'bead' id "
+                "(the brain store is the basis for these)",
+            )
         for field in REQUIRED:
             if entry.get(field) in (None, ""):
                 fail(2, f"feature '{fid}' is missing required field '{field}'")

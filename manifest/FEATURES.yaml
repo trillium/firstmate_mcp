@@ -16,6 +16,11 @@
 #     `manifest/validate.py` spot-checks every `implemented` evidence pointer
 #     against the tree.
 #
+# Fork and local extensions are tracked as beads in the brain store, epic
+# brain-df9nd (owner directive 2026-09-22: the basis of this data lives in beads,
+# not markdown — each such feature below carries its `bead:` id, and this file is
+# becoming a view of them rather than the record).
+#
 # Validate: python3 manifest/validate.py
 # Human view: manifest/README.md
 version: v1
@@ -1351,6 +1356,7 @@ features:
         stay firstmate-owned.
   # ---- NEW: local-only Trillium extensions (survive upstream reconciliation) ----
   - id: drift_detection
+    bead: brain-df9nd.8
     kind: local
     summary: Observed-surface drift detection seeded from the live fleet; diffs feature drift from behavior drift.
     local_path: drift/
@@ -1361,6 +1367,7 @@ features:
     ts: {status: retired}
     divergence: {status: not-applicable, reason: ""}
   - id: upstream_shift_signal
+    bead: brain-df9nd.9
     kind: local
     summary: Diffs the sources/firstmate pin against upstream main and reports which depended-on surfaces moved.
     local_path: drift/shift.py
@@ -1371,6 +1378,7 @@ features:
     ts: {status: retired}
     divergence: {status: not-applicable, reason: ""}
   - id: subprocess_envelope
+    bead: brain-df9nd.10
     kind: local
     summary: Every tool call returns within 30s with process-group kill on timeout so timed-out reads leave no orphans; longer work detaches via async receipts.
     local_path: ts/src/constants.ts
@@ -1381,6 +1389,7 @@ features:
     ts: {status: implemented, evidence: ["ts/src/constants.ts:SUBPROCESS_TIMEOUT_S", "ts/src/runner.ts:MAX_OUTPUT_BYTES"]}
     divergence: {status: not-applicable, reason: ""}
   - id: receipt_submit
+    bead: brain-df9nd.11
     kind: local
     summary: Detaches one tool call past the 30s fail-closed budget and returns a pending receipt with a receipt_status check signature; authority targets still need their nested approval.
     local_path: ts/src/constants.ts
@@ -1391,6 +1400,7 @@ features:
     ts: {status: implemented, evidence: ["ts/src/tools.ts:toolReceiptSubmit", "ts/src/auth.ts:receipt_submit"]}
     divergence: {status: not-applicable, reason: ""}
   - id: receipt_status
+    bead: brain-df9nd.12
     kind: local
     summary: Read-only check on one detached receipt; reports running, done with the result attached, failed, or expired past the TTL, confined to the serving home.
     local_path: ts/src/constants.ts
@@ -1401,6 +1411,7 @@ features:
     ts: {status: implemented, evidence: ["ts/src/tools.ts:toolReceiptStatus", "ts/src/auth.ts:receipt_status"]}
     divergence: {status: not-applicable, reason: ""}
   - id: grant_mint
+    bead: brain-df9nd.13
     kind: local
     summary: Mint scoped standing approval grants with tier limits, tool allowlists, project scopes, expiry TTL, usage caps, and instant revocability.
     local_path: ts/src/grants.ts
@@ -1411,6 +1422,7 @@ features:
     ts: {status: implemented, evidence: ["ts/src/grants.ts:mintGrant", "ts/src/tools.ts:toolGrantMint", "ts/src/auth.ts:grant_mint"]}
     divergence: {status: not-applicable, reason: ""}
   - id: grant_revoke
+    bead: brain-df9nd.14
     kind: local
     summary: Revoke an active standing approval grant immediately, causing subsequent matching authority calls to fail closed.
     local_path: ts/src/grants.ts
@@ -1421,6 +1433,7 @@ features:
     ts: {status: implemented, evidence: ["ts/src/grants.ts:revokeGrant", "ts/src/tools.ts:toolGrantRevoke", "ts/src/auth.ts:grant_revoke"]}
     divergence: {status: not-applicable, reason: ""}
   - id: grant_status
+    bead: brain-df9nd.15
     kind: local
     summary: Read-only inspection of standing approval grants (safe metadata only, secret tokens never exposed).
     local_path: ts/src/grants.ts
@@ -1431,6 +1444,7 @@ features:
     ts: {status: implemented, evidence: ["ts/src/grants.ts:getGrantStatus", "ts/src/tools.ts:toolGrantStatus", "ts/src/auth.ts:grant_status"]}
     divergence: {status: not-applicable, reason: ""}
   - id: standing_approval
+    bead: brain-df9nd.16
     kind: local
     summary: Standing approval primitive for autonomous MCP autonomy loops; checks tier boundaries, tool allowlists, project scopes, expiry, and usage limits while preserving default-deny and captain-hold release gates.
     local_path: ts/src/grants.ts
@@ -1441,6 +1455,7 @@ features:
     ts: {status: implemented, evidence: ["ts/src/grants.ts:verifyGrant", "ts/src/grants.ts:checkAuthorization"]}
     divergence: {status: not-applicable, reason: ""}
   - id: auth_tiers
+    bead: brain-df9nd.17
     kind: local
     summary: Every tool carries a code-assigned tier; the audit log records authority use; authority tools refuse without an authorization string.
     local_path: ts/src/auth.ts
@@ -1451,6 +1466,7 @@ features:
     ts: {status: implemented, evidence: ["ts/src/auth.ts:APPROVAL_PREFIX"]}
     divergence: {status: not-applicable, reason: ""}
   - id: contract_map
+    bead: brain-df9nd.18
     kind: local
     summary: Depended-on subset declaration with stability tiers; the validator fails naming the stale pin.
     local_path: schema/
@@ -1461,6 +1477,7 @@ features:
     ts: {status: retired}
     divergence: {status: not-applicable, reason: ""}
   - id: conformance_fixtures
+    bead: brain-df9nd.19
     kind: local
     summary: Stub-home fixtures proving adapter output equals the owning scripts' output for both implementations.
     local_path: tests/conformance/
@@ -1471,6 +1488,7 @@ features:
     ts: {status: implemented, evidence: ["ts/tests/conformance-helpers.ts:setup", "ts/src/server.ts:handleToolsCall"]}
     divergence: {status: not-applicable, reason: ""}
   - id: typescript_sibling
+    bead: brain-df9nd.20
     kind: local
     summary: Independent TypeScript implementation of the same tool contract over stdio with no runtime dependencies.
     local_path: ts/
@@ -1481,6 +1499,7 @@ features:
     ts: {status: implemented, evidence: ["ts/src/server.ts:server", "ts/src/tools.ts:fleet_snapshot"]}
     divergence: {status: not-applicable, reason: ""}
   - id: followon_actions
+    bead: brain-df9nd.21
     kind: local
     summary: Generalized customizable follow-on actions and action chains for MCP tool executions with condition evaluation, context forwarding, auth tier enforcement, and loop prevention.
     local_path: ts/src/followon.ts
@@ -1491,6 +1510,7 @@ features:
     ts: {status: implemented, evidence: ["ts/src/followon.ts:FollowOnService", "ts/src/followon.ts:executeFollowOnsEffect", "ts/tests/followon.test.ts:describe"]}
     divergence: {status: not-applicable, reason: ""}
   - id: supervised_deployment
+    bead: brain-df9nd.22
     kind: local
     summary: launchd user agent supervisor, fail-closed smoke gate, and audit log rotation for firstmate_mcp.
     local_path: deploy/
@@ -1508,6 +1528,7 @@ features:
     divergence: {status: not-applicable, reason: ""}
   # ---- FORK DELTAS: trillium/firstmate behavior changes vs upstream kunchenguid ----
   - id: brief_herdr_lab_safety
+    bead: brain-df9nd.1
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-brief.sh
@@ -1523,6 +1544,7 @@ features:
         gate injection for agent briefs; upstream brief generation has no
         Herdr lab contract.
   - id: spawn_batch_delivery
+    bead: brain-df9nd.2
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-spawn.sh
@@ -1537,6 +1559,7 @@ features:
         Trillium fork adds batch dispatching, project path scoping through
         firstmate home, and delivery contract validation.
   - id: remote_fleet_management
+    bead: brain-df9nd.3
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-remote-doctor.sh
@@ -1551,6 +1574,7 @@ features:
         Multi-machine fleet management and secondmate persistence across remote
         nodes specific to Trillium's infrastructure.
   - id: backlog_handoff_protocol
+    bead: brain-df9nd.4
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-backlog-handoff.sh
@@ -1565,6 +1589,7 @@ features:
         Asynchronous crew-to-crew handoff protocol via structured markdown
         outboxes.
   - id: captain_decision_holds
+    bead: brain-df9nd.5
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-decision-hold.sh
@@ -1579,6 +1604,7 @@ features:
         Structured decision hold lifecycle with answer files and explicit
         verdict transitions.
   - id: fork_origin_check
+    bead: brain-df9nd.6
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-fork-origin-check.sh
@@ -1593,6 +1619,7 @@ features:
         Trillium fork-origin convention for fork-contribution clones; upstream
         firstmate does not enforce or scan fork remote setup.
   - id: afk_daemon_launch
+    bead: brain-df9nd.7
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-afk-launch.sh
