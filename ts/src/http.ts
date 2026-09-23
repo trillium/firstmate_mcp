@@ -45,165 +45,32 @@ export interface HttpServerOptions {
   readonly toolContext?: ToolContext;
 }
 
-export interface SessionData {
-  readonly id: string;
-  readonly createdAt: number;
-  lastActivityAt: number;
-  initialized: boolean;
-  protocolVersion?: string;
-  clientInfo?: { name: string; version: string };
-  sseRes?: http.ServerResponse;
-}
-
-/** Constant-time string comparison using SHA-256 digests. */
-export function timingSafeEqualStr(a: string, b: string): boolean {
-  const hashA = crypto.createHash("sha256").update(a, "utf8").digest();
-  const hashB = crypto.createHash("sha256").update(b, "utf8").digest();
-  return crypto.timingSafeEqual(hashA, hashB) && a === b;
-}
-
-/** Check whether an origin is allowed (localhost / 127.0.0.1 / [::1] or explicitly listed). */
-export function validateOrigin(
-  originHeader: string | undefined,
-  allowedOrigins?: readonly string[],
-): boolean {
-  if (!originHeader) return true; // Non-browser clients (curl, python, sdk) omit Origin
-  try {
-    const parsed = new URL(originHeader);
-    const host = parsed.hostname.toLowerCase();
-    if (host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host === "::1") {
-      return true;
-    }
-    if (allowedOrigins && allowedOrigins.includes(parsed.origin.toLowerCase())) {
-      return true;
-    }
-  } catch {
-    return false;
-  }
-  return false;
-}
-
-/** Check whether Host header is valid (localhost / 127.0.0.1 / [::1] or explicitly listed). */
-export function validateHost(
-  hostHeader: string | undefined,
-  allowedHosts?: readonly string[],
-): boolean {
-  if (!hostHeader) return false;
-  const hostWithoutPort = hostHeader.replace(/:\d+$/, "").toLowerCase();
-  if (
-    hostWithoutPort === "localhost" ||
-    hostWithoutPort === "127.0.0.1" ||
-    hostWithoutPort === "[::1]" ||
-    hostWithoutPort === "::1"
-  ) {
-    return true;
-  }
-  if (allowedHosts && allowedHosts.map((h) => h.toLowerCase()).includes(hostWithoutPort)) {
-    return true;
-  }
-  return false;
-}
-
-/** Validate Bearer token authentication against the expected secret token. */
-export function validateAuth(
-  authHeader: string | undefined,
-  expectedToken: string,
-): boolean {
-  if (!authHeader) return false;
-  const match = authHeader.match(/^Bearer\s+(.+)$/i);
-  if (!match) return false;
-  const presented = match[1].trim();
-  if (!presented) return false;
-  return timingSafeEqualStr(presented, expectedToken);
-}
+// Validation helpers live in ./http/validation.ts (slice 22, task-8pqjb).
+import {
+  timingSafeEqualStr,
+  validateOrigin,
+  validateHost,
+  validateAuth,
+} from "./http/validation.js";
+export {
+  timingSafeEqualStr,
+  validateOrigin,
+  validateHost,
+  validateAuth,
+};
 
 /** In-memory MCP session manager. */
-export class SessionStore {
-  private readonly sessions = new Map<string, SessionData>();
-
-  createSession(protocolVersion?: string, idOverride?: string): SessionData {
-    const id = idOverride ?? crypto.randomUUID();
-    const session: SessionData = {
-      id,
-      createdAt: Date.now(),
-      lastActivityAt: Date.now(),
-      initialized: false,
-      protocolVersion,
-    };
-    this.sessions.set(id, session);
-    return session;
-  }
-
-  getSession(id: string): SessionData | undefined {
-    return this.sessions.get(id);
-  }
-
-  touchSession(id: string): void {
-    const s = this.sessions.get(id);
-    if (s) s.lastActivityAt = Date.now();
-  }
-
-  deleteSession(id: string): boolean {
-    const s = this.sessions.get(id);
-    if (s) {
-      if (s.sseRes && !s.sseRes.writableEnded) {
-        try {
-          s.sseRes.end();
-        } catch {
-          /* ignore */
-        }
-      }
-      return this.sessions.delete(id);
-    }
-    return false;
-  }
-
-  cleanupExpired(ttlMs: number): number {
-    const now = Date.now();
-    let cleaned = 0;
-    for (const [id, s] of this.sessions.entries()) {
-      if (now - s.lastActivityAt > ttlMs) {
-        if (s.sseRes && !s.sseRes.writableEnded) {
-          try {
-            s.sseRes.end();
-          } catch {
-            /* ignore */
-          }
-        }
-        this.sessions.delete(id);
-        cleaned++;
-      }
-    }
-    return cleaned;
-  }
-
-  count(): number {
-    return this.sessions.size;
-  }
-
-  closeAll(): void {
-    for (const s of this.sessions.values()) {
-      if (s.sseRes && !s.sseRes.writableEnded) {
-        try {
-          s.sseRes.end();
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-    this.sessions.clear();
-  }
-}
-
-export interface HttpServerHandle {
-  readonly server: http.Server;
-  readonly host: string;
-  readonly port: number;
-  readonly authToken: string;
-  readonly sessionStore: SessionStore;
-  readonly close: () => Promise<void>;
-}
-
+// SessionData/SessionStore/Handle live in ./http/session-store.ts (slice 22, task-8pqjb).
+import {
+  SessionData,
+  SessionStore,
+  HttpServerHandle,
+} from "./http/session-store.js";
+export {
+  SessionData,
+  SessionStore,
+  HttpServerHandle,
+};
 /** Create and configure the Node HTTP Server. */
 export function createHttpServer(
   options: HttpServerOptions = {},
@@ -516,59 +383,16 @@ export function createHttpServer(
   return { server, authToken };
 }
 
-/** Start the HTTP server on specified host and port. */
-export async function startHttpServer(
-  options: HttpServerOptions = {},
-): Promise<HttpServerHandle> {
-  const host = options.host ?? process.env.FM_MCP_HTTP_HOST ?? DEFAULT_HTTP_HOST;
-  const port = options.port ?? (process.env.FM_MCP_HTTP_PORT ? parseInt(process.env.FM_MCP_HTTP_PORT, 10) : DEFAULT_HTTP_PORT);
-  const sessionStore = new SessionStore();
-  const { server, authToken } = createHttpServer(options, sessionStore);
-
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, host, () => {
-      server.removeListener("error", reject);
-      resolve();
-    });
-  });
-
-  const boundAddr = server.address();
-  const boundPort = typeof boundAddr === "object" && boundAddr !== null ? boundAddr.port : port;
-
-  return {
-    server,
-    host,
-    port: boundPort,
-    authToken,
-    sessionStore,
-    close: async () => {
-      sessionStore.closeAll();
-      await new Promise<void>((resolve, reject) => {
-        server.close((err) => (err ? reject(err) : resolve()));
-      });
-    },
-  };
-}
-
-// --- Effect Service & Layer ---
-
-export interface HttpServerApi {
-  readonly start: (options?: HttpServerOptions) => Effect.Effect<HttpServerHandle, Error>;
-}
-
-export class HttpServerService extends Context.Tag("HttpServerService")<
+// Server start + Effect service/layers live in ./http/service.ts (slice 22, task-8pqjb).
+import {
+  startHttpServer,
+  HttpServerApi,
   HttpServerService,
-  HttpServerApi
->() {}
-
-export const HttpServerLive: Layer.Layer<HttpServerService> = Layer.succeed(
+  HttpServerLive,
+} from "./http/service.js";
+export {
+  startHttpServer,
+  HttpServerApi,
   HttpServerService,
-  HttpServerService.of({
-    start: (options) =>
-      Effect.tryPromise({
-        try: () => startHttpServer(options),
-        catch: (exc) => new Error(`Failed to start HTTP server: ${String(exc)}`),
-      }),
-  }),
-);
+  HttpServerLive,
+};

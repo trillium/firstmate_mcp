@@ -22,3 +22,9 @@ ts/scripts/conformance-runner.mjs
 # (FollowOnLive) across a TDZ-unsafe import cycle. Revisit only with a
 # behavior-preserving engine refactor + full receipt/envelope proof.
 ts/src/followon.ts
+# 2026-09-23 (task-8pqjb slice 22): ts/src/http.ts remainder (~400 lines) is
+# one giant closure-bodied createHttpServer + thin foundation. Splitting route
+# sections means threading ~8 shared locals through extracted closures —
+# behavior risk with no behavior gain. Revisit only with per-route
+# request/response contract tests first.
+ts/src/http.ts
