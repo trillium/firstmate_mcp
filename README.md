@@ -442,6 +442,21 @@ See `AUTH.md` for the tiers and `CUTOVER-PROOF.md` for the live scratch-home pro
 `python3 scripts/cutover_prove.py` — scratch homes only, never the live
 fleet).
 
+### MCP resources (direct-stdio path only)
+
+Six resources backed by Tier-1 reads: `firstmate://doctor`,
+`firstmate://home-summary`, `firstmate://fleet/snapshot`,
+`firstmate://fleet/bearings`, `firstmate://fleet/view`, `firstmate://backlog`.
+They work over the direct stdio path above (`initialize` advertises
+`capabilities.resources`, `resources/list` + `resources/read` serve them).
+
+They do NOT work through the mcpjungle group endpoint: the gateway answers
+`initialize` with its own capabilities and an empty resources object,
+`resources/list` returns empty, and every `resources/read` fails with
+`-32002` (measured 2026-09-22, project-2od.23). Resource consumers spawn the
+server directly over stdio; the gateway path stays tools-only until upstream
+mcpjungle proxies resources.
+
 ## Tools
 
 Reads (open, no side effects): `fleet_snapshot`, `backlog`, `crew_state`,
