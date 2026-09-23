@@ -1193,3 +1193,51 @@ contracts:
       header: bin/fm-test-run.sh:1-40
       doc: INVENTORY.md
     notes: Read-only test-runner topology (families, lanes, concurrent-safe families, coverage guard). Suite runs stay out.
+  - name: beads_backend
+    command: bin/fm-tasks-axi-lib.sh
+    flags: ["fm_backlog_backend_value", "fm_tasks_axi_backend_available", "fm_beads_backend_available"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["backend", "reachable"]
+    exits:
+      zero: backend token (tasks-axi default, beads, or manual) with reachability implied by the probe that passed
+      nonzero: beads selected but no task CLI answers, or manual backend (callers treat manual as unavailable)
+    stability: stable
+    pinned: fm-beads.backend.v1
+    evidence:
+      header: bin/fm-tasks-axi-lib.sh:103-160
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Sourced library, not a CLI - entry points are function names, not flags. Store resolution is the task wrapper job (BEADS_DIR pin); the lib only asks whether the store answers. A home with no local .beads/ is not evidence of a missing store."
+  - name: beads_scope
+    command: bin/fm-tasks-axi-lib.sh
+    flags: ["fm_beads_fleet_label", "fm_beads_home_scope", "fm_beads_task_label"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["label"]
+    exits:
+      zero: fleet label (default fleet:firstmate), 16-hex home scope, or task:<scope>:<task_id> idempotency label
+      nonzero: empty home or missing hash tool; prints nothing so callers fail open
+    stability: stable
+    pinned: fm-beads.scope.v1
+    evidence:
+      header: bin/fm-tasks-axi-lib.sh:484-566
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: Pure derivation over the physical home path (symlink/trailing-slash normalized, SHA-256 truncated to 16 hex). Two homes reusing one slug resolve to DIFFERENT beads; the shared fleet label alone is not sufficient scoping.
+  - name: beads_is_closed
+    command: bin/fm-tasks-axi-lib.sh
+    flags: ["fm_beads_status", "fm_beads_is_closed"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["status", "closed"]
+    exits:
+      zero: status token printed (empty when unreadable); is_closed true ONLY for an existing bead whose status is closed
+      nonzero: empty id, unreadable store, or any non-closed outcome — fails open so live work is never marked done
+    stability: stable
+    pinned: fm-beads.closed.v1
+    evidence:
+      header: bin/fm-tasks-axi-lib.sh:1279-1316
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: Bounded single-bead read through one array-unwrap owner (fm_beads_status). Absent counts as not-closed here (unlike the resilience lib's already-applied check, which treats absent as applied for queue replay).

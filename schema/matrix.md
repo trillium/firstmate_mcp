@@ -78,6 +78,9 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | grant_mint | native: standing grant store (state/mcp-grants/) | experimental | <grantee>, tier_limit, tools, projects, ttl_s, max_uses, note, <approval> | scoped standing approval grant minting |
 | grant_revoke | native: standing grant store (state/mcp-grants/) | experimental | <grant_id>, reason, <approval> | standing approval grant revocation |
 | grant_status | native: standing grant store (state/mcp-grants/) | experimental | grant_id, grantee | standing approval safe metadata inspection reads |
+| beads_backend | bin/fm-tasks-axi-lib.sh | stable | fm_backlog_backend_value, fm_tasks_axi_backend_available, fm_beads_backend_available | backend selection + store reachability probes |
+| beads_scope | bin/fm-tasks-axi-lib.sh | stable | fm_beads_fleet_label, fm_beads_home_scope, fm_beads_task_label | fleet label + home scope + idempotency label derivation |
+| beads_is_closed | bin/fm-tasks-axi-lib.sh | stable | fm_beads_status, fm_beads_is_closed | bounded single-bead status + closed predicate |
 
 ## How to use this view
 
