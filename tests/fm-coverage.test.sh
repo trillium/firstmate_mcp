@@ -112,8 +112,47 @@ test_stale_coverage_fails() {
   pass "stale COVERAGE.md fails --check"
 }
 
+test_fork_extension_renders() {
+  local fixture="$TMP_ROOT/forkhome" spine="$TMP_ROOT/spine.json" out status
+  mkdir -p "$fixture/bin/backends"
+  # Fixture upstream ships every curated command EXCEPT fm-ledger.sh, which
+  # is curated in COMMAND_AREAS but absent here; the fixture spine declares
+  # it class A (fork-only).
+  ( cd "$ROOT" && python3 -c "from scripts.gen_coverage import COMMAND_AREAS; print('\n'.join(COMMAND_AREAS))" ) | while IFS= read -r cmd; do
+    case "$cmd" in fm-*.sh) [ "$cmd" = "fm-ledger.sh" ] || : > "$fixture/bin/$cmd" ;; esac
+  done
+  cat > "$spine" <<'EOF'
+{"rows": [{"surface": "fm-ledger.sh", "class": "A", "fork_rev": "abc", "fork_hash": "def", "upstream_hash": null, "state": "not-porting"}]}
+EOF
+  out=$(python3 "$GEN" --upstream-root "$fixture" --spine "$spine" --output "$TMP_ROOT/fork.md" 2>&1)
+  status=$?
+  expect_code 0 "$status" "fork-classified render should succeed" "$out"
+  assert_contains "$(cat "$TMP_ROOT/fork.md")" "fork extension" "fork row did not render as fork extension"
+  case "$(grep 'fm-ledger.sh' "$TMP_ROOT/fork.md")" in
+    *"(removed upstream)"*) fail "fork extension mislabelled as removed upstream" ;;
+  esac
+  pass "fork extension renders as fork extension, never as removed gap"
+}
+
+test_unclassified_fork_command_fails() {
+  local fixture="$TMP_ROOT/barehome" spine="$TMP_ROOT/newfork-spine.json" out status
+  mkdir -p "$fixture/bin/backends"
+  # A fork extension the spine knows but COMMAND_AREAS never curated is
+  # invisible everywhere: the gate must fail naming it until classified.
+  cat > "$spine" <<'EOF'
+{"rows": [{"surface": "fm-zzz-fork.sh", "class": "A", "fork_rev": "abc", "fork_hash": "def", "upstream_hash": null, "state": "not-porting"}]}
+EOF
+  out=$(python3 "$GEN" --upstream-root "$fixture" --spine "$spine" --output "$TMP_ROOT/bare.md" 2>&1)
+  status=$?
+  expect_code 1 "$status" "unclassified fork command should fail" "$out"
+  assert_contains "$out" "fm-zzz-fork.sh" "failure did not name the unclassified fork command"
+  pass "new fork-only .sh fails the gate until classified"
+}
+
 test_seed_current_and_classified
 test_manifest_and_deny_appear
 test_unclassified_command_fails
 test_stale_coverage_fails
+test_fork_extension_renders
+test_unclassified_fork_command_fails
 pass "support-coverage view validates; manifest, upstream, and staleness wiring behave"

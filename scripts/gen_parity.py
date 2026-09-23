@@ -48,6 +48,8 @@ def parse_coverage() -> list[dict]:
             kind = "denied"
         elif status == "gap":
             kind = "gap"
+        elif status.startswith("fork"):
+            kind = "fork"
         else:
             kind = "other"
         rows.append({"command": command, "extra": extra, "kind": kind, "status": status, "note": note})
@@ -88,6 +90,7 @@ def build(fm_home: str | None) -> str:
     mirrored = [r for r in rows if r["kind"] == "mirrored"]
     denied = [r for r in rows if r["kind"] == "denied"]
     gaps = [r for r in rows if r["kind"] == "gap"]
+    forks = [r for r in rows if r["kind"] == "fork"]
     removed = [r for r in gaps if "removed upstream" in r["extra"] or "removed upstream" in r["note"]]
     buildable = [r for r in gaps if r not in removed]
 
@@ -116,6 +119,7 @@ def build(fm_home: str | None) -> str:
     out.append(f"- mirrored: **{len(mirrored)}**")
     out.append(f"- denied-by-design: **{len(denied)}** (deliberate refusals, each with a reason in COVERAGE.md)")
     out.append(f"- gap rows: **{len(gaps)}** — of which removed-upstream **{len(removed)}**, current-upstream **{len(buildable)}**")
+    out.append(f"- fork extensions: **{len(forks)}** (trillium/firstmate additions, spine-classified, not upstream gaps)")
     if not buildable:
         out.append(
             "\n**No buildable gap remains**: every command the pinned upstream still ships is "

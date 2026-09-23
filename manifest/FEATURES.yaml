@@ -1606,3 +1606,112 @@ features:
       reason: >-
         Non-visible terminal creation and PAI isolation fix; upstream uses
         foreground or visible pane splits.
+  - id: beads_ledger
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-ledger.sh
+    summary: Leaked-bead safety net read surfacing claimed-but-quiet beads for review and close.
+    contract: drift/baseline.json
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub"
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-ledger.sh\""]}
+    ts: {status: missing}
+    divergence:
+      status: intentional
+      reason: >-
+        Beads-store-derived-at-risk triage; upstream has no bead store and no
+        leaked-work surface. Port shape: Tier-1 ledger_list read (project-pv66).
+  - id: bead_stamp
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-bead-stamp.sh
+    summary: Dispatch stamping linking a bead as dispatched to its launched agent, fail-open by design.
+    contract: drift/baseline.json
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub"
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-bead-stamp.sh\""]}
+    ts: {status: missing}
+    divergence:
+      status: intentional
+      reason: >-
+        Dispatch-time bead linkage; upstream has no bead store. Port with the
+        dispatch-stamping write queue (project-s00r).
+  - id: beads_remote_backup
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-beads-remote-backup.sh
+    summary: Off-box Dolt backup verify/repair for the beads store.
+    contract: drift/baseline.json
+    upstream_test: "ts/tests/conformance-read.test.ts::backlog derives counts from the same snapshot"
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-beads-remote-backup.sh\""]}
+    ts: {status: missing}
+    divergence:
+      status: intentional
+      reason: >-
+        Federated store durability; upstream has no bead store to back up.
+  - id: beads_resilience
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-beads-resilience-lib.sh
+    summary: Stage-5 beads resilience layer — opportunistic read mirror plus durable lock-protected write queue with ordered replay.
+    contract: drift/baseline.json
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub"
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-beads-resilience-lib.sh\""]}
+    ts: {status: missing}
+    divergence:
+      status: intentional
+      reason: >-
+        Outage-proofing for the Dolt-backed store; upstream has no bead store.
+        Sourced library, no CLI — port the mechanism, not a tool (project-s00r).
+  - id: tasks_axi_lib
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-tasks-axi-lib.sh
+    summary: Single owner of beads store resolution — backend selector, fleet label scoping, home-scoped idempotency labels, closed-bead reads.
+    contract: drift/baseline.json
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub"
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-tasks-axi-lib.sh\""]}
+    ts: {status: missing}
+    divergence:
+      status: intentional
+      reason: >-
+        Store-resolution contract every beads tool must resolve through;
+        upstream has no bead store. Sourced library (project-iptk).
+  - id: backlog_import_beads
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-backlog-import-beads.sh
+    summary: One-time backlog.md importer into the beads store.
+    contract: drift/baseline.json
+    upstream_test: "ts/tests/conformance-read.test.ts::backlog derives counts from the same snapshot"
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-backlog-import-beads.sh\""]}
+    ts: {status: missing}
+    divergence:
+      status: intentional
+      reason: >-
+        Migration-time importer; upstream has no bead store to import into.
+  - id: staleness_file
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-staleness-file.sh
+    summary: Triage-bead filer for ship tasks reclaimed unlanded by staleness auto-close.
+    contract: drift/baseline.json
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub"
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-staleness-file.sh\""]}
+    ts: {status: missing}
+    divergence:
+      status: intentional
+      reason: >-
+        Staleness-pipeline filing; upstream has neither the pipeline nor beads.
+  - id: groom
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-groom.sh
+    summary: Proactive idea-to-brief-to-dispatch generator, off by default with rate, bound, and idempotency rails.
+    contract: drift/baseline.json
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub"
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-groom.sh\""]}
+    ts: {status: missing}
+    divergence:
+      status: intentional
+      reason: >-
+        Proactive dispatch generation with off-by-default safety rails;
+        upstream has no idea store and no groom path (project-xrqi).

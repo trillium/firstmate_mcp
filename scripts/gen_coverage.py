@@ -398,11 +398,27 @@ def read_pins():
     return gitlink, baseline.get("firstmate_revision", "?"), len(baseline.get("surfaces", []))
 
 
-def classify(upstream_root=UPSTREAM_BIN):
+SPINE_PATH = os.path.join(ROOT, "drift", "fork-spine.json")
+
+
+def spine_classes(spine_path=None):
+    """Git-derived fork classification: surface -> A/B/C/D/U (project-rkk9).
+
+    The spine (not the hand-written notes) decides whether an absent-from-
+    upstream command is a fork extension or removed-upstream history."""
+    try:
+        data = json.load(open(spine_path or SPINE_PATH, encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {r["surface"]: r["class"] for r in data.get("rows", [])}
+
+
+def classify(upstream_root=UPSTREAM_BIN, spine_path=None):
     """Return (rows, errors). rows: list of dicts in area order."""
     mirror_tools, special_rows = load_manifest()
     cmds, source = upstream_commands(upstream_root)
     cmdset = set(cmds)
+    spine = spine_classes(spine_path)
     errors = []
 
     if set(DENY_REASONS) != set(DENY_LIST):
@@ -431,9 +447,20 @@ def classify(upstream_root=UPSTREAM_BIN):
         # in the upstream .sh set, and rendered via the special-rows path.
         if cmd.startswith(("file:", "derived:", "policy:", "bin/")) or cmd.startswith("backends/"):
             continue
-        if cmd not in cmdset and "removed upstream since pin" not in COMMAND_AREAS[cmd][1]:
+        if cmd not in cmdset and "removed upstream since pin" not in COMMAND_AREAS[cmd][1] \
+                and spine.get(cmd) not in ("A", "U"):
             errors.append(
-                "curated command not in upstream set and not marked removed: %s" % cmd
+                "curated command not in upstream set and neither marked removed nor spine-classified fork extension: %s" % cmd
+            )
+    # A fork extension the spine knows but no area curates is invisible
+    # everywhere: fail naming it until it is classified (project-iylw).
+    # Same command scope as upstream_commands: top-level fm-*.sh minus libs.
+    for surface, cls in sorted(spine.items()):
+        if cls in ("A", "U") and surface.startswith("fm-") \
+                and surface.endswith(".sh") and not surface.endswith("-lib.sh") \
+                and "/" not in surface and surface not in COMMAND_AREAS:
+            errors.append(
+                "spine fork extension not curated in COMMAND_AREAS: %s" % surface
             )
 
     rows = []
@@ -455,17 +482,28 @@ def classify(upstream_root=UPSTREAM_BIN):
         rows.append({"command": cmd, "area": area, "status": status,
                      "tools": tools, "denies": denies, "note": note,
                      "removed": False})
-    # Curated-but-removed commands: explicit history rows, never silent.
+    # Curated-but-absent commands: the spine decides fork extension vs history.
+    # Class A (fork-only) and U (modified, absent upstream) are OUR additions —
+    # they render as fork extensions, never as "(removed upstream)" gaps.
+    # Anything else absent upstream is genuinely-removed history.
     for cmd in sorted(set(COMMAND_AREAS) - cmdset):
         if cmd.startswith(("file:", "derived:", "policy:", "bin/")) or cmd.startswith("backends/"):
             continue
         area, note = COMMAND_AREAS[cmd]
         tools = mirror_tools.pop(cmd, [])
         denies = deny_cmd.get(cmd, [])
-        status = "mirrored-stale" if tools else ("denied" if denies else "gap")
+        if spine.get(cmd) in ("A", "U"):
+            status = "fork"
+            removed = False
+            note = re.sub(r"[; ]*removed upstream since pin[; ]*", "", note).strip("; ")
+            note = ("fork extension (present in trillium/firstmate, absent upstream)"
+                     + (": " + note if note else ""))
+        else:
+            status = "mirrored-stale" if tools else ("denied" if denies else "gap")
+            removed = True
         rows.append({"command": cmd, "area": area, "status": status,
                      "tools": tools, "denies": denies, "note": note,
-                     "removed": True})
+                     "removed": removed})
     # Special manifest rows (derived backlog, status-tail file).
     for cmd, tool, py, ts, summary in special_rows:
         if cmd.startswith("derived:"):
@@ -516,12 +554,12 @@ def fmt_tools(tools, note=""):
     return s or note
 
 
-def generate(upstream_root=UPSTREAM_BIN):
-    rows, errors, source = classify(upstream_root)
+def generate(upstream_root=UPSTREAM_BIN, spine_path=None):
+    rows, errors, source = classify(upstream_root, spine_path)
     gitlink, rev, n_surfaces = read_pins()
     counts = {}
     for key, _, _ in AREAS:
-        counts[key] = {"mirrored": 0, "denied": 0, "gap": 0}
+        counts[key] = {"mirrored": 0, "denied": 0, "gap": 0, "fork": 0}
     for r in rows:
         if r["area"] not in counts:
             continue
@@ -529,6 +567,8 @@ def generate(upstream_root=UPSTREAM_BIN):
             counts[r["area"]]["mirrored"] += 1
         elif r["status"] == "denied":
             counts[r["area"]]["denied"] += 1
+        elif r["status"] == "fork":
+            counts[r["area"]]["fork"] += 1
         else:
             counts[r["area"]]["gap"] += 1
 
@@ -538,9 +578,11 @@ def generate(upstream_root=UPSTREAM_BIN):
     A("")
     A("<!-- GENERATED by scripts/gen_coverage.py — do not hand-edit. -->")
     A("")
-    A("Every upstream firstmate command area with its mirror status: **mirrored**")
+    A("Every firstmate command area with its mirror status: **mirrored**")
     A("(tool name + py/ts status from `manifest/FEATURES.yaml`), **denied-by-design**")
-    A("(with reason), or **unmirrored gap**. Captain area order.")
+    A("(with reason), **fork extension** (present in trillium/firstmate, absent")
+    A("upstream — classified by the git-derived spine, `drift/fork-spine.json`),")
+    A("or **unmirrored gap**. Captain area order.")
     A("")
     A("Source: `%s` at the pinned submodule `%s` (baseline `%s`, rev `%s`, %d surfaces)." % (
         "bin/fm-*.sh top-level + backends/" if source == "sources/firstmate" else source,
@@ -550,15 +592,16 @@ def generate(upstream_root=UPSTREAM_BIN):
     A("")
     A("## Summary")
     A("")
-    A("| Area | Mirrored | Denied | Gap |")
-    A("| --- | --- | --- | --- |")
+    A("| Area | Mirrored | Denied | Gap | Fork |")
+    A("| --- | --- | --- | --- | --- |")
     for key, title, _ in AREAS:
         c = counts[key]
-        A("| [%s](#%s) | %d | %d | %d |" % (title, key, c["mirrored"], c["denied"], c["gap"]))
+        A("| [%s](#%s) | %d | %d | %d | %d |" % (title, key, c["mirrored"], c["denied"], c["gap"], c["fork"]))
     tot_m = sum(c["mirrored"] for c in counts.values())
     tot_d = sum(c["denied"] for c in counts.values())
     tot_g = sum(c["gap"] for c in counts.values())
-    A("| **Total** | **%d** | **%d** | **%d** |" % (tot_m, tot_d, tot_g))
+    tot_f = sum(c["fork"] for c in counts.values())
+    A("| **Total** | **%d** | **%d** | **%d** | **%d** |" % (tot_m, tot_d, tot_g, tot_f))
     A("")
     for key, title, blurb in AREAS:
         A("## %s" % title)
@@ -579,6 +622,9 @@ def generate(upstream_root=UPSTREAM_BIN):
                 status = "denied-by-design — " + ", ".join("`%s`" % n for n, _ in r["denies"])
                 reasons = "; ".join(sorted(set(reason for _, reason in r["denies"])))
                 notes = ((r["note"] + ". " if r["note"] else "") + reasons).strip()
+            elif r["status"] == "fork":
+                status = "fork extension"
+                notes = r["note"]
             else:
                 status = "gap"
                 notes = r["note"]
@@ -593,20 +639,24 @@ def generate(upstream_root=UPSTREAM_BIN):
     A("  `forbidden`; the reason names the smarts-only line that keeps it out.")
     A("- **gap**: reachable upstream surface with no tool and no refusal entry —")
     A("  explicitly unmirrored, not silently omitted. Gaps are the port backlog.")
+    A("- **fork extension**: a trillium/firstmate addition with no upstream counterpart;")
+    A("  classified by the git-derived A/B/C/D/U spine (`drift/fork-spine.json`), never")
+    A("  by the absence of an upstream file. Port candidates, not history.")
     A("")
     return "\n".join(L), errors
 
 
-def summary_rows(upstream_root=UPSTREAM_BIN):
-    """Per-area (title, mirrored, denied, gap) for the README summary table."""
-    rows, errors, _ = classify(upstream_root)
+def summary_rows(upstream_root=UPSTREAM_BIN, spine_path=None):
+    """Per-area (title, mirrored, denied, gap, fork) for the README summary table."""
+    rows, errors, _ = classify(upstream_root, spine_path)
     out = []
     for key, title, _ in AREAS:
         rs = [r for r in rows if r["area"] == key]
         m = sum(1 for r in rs if r["status"].startswith("mirrored"))
         d = sum(1 for r in rs if r["status"] == "denied")
         g = sum(1 for r in rs if r["status"] == "gap")
-        out.append((title, m, d, g))
+        f = sum(1 for r in rs if r["status"] == "fork")
+        out.append((title, m, d, g, f))
     return out, errors
 
 
@@ -618,7 +668,10 @@ def main():
         upstream_root = args[args.index("--upstream-root") + 1]
     if "--output" in args:
         output = args[args.index("--output") + 1]
-    doc, errors = generate(upstream_root)
+    spine_path = None
+    if "--spine" in args:
+        spine_path = args[args.index("--spine") + 1]
+    doc, errors = generate(upstream_root, spine_path)
     if "--check" in args:
         problems = list(errors)
         if not os.path.isfile(output):
