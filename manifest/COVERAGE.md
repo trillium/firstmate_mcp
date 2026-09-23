@@ -21,14 +21,14 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Fleet runs](#fleet-runs) | 3 | 2 | 1 | 3 |
 | [Supervision](#supervision) | 13 | 23 | 0 | 4 |
 | [Sessions](#sessions) | 6 | 18 | 1 | 1 |
-| [Backlog / decisions](#backlog-decisions) | 5 | 1 | 0 | 7 |
+| [Backlog / decisions](#backlog-decisions) | 5 | 2 | 0 | 6 |
 | [Secondmates / remotes](#secondmates-remotes) | 8 | 10 | 0 | 2 |
 | [PR pipeline](#pr-pipeline) | 4 | 5 | 0 | 2 |
 | [Relay](#relay) | 6 | 2 | 0 | 0 |
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 | 0 |
 | [Installs](#installs) | 10 | 10 | 0 | 3 |
-| **Total** | **65** | **71** | **2** | **22** |
+| **Total** | **65** | **72** | **2** | **21** |
 
 ## Fleet runs
 
@@ -140,7 +140,7 @@ Queue mechanics and durable captain decisions: backlog moves, holds, verdicts.
 | `fm-captain-hold.sh` | mirrored — `decision_complete` (ts✔), `decision_verify` (ts✔), `decision_open` (ts✔), `decision_diverged` (ts✔), `review_decision` (ts✔) | unified held-for-captain mechanics; supersedes review-decision upstream |
 | `fm-decision-hold.sh` | mirrored — `decision_hold` (ts✔), `decision_resolve` (ts✔), `decision_release` (ts✔) | durable captain holds behind approval |
 | `fm-groom-json-field.sh` | fork extension | fork extension (present in trillium/firstmate, absent upstream): groom field helper |
-| `fm-groom.sh` | fork extension | fork extension (present in trillium/firstmate, absent upstream): idea->brief->dispatch generator |
+| `fm-groom.sh` | denied-by-design — `groom` | fork extension (present in trillium/firstmate, absent upstream): proactive idea-to-brief-to-dispatch generator, off by default; fork extension, denied by design. formulating briefs spends inference budget and dispatching them spawns crewmates; only the owner-run groom path owns launching |
 | `fm-ledger.sh` | fork extension | fork extension (present in trillium/firstmate, absent upstream): landed-but-open bead surface |
 | `fm-review-decision.sh` | fork extension | fork extension (present in trillium/firstmate, absent upstream): review_decision now ports onto fm-captain-hold.sh answer |
 | `fm-staleness-file.sh` | fork extension | fork extension (present in trillium/firstmate, absent upstream): staleness-file writer |
