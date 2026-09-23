@@ -87,6 +87,7 @@ COMMAND_AREAS = {
     # ---- fleet runs ----
     "fm-fleet-snapshot.sh": ("fleet-runs", "canonical read; backlog counts derive from it"),
     "fm-fleet-view.sh": ("fleet-runs", "human render of the snapshot"),
+    "fm-fleet-ledger.sh": ("fleet-runs", "opt-in fleet activity ledger writer; off by default, new since pin"),
     "fm-fleet-sync.sh": ("fleet-runs", "project sync across the fleet"),
     "fm-agent-axi.sh": ("fleet-runs", "read-only reap-triage; removed upstream since pin"),
     "fm-peek.sh": ("fleet-runs", "bounded endpoint tail for cheap diagnosis"),
@@ -147,6 +148,7 @@ COMMAND_AREAS = {
     "fm-herdr-spur.sh": ("sessions", "agent watch spur; removed upstream since pin"),
     "fm-isolated-launch.sh": ("sessions", "isolated CLI launch; removed upstream since pin"),
     "fm-spawn.sh": ("sessions", "spawn one direct report under contract"),
+    "fm-devin-config.sh": ("sessions", "per-worker Devin config writer (persona isolation); new since pin"),
     "fm-brief.sh": ("sessions", "scaffold one crewmate brief; launches nothing"),
     "fm-dispatch-resolve.sh": ("sessions", "resolve one concrete dispatch"),
     "fm-project-mode.sh": ("sessions", "registered delivery posture (mode + yolo)"),
