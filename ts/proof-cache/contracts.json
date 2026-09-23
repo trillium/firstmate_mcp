@@ -8,7 +8,7 @@
       "testPattern": "validId",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/core.ts",
         "targetKind": "function",
         "targetName": "validId"
       },
@@ -21,7 +21,7 @@
       "testPattern": "validProject",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/core.ts",
         "targetKind": "function",
         "targetName": "validProject"
       },
@@ -34,10 +34,13 @@
       "testPattern": "notes and approval",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/core.ts",
         "targetKind": "multi_function",
         "targetName": "validNote",
-        "additionalNames": ["validApproval", "validSingleLine"]
+        "additionalNames": [
+          "validApproval",
+          "validSingleLine"
+        ]
       },
       "description": "Validators for human notes, single line bounds, and approval strings",
       "bounded": true
@@ -48,7 +51,7 @@
       "testPattern": "validSteerText",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/core.ts",
         "targetKind": "function",
         "targetName": "validSteerText"
       },
@@ -61,7 +64,7 @@
       "testPattern": "validStatusLines",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/core.ts",
         "targetKind": "function",
         "targetName": "validStatusLines"
       },
@@ -74,7 +77,7 @@
       "testPattern": "validPeekLines",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/core.ts",
         "targetKind": "function",
         "targetName": "validPeekLines"
       },
@@ -87,7 +90,7 @@
       "testPattern": "validRelpath",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/paths.ts",
         "targetKind": "function",
         "targetName": "validRelpath"
       },
@@ -100,10 +103,12 @@
       "testPattern": "validSha256 and validCorr",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/paths.ts",
         "targetKind": "multi_function",
         "targetName": "validSha256",
-        "additionalNames": ["validCorr"]
+        "additionalNames": [
+          "validCorr"
+        ]
       },
       "description": "Hex hash and correlation ID format validators",
       "bounded": true
@@ -114,10 +119,14 @@
       "testPattern": "delta windows",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/paths.ts",
         "targetKind": "multi_function",
         "targetName": "validNonnegInt",
-        "additionalNames": ["validDeltaWait", "validRemoteMaxBytes", "validHandoffLines"]
+        "additionalNames": [
+          "validDeltaWait",
+          "validRemoteMaxBytes",
+          "validHandoffLines"
+        ]
       },
       "description": "Non-negative integer bounds and clamping for delta windows",
       "bounded": true
@@ -128,7 +137,7 @@
       "testPattern": "validIdList",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/areas.ts",
         "targetKind": "function",
         "targetName": "validIdList"
       },
@@ -141,7 +150,7 @@
       "testPattern": "wave-4 validators",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/areas.ts",
         "targetKind": "multi_function",
         "targetName": "validProbe",
         "additionalNames": [
@@ -163,7 +172,7 @@
       "testPattern": "confineHandoffPath",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/paths.ts",
         "targetKind": "function",
         "targetName": "confineHandoffPath"
       },
@@ -176,7 +185,7 @@
       "testPattern": "confineStatePath",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/paths.ts",
         "targetKind": "function",
         "targetName": "confineStatePath"
       },
@@ -189,7 +198,7 @@
       "testPattern": "validPageLimit",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/paths.ts",
         "targetKind": "function",
         "targetName": "validPageLimit"
       },
@@ -202,7 +211,7 @@
       "testPattern": "parseSnapshotCursor",
       "testKind": "describe",
       "target": {
-        "targetFile": "src/validators.ts",
+        "targetFile": "src/validators/cursor.ts",
         "targetKind": "function",
         "targetName": "parseSnapshotCursor"
       },
@@ -218,7 +227,9 @@
         "targetFile": "src/envelope.ts",
         "targetKind": "multi_function",
         "targetName": "ok",
-        "additionalNames": ["isOk"]
+        "additionalNames": [
+          "isOk"
+        ]
       },
       "description": "Pure success envelope constructors and type guards",
       "bounded": true
@@ -232,7 +243,9 @@
         "targetFile": "src/envelope.ts",
         "targetKind": "multi_function",
         "targetName": "err",
-        "additionalNames": ["isErr"]
+        "additionalNames": [
+          "isErr"
+        ]
       },
       "description": "Pure error envelope constructors and type guards",
       "bounded": true
