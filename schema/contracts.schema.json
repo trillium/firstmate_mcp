@@ -41,12 +41,14 @@
         },
         "fork": {
           "type": "object",
-          "required": ["repo", "proven_commit", "proven_date", "basis", "role"],
+          "required": ["repo", "proven_commit", "proven_date", "served_commit", "served_date", "basis", "role"],
           "additionalProperties": false,
           "properties": {
             "repo": { "type": "string", "minLength": 1 },
             "proven_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
             "proven_date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+            "served_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+            "served_date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
             "basis": { "type": "string", "minLength": 1 },
             "role": { "const": "working-copy" }
           }
