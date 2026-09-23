@@ -607,7 +607,7 @@ contracts:
     output:
       format: json
       schema_id: fm-secondmate-home-summary.v1
-      fields: ["schema", "generated", "generated_epoch", "state", "counts"]
+      fields: ["schema", "generated", "generated_epoch?", "state", "counts"]
     exits:
       zero: published ledger parsed with schema fm-secondmate-home-summary.v1
       nonzero: unpublished, unreadable, oversize, or off-schema ledger; the reason names which
@@ -616,7 +616,7 @@ contracts:
     evidence:
       header: bin/fm-home-summary-refresh.sh:1-20
       doc: INVENTORY.md
-    notes: Dispatch read; ledger only, never the refresh. Refresh is firstmate-owned plumbing (session start, watcher, spawn, teardown call it --best-effort).
+    notes: "Dispatch read; ledger only, never the refresh. Refresh is firstmate-owned plumbing (session start, watcher, spawn, teardown call it --best-effort). Freshness fallback (project-2od.17): the served fork line predates generated_epoch, so consumers compute ledger age from generated (ISO-8601) when generated_epoch is absent; upstream-only field marked with ? in fields. The doorway publishes the document verbatim and never synthesizes it."
   - name: home_summary_refresh
     command: bin/fm-home-summary-refresh.sh
     flags: ["--best-effort"]
