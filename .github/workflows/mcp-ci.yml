@@ -234,6 +234,8 @@ jobs:
         run: bash tests/fm-manifest.test.sh
       - name: support coverage validation
         run: bash tests/fm-coverage.test.sh
+      - name: kun parity report is current
+        run: python3 scripts/gen_parity.py --check
 
   upstream:
     name: upstream preservation
