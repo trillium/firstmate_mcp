@@ -38,504 +38,105 @@ import { TOOLS, type ToolContext, type ToolResult } from "./tools.js";
 
 // --- Constants & Defaults ---
 
-export const DEFAULT_MAX_DEPTH = 3;
-export const HARD_MAX_DEPTH = 8;
-export const DEFAULT_MAX_ACTIONS_PER_CHAIN = 10;
-export const HARD_MAX_ACTIONS_PER_CHAIN = 50;
-
-// --- Typed Errors ---
-
-export class FollowOnDepthExceededError extends Data.TaggedError("FollowOnDepthExceededError")<{
-  readonly depth: number;
-  readonly maxDepth: number;
-  readonly tool: string;
-}> {
-  get message(): string {
-    return `Follow-on depth cap exceeded (depth=${this.depth}, max=${this.maxDepth}) for tool '${this.tool}'`;
-  }
-}
-
-export class FollowOnCycleError extends Data.TaggedError("FollowOnCycleError")<{
-  readonly tool: string;
-  readonly callStack: readonly string[];
-}> {
-  get message(): string {
-    return `Follow-on recursion cycle detected for tool '${this.tool}' in call stack: ${this.callStack.join(" -> ")}`;
-  }
-}
-
-export class FollowOnBudgetExceededError extends Data.TaggedError("FollowOnBudgetExceededError")<{
-  readonly actionCount: number;
-  readonly maxActions: number;
-}> {
-  get message(): string {
-    return `Follow-on action budget exceeded (${this.actionCount} >= ${this.maxActions})`;
-  }
-}
-
-export class FollowOnAuthRefusedError extends Data.TaggedError("FollowOnAuthRefusedError")<{
-  readonly tool: string;
-  readonly reason: string;
-}> {
-  get message(): string {
-    return `Follow-on action refused for tool '${this.tool}': ${this.reason}`;
-  }
-}
-
-export class FollowOnExecutionError extends Data.TaggedError("FollowOnExecutionError")<{
-  readonly tool: string;
-  readonly detail: string;
-}> {
-  get message(): string {
-    return `Follow-on action '${this.tool}' failed: ${this.detail}`;
-  }
-}
-
-export type FollowOnError =
-  | FollowOnDepthExceededError
-  | FollowOnCycleError
-  | FollowOnBudgetExceededError
-  | FollowOnAuthRefusedError
-  | FollowOnExecutionError;
-
+// Error taxonomy + constants live in ./followon/errors.ts (slice 19, task-8pqjb).
+import {
+  DEFAULT_MAX_DEPTH,
+  HARD_MAX_DEPTH,
+  DEFAULT_MAX_ACTIONS_PER_CHAIN,
+  HARD_MAX_ACTIONS_PER_CHAIN,
+  FollowOnDepthExceededError,
+  FollowOnCycleError,
+  FollowOnBudgetExceededError,
+  FollowOnAuthRefusedError,
+  FollowOnExecutionError,
+  FollowOnError,
+} from "./followon/errors.js";
+export {
+  DEFAULT_MAX_DEPTH,
+  HARD_MAX_DEPTH,
+  DEFAULT_MAX_ACTIONS_PER_CHAIN,
+  HARD_MAX_ACTIONS_PER_CHAIN,
+  FollowOnDepthExceededError,
+  FollowOnCycleError,
+  FollowOnBudgetExceededError,
+  FollowOnAuthRefusedError,
+  FollowOnExecutionError,
+  FollowOnError,
+};
 // --- Triggers & Conditions ---
 
-export type FollowOnTriggerOutcome = "success" | "failure" | "error" | "always" | "complete";
-
-export interface FollowOnTrigger {
-  /** Target tool name to match, or array of tools, or "*" wildcard. */
-  readonly tool: string | readonly string[];
-  /** Outcome when trigger fires: success (isError: false), failure/error (isError: true), or always/complete. Default: "success". */
-  readonly on?: FollowOnTriggerOutcome;
-  /** Numeric priority for ordering multiple rules matching the same tool (higher runs first). Default: 0. */
-  readonly priority?: number;
-}
-
-export type ConditionOperator =
-  | "equals"
-  | "eq"
-  | "not_equals"
-  | "neq"
-  | "contains"
-  | "not_contains"
-  | "starts_with"
-  | "ends_with"
-  | "in"
-  | "not_in"
-  | "greater_than"
-  | "gt"
-  | "greater_than_or_equal"
-  | "gte"
-  | "less_than"
-  | "lt"
-  | "less_than_or_equal"
-  | "lte"
-  | "exists"
-  | "not_exists"
-  | "truthy"
-  | "falsy"
-  | "regex";
-
-export interface FieldCondition {
-  readonly field: string;
-  readonly operator: ConditionOperator;
-  readonly value?: unknown;
-}
-
-export interface AndCondition {
-  readonly and: readonly Condition[];
-}
-
-export interface OrCondition {
-  readonly or: readonly Condition[];
-}
-
-export interface NotCondition {
-  readonly not: Condition;
-}
-
-export type FunctionalPredicate = (
-  ctx: FollowOnContext,
-) => boolean | Promise<boolean> | Effect.Effect<boolean>;
-
-export type Condition =
-  | FieldCondition
-  | AndCondition
-  | OrCondition
-  | NotCondition
-  | FunctionalPredicate;
-
-// --- Action & Rule Definitions ---
-
-export interface FollowOnActionDef {
-  /** Target MCP tool name to execute. */
-  readonly tool: string;
-  /** Tool arguments. May contain template strings (e.g. "${origin.args.task_id}"). */
-  readonly arguments?: Record<string, unknown>;
-  /** Optional programmatic argument builder. */
-  readonly argsBuilder?: (
-    ctx: FollowOnContext,
-  ) => Record<string, unknown> | Promise<Record<string, unknown>> | Effect.Effect<Record<string, unknown>>;
-  /** If true, subsequent actions in the chain continue even if this action fails. Default: false. */
-  readonly continueOnError?: boolean;
-  /** Optional compensation / rollback actions to run if this action fails. */
-  readonly onFailure?: readonly FollowOnActionDef[];
-  /** Optional condition guard evaluated before this specific action runs. */
-  readonly condition?: Condition;
-  /** Optional descriptive label for logging and audit. */
-  readonly label?: string;
-}
-
-export interface FollowOnRule {
-  /** Optional unique rule ID. */
-  readonly id?: string;
-  /** Trigger specification. */
-  readonly trigger: FollowOnTrigger;
-  /** Optional condition predicate for the entire rule. */
-  readonly condition?: Condition;
-  /** Ordered list of follow-on actions to execute when triggered. */
-  readonly actions: readonly FollowOnActionDef[];
-  /** Execution mode: sequential (default) or parallel. */
-  readonly mode?: "sequential" | "parallel";
-  /** If true, the rule continues executing remaining actions on failure. Default: false. */
-  readonly continueOnError?: boolean;
-  /** Optional rule-level compensation / rollback actions. */
-  readonly onFailure?: readonly FollowOnActionDef[];
-}
-
-// --- Execution Context & Summaries ---
-
-export interface OriginContext {
-  readonly tool: string;
-  readonly args: Record<string, unknown>;
-  readonly payload: Record<string, unknown>;
-  readonly isError: boolean;
-  readonly timestamp?: string;
-}
-
-export interface StepContext {
-  readonly tool: string;
-  readonly args: Record<string, unknown>;
-  readonly payload: Record<string, unknown>;
-  readonly isError: boolean;
-  readonly status: ActionStatus;
-}
-
-export interface EnvironmentContext {
-  readonly homeDir: string;
-  readonly binDir: string;
-  readonly stateDir: string;
-  readonly dataDir: string;
-  readonly actor: string;
-}
-
-export interface FollowOnContext {
-  /** Context of the originating MCP tool call. */
-  readonly origin: OriginContext;
-  /** Result of the immediately preceding action in this chain (or origin if first). */
-  readonly previous: StepContext;
-  /** Ordered array of all previous steps executed in the current chain. */
-  readonly chain: readonly StepContext[];
-  /** Server environment paths and metadata. */
-  readonly env: EnvironmentContext;
-  /** Current chain recursion depth (0 for root follow-on, 1 for follow-on of follow-on, etc.). */
-  readonly depth: number;
-  /** Stable correlation / trace ID for the entire causal tree. */
-  readonly traceId: string;
-  /** Ancestor call stack of tools in the current causal branch for cycle detection. */
-  readonly callStack: readonly string[];
-}
-
-export type ActionStatus =
-  | "success"
-  | "failed"
-  | "refused"
-  | "skipped"
-  | "cycle-detected"
-  | "depth-exceeded"
-  | "budget-exceeded";
-
-export interface FollowOnActionResult {
-  readonly tool: string;
-  readonly label?: string;
-  readonly args: Record<string, unknown>;
-  readonly payload: Record<string, unknown>;
-  readonly isError: boolean;
-  readonly status: ActionStatus;
-  readonly error?: string;
-  readonly duration_ms?: number;
-}
-
-export interface FollowOnChainSummary {
-  readonly traceId: string;
-  readonly originTool: string;
-  readonly rulesEvaluated: number;
-  readonly rulesMatched: number;
-  readonly actionsExecuted: number;
-  readonly actionsSucceeded: number;
-  readonly actionsFailed: number;
-  readonly results: readonly FollowOnActionResult[];
-  readonly completedAt: string;
-}
-
-export interface FollowOnOptions {
-  readonly maxDepth?: number;
-  readonly maxActionsPerChain?: number;
-  readonly preventCycles?: boolean;
-}
-
+// Trigger/condition/rule/context types live in ./followon/types.ts (slice 19, task-8pqjb).
+import {
+  FollowOnTriggerOutcome,
+  FollowOnTrigger,
+  ConditionOperator,
+  FieldCondition,
+  AndCondition,
+  OrCondition,
+  NotCondition,
+  FunctionalPredicate,
+  Condition,
+  FollowOnActionDef,
+  FollowOnRule,
+  OriginContext,
+  StepContext,
+  EnvironmentContext,
+  FollowOnContext,
+  ActionStatus,
+  FollowOnActionResult,
+  FollowOnChainSummary,
+  FollowOnOptions,
+} from "./followon/types.js";
+export {
+  FollowOnTriggerOutcome,
+  FollowOnTrigger,
+  ConditionOperator,
+  FieldCondition,
+  AndCondition,
+  OrCondition,
+  NotCondition,
+  FunctionalPredicate,
+  Condition,
+  FollowOnActionDef,
+  FollowOnRule,
+  OriginContext,
+  StepContext,
+  EnvironmentContext,
+  FollowOnContext,
+  ActionStatus,
+  FollowOnActionResult,
+  FollowOnChainSummary,
+  FollowOnOptions,
+};
 // --- Path Extractor & Condition Evaluator ---
 
-/** Extract a nested property by dot notation path (e.g. "payload.records.0.id" or "args.task_id"). */
-export function extractPath(source: unknown, pathStr: string): unknown {
-  if (source === null || source === undefined) return undefined;
-  const parts = pathStr.replace(/\[(\w+)\]/g, ".$1").split(".").filter(Boolean);
-  let current: unknown = source;
-  for (const part of parts) {
-    if (current === null || current === undefined) return undefined;
-    if (typeof current !== "object") return undefined;
-    current = (current as Record<string, unknown>)[part];
-  }
-  return current;
-}
-
-/** Extract value from FollowOnContext with convenient root fallbacks. */
-export function extractFromContext(ctx: FollowOnContext, fieldPath: string): unknown {
-  if (fieldPath === "isError") return ctx.origin.isError;
-  if (fieldPath === "tool") return ctx.origin.tool;
-  if (fieldPath === "depth") return ctx.depth;
-  if (fieldPath === "traceId") return ctx.traceId;
-
-  // Explicit path prefixes
-  if (fieldPath.startsWith("origin.")) {
-    return extractPath(ctx.origin, fieldPath.slice(7));
-  }
-  if (fieldPath.startsWith("payload.")) {
-    return extractPath(ctx.origin.payload, fieldPath.slice(8));
-  }
-  if (fieldPath.startsWith("args.")) {
-    return extractPath(ctx.origin.args, fieldPath.slice(5));
-  }
-  if (fieldPath.startsWith("previous.")) {
-    return extractPath(ctx.previous, fieldPath.slice(9));
-  }
-  if (fieldPath.startsWith("env.")) {
-    return extractPath(ctx.env, fieldPath.slice(4));
-  }
-  if (fieldPath.startsWith("chain.")) {
-    return extractPath(ctx.chain, fieldPath.slice(6));
-  }
-
-  // Direct property on context root
-  const direct = extractPath(ctx, fieldPath);
-  if (direct !== undefined) return direct;
-
-  // Fallbacks: bare property on payload, args, env
-  const fromPayload = extractPath(ctx.origin.payload, fieldPath);
-  if (fromPayload !== undefined) return fromPayload;
-
-  const fromArgs = extractPath(ctx.origin.args, fieldPath);
-  if (fromArgs !== undefined) return fromArgs;
-
-  const fromPrevPayload = extractPath(ctx.previous.payload, fieldPath);
-  if (fromPrevPayload !== undefined) return fromPrevPayload;
-
-  const fromEnv = extractPath(ctx.env, fieldPath);
-  if (fromEnv !== undefined) return fromEnv;
-
-  return undefined;
-}
-
-/** Evaluate a single field condition against extracted value. */
-export function evaluateFieldCondition(extracted: unknown, op: ConditionOperator, target: unknown): boolean {
-  switch (op) {
-    case "equals":
-    case "eq":
-      return extracted === target;
-    case "not_equals":
-    case "neq":
-      return extracted !== target;
-    case "contains":
-      if (typeof extracted === "string" && typeof target === "string") {
-        return extracted.includes(target);
-      }
-      if (Array.isArray(extracted)) {
-        return extracted.includes(target);
-      }
-      return false;
-    case "not_contains":
-      return !evaluateFieldCondition(extracted, "contains", target);
-    case "starts_with":
-      return typeof extracted === "string" && typeof target === "string" && extracted.startsWith(target);
-    case "ends_with":
-      return typeof extracted === "string" && typeof target === "string" && extracted.endsWith(target);
-    case "in":
-      return Array.isArray(target) && target.includes(extracted);
-    case "not_in":
-      return Array.isArray(target) && !target.includes(extracted);
-    case "greater_than":
-    case "gt":
-      return typeof extracted === "number" && typeof target === "number" && extracted > target;
-    case "greater_than_or_equal":
-    case "gte":
-      return typeof extracted === "number" && typeof target === "number" && extracted >= target;
-    case "less_than":
-    case "lt":
-      return typeof extracted === "number" && typeof target === "number" && extracted < target;
-    case "less_than_or_equal":
-    case "lte":
-      return typeof extracted === "number" && typeof target === "number" && extracted <= target;
-    case "exists":
-      return extracted !== undefined && extracted !== null;
-    case "not_exists":
-      return extracted === undefined || extracted === null;
-    case "truthy":
-      return Boolean(extracted);
-    case "falsy":
-      return !Boolean(extracted);
-    case "regex":
-      try {
-        const re = target instanceof RegExp ? target : new RegExp(String(target));
-        return re.test(String(extracted ?? ""));
-      } catch {
-        return false;
-      }
-    default:
-      return false;
-  }
-}
-
-/** Evaluate any Condition (field, and, or, not, or functional predicate) as an Effect. */
-export function evaluateConditionEffect(
-  condition: Condition | undefined,
-  ctx: FollowOnContext,
-): Effect.Effect<boolean, never, never> {
-  if (condition === undefined) return Effect.succeed(true);
-
-  // Functional predicate
-  if (typeof condition === "function") {
-    return Effect.tryPromise({
-      try: async () => {
-        const result = condition(ctx);
-        if (typeof result === "boolean") return result;
-        if (result instanceof Promise) return await result;
-        return await Effect.runPromise(result as Effect.Effect<boolean, never, never>);
-      },
-      catch: () => false,
-    }).pipe(Effect.catchAll(() => Effect.succeed(false)));
-  }
-
-  // And condition
-  if ("and" in condition && Array.isArray(condition.and)) {
-    if (condition.and.length === 0) return Effect.succeed(true);
-    return Effect.gen(function* () {
-      for (const cond of condition.and) {
-        const match = yield* evaluateConditionEffect(cond, ctx);
-        if (!match) return false;
-      }
-      return true;
-    });
-  }
-
-  // Or condition
-  if ("or" in condition && Array.isArray(condition.or)) {
-    if (condition.or.length === 0) return Effect.succeed(false);
-    return Effect.gen(function* () {
-      for (const cond of condition.or) {
-        const match = yield* evaluateConditionEffect(cond, ctx);
-        if (match) return true;
-      }
-      return false;
-    });
-  }
-
-  // Not condition
-  if ("not" in condition && condition.not !== undefined) {
-    return evaluateConditionEffect(condition.not, ctx).pipe(Effect.map((res: boolean) => !res));
-  }
-
-  // Field condition
-  if ("field" in condition && "operator" in condition) {
-    const val = extractFromContext(ctx, condition.field);
-    const matched = evaluateFieldCondition(val, condition.operator, condition.value);
-    return Effect.succeed(matched);
-  }
-
-  return Effect.succeed(true);
-}
+// Path extraction + condition evaluation live in ./followon/conditions.ts (slice 19, task-8pqjb).
+import {
+  extractPath,
+  extractFromContext,
+  evaluateFieldCondition,
+  evaluateConditionEffect,
+} from "./followon/conditions.js";
+export {
+  extractPath,
+  extractFromContext,
+  evaluateFieldCondition,
+  evaluateConditionEffect,
+};
 
 // --- Argument Templating & Interpolation ---
 
-const TEMPLATE_EXACT_RE = /^\$\{([^}]+)\}$/;
-const TEMPLATE_EMBEDDED_RE = /\$\{([^}]+)\}/g;
-
-/** Interpolate a single value against FollowOnContext. */
-export function interpolateValue(value: unknown, ctx: FollowOnContext): unknown {
-  if (typeof value === "string") {
-    // Exact single substitution preserves native type (boolean, number, object, array)
-    const exactMatch = value.match(TEMPLATE_EXACT_RE);
-    if (exactMatch) {
-      const extracted = extractFromContext(ctx, exactMatch[1].trim());
-      return extracted !== undefined ? extracted : value;
-    }
-    // Embedded string interpolation
-    if (value.includes("${")) {
-      return value.replace(TEMPLATE_EMBEDDED_RE, (match, pathKey) => {
-        const extracted = extractFromContext(ctx, pathKey.trim());
-        if (extracted === undefined || extracted === null) return "";
-        if (typeof extracted === "object") return JSON.stringify(extracted);
-        return String(extracted);
-      });
-    }
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => interpolateValue(item, ctx));
-  }
-
-  if (typeof value === "object" && value !== null) {
-    const result: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value)) {
-      result[k] = interpolateValue(v, ctx);
-    }
-    return result;
-  }
-
-  return value;
-}
-
-/** Interpolate an entire arguments dictionary. */
-export function interpolateArgs(
-  argsDef: Record<string, unknown> | undefined,
-  ctx: FollowOnContext,
-): Record<string, unknown> {
-  if (!argsDef) return {};
-  const interpolated = interpolateValue(argsDef, ctx);
-  return (interpolated as Record<string, unknown>) ?? {};
-}
-
-// --- Trigger Matcher ---
-
-export function matchesTrigger(
-  trigger: FollowOnTrigger,
-  tool: string,
-  isError: boolean,
-): boolean {
-  // 1. Check tool name match
-  const targets = Array.isArray(trigger.tool) ? trigger.tool : [trigger.tool];
-  const toolMatches = targets.includes("*") || targets.includes(tool);
-  if (!toolMatches) return false;
-
-  // 2. Check outcome match
-  const on = trigger.on ?? "success";
-  if (on === "always" || on === "complete") return true;
-  if (on === "success" && !isError) return true;
-  if ((on === "failure" || on === "error") && isError) return true;
-
-  return false;
-}
-
+// Templating + trigger matching live in ./followon/template.ts (slice 19, task-8pqjb).
+import {
+  interpolateValue,
+  interpolateArgs,
+  matchesTrigger,
+} from "./followon/template.js";
+export {
+  interpolateValue,
+  interpolateArgs,
+  matchesTrigger,
+};
 // --- Audit Path Resolution ---
 
 function auditPath(ctx: ToolContext): string {
@@ -558,18 +159,13 @@ function auditAppend(
 
 // --- FollowOn Service Definition & Effect Layer ---
 
-export interface FollowOnApi {
-  readonly registerRule: (rule: FollowOnRule) => Effect.Effect<void>;
-  readonly registerRules: (rules: readonly FollowOnRule[]) => Effect.Effect<void>;
-  readonly getRules: () => Effect.Effect<readonly FollowOnRule[]>;
-  readonly clearRules: () => Effect.Effect<void>;
-  readonly loadConfigFile: (configPath?: string) => Effect.Effect<number>;
-  readonly executeFollowOns: (
-    origin: OriginContext,
-    ctx: ToolContext,
-    options?: FollowOnOptions,
-  ) => Effect.Effect<FollowOnChainSummary, never, AuditService>;
-}
+// FollowOnApi interface lives in ./followon/api.ts (slice 19, task-8pqjb).
+import {
+  FollowOnApi,
+} from "./followon/api.js";
+export {
+  FollowOnApi,
+};
 
 export class FollowOnService extends Context.Tag("FollowOnService")<
   FollowOnService,
@@ -1007,50 +603,13 @@ export function executeFollowOnsEffect(
   });
 }
 
-/** In-memory store + config loader implementation of FollowOnService. */
-export function makeFollowOnApi(initialRules: readonly FollowOnRule[] = []): FollowOnApi {
-  const rulesStore: FollowOnRule[] = [...initialRules];
-
-  return {
-    registerRule: (rule) =>
-      Effect.sync(() => {
-        rulesStore.push(rule);
-      }),
-    registerRules: (rules) =>
-      Effect.sync(() => {
-        rulesStore.push(...rules);
-      }),
-    getRules: () => Effect.sync(() => [...rulesStore]),
-    clearRules: () =>
-      Effect.sync(() => {
-        rulesStore.length = 0;
-      }),
-    loadConfigFile: (configPath) =>
-      Effect.sync(() => {
-        const targetPath =
-          configPath ??
-          process.env.FM_FOLLOWON_CONFIG ??
-          (process.env.FM_HOME
-            ? path.join(process.env.FM_HOME, "config", "followons.json")
-            : undefined);
-
-        if (!targetPath || !fs.existsSync(targetPath)) return 0;
-
-        try {
-          const raw = fs.readFileSync(targetPath, "utf8");
-          const parsed = JSON.parse(raw);
-          const loaded: FollowOnRule[] = Array.isArray(parsed) ? parsed : parsed.rules ?? [];
-          rulesStore.push(...loaded);
-          return loaded.length;
-        } catch {
-          return 0;
-        }
-      }),
-    executeFollowOns: (origin, toolCtx, options) =>
-      executeFollowOnsEffect(origin, toolCtx, rulesStore, options),
-  };
-}
-
+// In-memory API lives in ./followon/api.ts (slice 19, task-8pqjb).
+import {
+  makeFollowOnApi,
+} from "./followon/api.js";
+export {
+  makeFollowOnApi,
+};
 /** Live layer for FollowOnService. */
 export const FollowOnLive: Layer.Layer<FollowOnService> = Layer.sync(
   FollowOnService,
