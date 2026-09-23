@@ -2889,253 +2889,22 @@ import {
   toolMailSend,
   toolVoiceStatus,
   toolVoiceQueue,
-} from "./tools/voicemail.js";
-async function toolLintVersions(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  // Version probes only: the required ShellCheck/actionlint pins.
-  const shellcheckRes = await ctx.run([path.join(ctx.binDir, "fm-lint.sh"), "--required-version"]);
-  if (!isRunResult(shellcheckRes)) {
-    return { payload: shellcheckRes as Record<string, unknown>, isError: true };
-  }
-  if (shellcheckRes.exitCode !== 0) {
-    const [out] = truncate(shellcheckRes.stderr || shellcheckRes.stdout || "");
-    return {
-      payload: { error: "lint versions failed", exit: shellcheckRes.exitCode, output: out },
-      isError: true,
-    };
-  }
-  const actionlintRes = await ctx.run([
-    path.join(ctx.binDir, "fm-lint-workflows.sh"),
-    "--required-version",
-  ]);
-  let actionlint: unknown;
-  if (!isRunResult(actionlintRes)) {
-    // The owning script is retired upstream: degrade this probe instead of
-    // failing the whole call, so the pins we do have still land.
-    if ((actionlintRes as Record<string, unknown>)["error"] === "executable not found") {
-      actionlint = {
-        error: "unsupported probe",
-        expect: "owning script fm-lint-workflows.sh retired upstream",
-      };
-    } else {
-      return { payload: actionlintRes as Record<string, unknown>, isError: true };
-    }
-  } else if (actionlintRes.exitCode !== 0) {
-    const [out] = truncate(actionlintRes.stderr || actionlintRes.stdout || "");
-    return {
-      payload: { error: "lint versions failed", exit: actionlintRes.exitCode, output: out },
-      isError: true,
-    };
-  } else {
-    actionlint = (actionlintRes.stdout ?? "").trim();
-  }
-  return {
-    payload: {
-      shellcheck: (shellcheckRes.stdout ?? "").trim(),
-      actionlint,
-    },
-    isError: false,
-  };
-}
-
-async function toolToolUpdateCheck(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  // Report-only sweep: repairs nothing, installs nothing.
-  return ownedCall(
-    argv(path.join(ctx.binDir, "fm-tool-update-check.sh"), "check"),
-    "tool update check failed",
-    ctx.run,
-  );
-}
-
-async function toolVendorAuthProbe(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const probe = args["probe"];
-  if (!validProbe(probe)) {
-    return {
-      payload: { error: "invalid probe", expect: "one of grok" },
-      isError: true,
-    };
-  }
-  const { payload, isError } = await ownedCall(
-    argv(path.join(ctx.binDir, "fm-vendor-auth-probe.sh"), probe as string),
-    "vendor auth probe failed",
-    ctx.run,
-  );
-  if (!isError) return { payload: { ...payload, probe }, isError: false };
-  return { payload, isError: true };
-}
-
-async function toolStartupMemory(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const mode = args["mode"] ?? "read";
-  if (!validStartupMode(mode)) {
-    return {
-      payload: { error: "invalid mode", expect: "one of read, report" },
-      isError: true,
-    };
-  }
-  const { payload, isError } = await ownedCall(
-    argv(path.join(ctx.binDir, "fm-startup-memory-budget.sh"), mode as string),
-    "startup memory read failed",
-    ctx.run,
-  );
-  if (!isError) return { payload: { ...payload, mode }, isError: false };
-  return { payload, isError: true };
-}
-
-// --- Installs gap area: setup/hygiene reads ---
-//
-// Every installer, seeder, bootstrapper, updater, and test-runner verb
-// stays OUT of doorway ownership: approval-gated Tier-3 names with no
-// handler (refused as unknown even with approval; see the deny-list
-// comment on the registry below). The six reads here expose only the
-// genuinely read-only, bounded modes: a deferred-network report, a docs
-// inventory check, a home-seed registry validation, a stow-cascade
-// enumeration, and the test topology lists. Runs, installs, seeds,
-// bootstraps, and updates never dispatch.
-
-async function toolStartupNetworkReport(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  // report only: prints the current state plus the last run's per-step
-  // timings without changing anything. start/run/harvest/wait stay out:
-  // start detaches a worker, run executes sweeps, harvest writes the
-  // delivered acknowledgement, and wait blocks past the envelope.
-  return ownedCall(
-    argv(path.join(ctx.binDir, "fm-startup-network.sh"), "report"),
-    "startup network report failed",
-    ctx.run,
-  );
-}
-
-async function toolDocAudienceCheck(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  // Structure-only docs inventory + local-link validation against one
-  // home-confined repo root (default: this home, which is the checkout
-  // in the default deployment). The inventory path stays at the
-  // upstream default (docs/documentation-audiences.json under root).
-  const root = args["root"];
-  let resolved: string;
-  if (root === undefined) {
-    resolved = homeRoot(ctx);
-  } else {
-    if (!validRelpath(root)) {
-      return {
-        payload: { error: "invalid root", expect: "home-relative path, no traversal" },
-        isError: true,
-      };
-    }
-    const confined = confineHomePath(ctx, root as string);
-    if (confined === null) {
-      return {
-        payload: { error: "invalid root", expect: "home-relative path, no traversal" },
-        isError: true,
-      };
-    }
-    resolved = confined;
-  }
-  const { payload, isError } = await ownedCall(
-    argv(path.join(ctx.binDir, "fm-doc-audience-check.sh"), "--root", resolved),
-    "doc audience check failed",
-    ctx.run,
-  );
-  if (!isError) return { payload: { ...payload, root: resolved }, isError: false };
-  return { payload, isError: true };
-}
-
-async function toolHomeSeedValidate(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  // validate only: refuses secondmate-registry records that operational
-  // consumers cannot parse. Provisioning (clones, markers, registry
-  // writes, treehouse leases) stays out.
-  return ownedCall(
-    argv(path.join(ctx.binDir, "fm-home-seed.sh"), "validate"),
-    "home seed validation failed",
-    ctx.run,
-  );
-}
-
-async function toolStowCascade(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  // Read-only cascade enumeration: one key=value stanza per registered
-  // secondmate home with its budget report and transport judgement.
-  // Curation itself stays with the /stow skill; remote homes that do not
-  // answer inside the subprocess envelope surface as a typed timeout.
-  return ownedCall(
-    argv(path.join(ctx.binDir, "fm-stow-cascade.sh")),
-    "stow cascade failed",
-    ctx.run,
-  );
-}
-
-async function toolTestIsolationList(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const mode = args["mode"] ?? "candidates";
-  if (!validTestIsolationMode(mode)) {
-    return {
-      payload: { error: "invalid mode", expect: "one of candidates, exclusions" },
-      isError: true,
-    };
-  }
-  const pool = args["pool"] ?? "portable";
-  if (!validIsolationPool(pool)) {
-    return {
-      payload: { error: "invalid pool", expect: "portable or a test-runner family name" },
-      isError: true,
-    };
-  }
-  // List modes only: proven candidates or kept-serial exclusions.
-  // Proof runs (concurrent workers, timing artifacts) stay out.
-  const flag = mode === "exclusions" ? "--list-exclusions" : "--list";
-  const script = path.join(ctx.binDir, "fm-test-isolation-proof.sh");
-  // `--pool` is upstream's newer selector; the served fork line's older script
-  // rejects it outright ("unknown option: --pool", exit 2), which made this read
-  // fail on the live home while working against the upstream pin. Probe the
-  // script's own source for the flag rather than assuming the interface, and say
-  // in the payload whether the selection could be honoured — the same fork-shape
-  // class as the decision core, and a concrete case of the unvalidated flag
-  // surfaces tracked in project-2od.14.
-  let poolHonored = false;
-  try {
-    poolHonored = fs.readFileSync(script, "utf8").includes("--pool");
-  } catch {
-    /* unreadable script: fall back to the modern argv and let the run report */
-    poolHonored = true;
-  }
-  const cmd = poolHonored ? argv(script, flag, "--pool", pool as string) : argv(script, flag);
-  const { payload, isError } = await ownedCall(cmd, "test isolation list failed", ctx.run);
-  if (!isError) {
-    return {
-      payload: {
-        ...payload,
-        mode,
-        pool,
-        pool_honored: poolHonored,
-        ...(poolHonored
-          ? {}
-          : { note: "this home's fm-test-isolation-proof.sh predates --pool; the list is the whole proven set" }),
-      },
-      isError: false,
-    };
-  }
-  return { payload, isError: true };
-}
-
-async function toolTestRunList(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const mode = args["mode"] ?? "families";
-  if (!validTestRunListMode(mode)) {
-    return {
-      payload: { error: "invalid mode", expect: "one of families, lanes, concurrent_safe, coverage" },
-      isError: true,
-    };
-  }
-  // Selection-list reads only: family/lane topology and the parallel
-  // coverage guard. Suite runs (minutes-long, log-writing) stay out.
-  const flag =
-    mode === "lanes" ? "--list-lanes"
-    : mode === "concurrent_safe" ? "--list-concurrent-safe-families"
-    : mode === "coverage" ? "--check-coverage"
-    : "--list-families";
-  const { payload, isError } = await ownedCall(
-    argv(path.join(ctx.binDir, "fm-test-run.sh"), flag),
-    "test run list failed",
-    ctx.run,
-  );
-  if (!isError) return { payload: { ...payload, mode }, isError: false };
-  return { payload, isError: true };
-}
-
+} from "./tools/voicemail.js";// Installs handlers live in ./tools/installs.ts (slice 4, task-8pqjb).
+// Imported for the TOOLS registry below; module-private as before.
+import {
+  toolLintVersions,
+  toolToolUpdateCheck,
+  toolVendorAuthProbe,
+  toolStartupMemory,
+  toolStartupNetworkReport,
+  toolDocAudienceCheck,
+  toolHomeSeedValidate,
+  toolStowCascade,
+} from "./tools/installs.js";
+import {
+  toolTestIsolationList,
+  toolTestRunList,
+} from "./tools/testlists.js";
 export async function toolTestRun(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   const mode = args["mode"];
   if (!validTestRunMode(mode)) {
@@ -4078,11 +3847,11 @@ function validLabSession(value: unknown): value is string {
   return typeof value === "string" && /^fm-lab-[A-Za-z0-9-]{1,48}$/.test(value);
 }
 
-function homeRoot(ctx: ToolContext): string {
+export function homeRoot(ctx: ToolContext): string {
   return path.resolve(ctx.stateDir, "..");
 }
 
-function confineHomePath(ctx: ToolContext, relPath: string): string | null {
+export function confineHomePath(ctx: ToolContext, relPath: string): string | null {
   const home = homeRoot(ctx);
   const resolved = path.resolve(home, relPath);
   if (resolved !== home && resolved.startsWith(home + path.sep)) return resolved;
