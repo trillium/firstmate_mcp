@@ -264,9 +264,9 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 
 | Area | Mirrored | Denied | Gap | Fork |
 | --- | --- | --- | --- | --- |
-| Fleet runs | 3 | 2 | 1 | 3 |
+| Fleet runs | 4 | 2 | 0 | 3 |
 | Supervision | 13 | 23 | 0 | 4 |
-| Sessions | 6 | 18 | 1 | 1 |
+| Sessions | 7 | 18 | 0 | 1 |
 | Backlog / decisions | 5 | 2 | 0 | 6 |
 | Secondmates / remotes | 8 | 10 | 0 | 2 |
 | PR pipeline | 4 | 5 | 0 | 2 |
