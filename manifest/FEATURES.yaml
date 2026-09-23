@@ -1583,7 +1583,7 @@ features:
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-fork-origin-check.sh
     summary: Advisory scan for registered project clones whose remotes look like an unswapped fork-contribution setup.
-    contract: drift/baseline.json
+    contract: drift/fork-spine.json
     upstream_test: "ts/tests/conformance-read.test.ts::guard_check matches direct stub read-only"
     py: {status: implemented, evidence: ["drift/baseline.json:\"fm-fork-origin-check.sh\""]}
     ts: {status: missing}
@@ -1597,7 +1597,7 @@ features:
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-afk-launch.sh
     summary: Away-mode daemon terminal lifecycle in non-visible tracked terminal with supervisor targeting and clean persona isolation without PAI config bleed.
-    contract: drift/baseline.json
+    contract: drift/fork-spine.json
     upstream_test: "ts/tests/server.test.ts::relaunch unknown id stays structured"
     py: {status: implemented, evidence: ["drift/baseline.json:\"fm-afk-launch.sh\""]}
     ts: {status: missing}
@@ -1605,7 +1605,9 @@ features:
       status: intentional
       reason: >-
         Non-visible terminal creation and PAI isolation fix; upstream uses
-        foreground or visible pane splits.
+        foreground or visible pane splits. Deliberately unported: the launch
+        verb is denied by design (afk_launch — only the away-mode entry path
+        owns launches), so ts:missing records a refusal, not a gap.
   - id: beads_ledger
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
