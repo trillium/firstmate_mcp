@@ -5,7 +5,7 @@
  * within this fragment matches the canonical order; index.ts spreads
  * fragments in canonical order so tools/list output is unchanged.
  */
-import { toolHarnessDetect, toolProjectMode, toolLockStatus, toolLeaseCheck } from "../sessions.js";
+import { toolHarnessDetect, toolProjectMode, toolLockStatus, toolLeaseCheck, toolHerdrSpur } from "../sessions.js";
 import type { ToolDef } from "./shared.js";
 
 export const SessionsRegistry: Record<string, ToolDef> = {
@@ -49,5 +49,15 @@ export const SessionsRegistry: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolLeaseCheck,
+  },
+  herdr_spur: {
+    description:
+      "Refused: bridging external-agent finishes into the shared wake queue is supervision control owned by the watcher alone.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+    handler: toolHerdrSpur,
   },
 };
