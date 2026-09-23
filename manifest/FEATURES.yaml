@@ -1795,6 +1795,7 @@ features:
   - id: git_history_read
     kind: local
     local_path: ts/src/tools/archaeology.ts
+    readme_anchor: Git history reads
     summary: Bounded git log reads scoped to paths inside a confined repo.
     contract: schema/contracts.yaml#git_history
     upstream_test: "ts/tests/beads.test.ts::git history passes through bounded log output"
@@ -1806,6 +1807,7 @@ features:
   - id: git_blame_read
     kind: local
     local_path: ts/src/tools/archaeology.ts
+    readme_anchor: Git history reads
     summary: Line-porcelain blame excerpts bounded to 200 lines inside a confined repo.
     contract: schema/contracts.yaml#git_blame
     upstream_test: "ts/tests/beads.test.ts::blame validates file and range"
@@ -1817,6 +1819,7 @@ features:
   - id: ci_history_read
     kind: local
     local_path: ts/src/tools/archaeology.ts
+    readme_anchor: Git history reads
     summary: CI run conclusions per branch over time for flake-vs-regression verdicts.
     contract: schema/contracts.yaml#ci_history
     upstream_test: "ts/tests/beads.test.ts::ci history validates branch and parses runs"

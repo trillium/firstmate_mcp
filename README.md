@@ -223,6 +223,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
 - TypeScript sibling — `ts/` implements the 87-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
+- Git history reads — `git_history`, `git_blame` and `ci_history` expose bounded repo history, blame excerpts and CI run conclusions without leaving the doorway.
 - Customizable follow-on actions — `ts/src/followon.ts` provides configurable
   chained follow-on actions for any MCP tool with condition evaluation,
   context forwarding, strict anti-laundering auth gates, and loop termination.
