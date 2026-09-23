@@ -211,8 +211,8 @@ def main():
         return value.isoformat() if isinstance(value, (datetime.date, datetime.datetime)) else value
     pairs = [
         (norm(cup.get("gitlink")), norm(fup.get("gitlink_at_seed")), "upstream gitlink"),
-        (norm(cup.get("baseline_rev")), norm(fup.get("baseline_rev_at_seed")), "upstream baseline_rev"),
-        (norm(cup.get("baseline_surfaces")), norm(fup.get("baseline_surfaces_at_seed")), "upstream baseline_surfaces"),
+        (norm(cfork.get("served_rev_at_seed")), norm(ffork.get("served_rev_at_seed")), "fork served_rev"),
+        (norm(cfork.get("served_surfaces_at_seed")), norm(ffork.get("served_surfaces_at_seed")), "fork served_surfaces"),
         (norm(cfork.get("proven_commit")), norm(ffork.get("proven_commit")), "fork proven_commit"),
         (norm(cfork.get("proven_date")), norm(ffork.get("proven_date")), "fork proven_date"),
         # Two revs by design: proven_commit is the proof basis, served_commit is the

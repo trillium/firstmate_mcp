@@ -318,13 +318,18 @@ Personal software, one owner, no external users. Standing owner instruction:
   inline `gh` logic in the workflow: an untested `gh issue list --jq` without
   `--json`, plus a label that did not exist, failed the scheduled job on every
   run for five days (2026-09-18..22) while reporting nothing.
-- Dual provenance: the Kun fingerprint (submodule gitlink + drift baseline,
-  radar watched by drift/shift.py) and the trillium/firstmate working-copy pin
-  (proven commit + date) live together in manifest/FEATURES.yaml
-  (`upstream` + `fork` blocks) and schema/contracts.yaml (`provenance`);
-  both validators fail loudly on missing/stale pins. Standing reconciliation
-  policy: the radar stays current; each Kun shift is ported into our mirrors
-  with divergences preserved; shift reports dispatch port work.
+- Dual provenance: the Kun fingerprint (submodule gitlink, radar watched by
+  drift/shift.py) and the trillium/firstmate working-copy pin (proven commit +
+  date) live together in manifest/FEATURES.yaml (`upstream` + `fork` blocks)
+  and schema/contracts.yaml (`provenance`); both validators fail loudly on
+  missing/stale pins. The fork inventory (`drift/baseline.json`, rev +
+  surfaces) lives under the `fork` block as `served_*` — never under
+  `upstream` (a re-merged baseline pin fails validation by design,
+  project-au6w). Per-delta provenance is the generated A/B/C/D/U spine
+  (`manifest/CHANGES.md` + `drift/fork-spine.json`); fork manifest entries
+  must name an observed surface (baseline or spine) or fail. Standing
+  reconciliation policy: the radar stays current; each Kun shift is ported
+  into our mirrors with divergences preserved; shift reports dispatch port work.
 - Coverage provenance outside `bin/fm-*.sh` (e.g. `bin/fm_voice_records.py`)
   needs a `bin/` key in `scripts/gen_coverage.py` COMMAND_AREAS; it renders
   via the special-rows path, never the upstream `.sh` enumeration.

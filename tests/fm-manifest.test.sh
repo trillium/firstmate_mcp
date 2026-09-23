@@ -196,6 +196,41 @@ test_generator_manifest_check() {
   expect_code 0 "$status" "generator --check should pass (README embed current)" "$out"
 }
 
+test_remerged_pins_fail() {
+  local bad="$TMP_ROOT/remerged.yaml" out status
+  cp "$SEED" "$bad"
+  python3 - "$bad" <<'PYEOF'
+import sys
+text = open(sys.argv[1]).read()
+needle = "  gitlink_at_seed: 9296f9b9d2566797b9a9aecaa5956bb8e471d2cd\n  role: radar"
+assert needle in text, "seed shape changed; update this fixture"
+open(sys.argv[1], "w").write(text.replace(
+    needle,
+    "  gitlink_at_seed: 9296f9b9d2566797b9a9aecaa5956bb8e471d2cd\n"
+    "  baseline_rev_at_seed: aaf67489\n  role: radar", 1))
+PYEOF
+  out=$(python3 "$VALIDATOR" "$bad" 2>&1)
+  status=$?
+  expect_code 2 "$status" "re-merged pins should exit 2" "$out"
+  assert_contains "$out" "merged again" "re-merge failure did not name the cause"
+}
+
+test_unobserved_fork_surface_fails() {
+  local bad="$TMP_ROOT/phantomfork.yaml" out status
+  cp "$SEED" "$bad"
+  python3 - "$bad" <<'PYEOF'
+import sys
+text = open(sys.argv[1]).read()
+needle = "fork_command: bin/fm-ledger.sh"
+assert needle in text, "seed shape changed; update this fixture"
+open(sys.argv[1], "w").write(text.replace(needle, "fork_command: bin/fm-zzz-phantom.sh", 1))
+PYEOF
+  out=$(python3 "$VALIDATOR" "$bad" 2>&1)
+  status=$?
+  expect_code 2 "$status" "an unobserved fork surface should exit 2" "$out"
+  assert_contains "$out" "fm-zzz-phantom.sh" "phantom fork failure did not name the surface"
+}
+
 test_seed_validates
 test_divergence_without_reason_fails
 test_phantom_implementation_fails
@@ -204,5 +239,7 @@ test_missing_fork_pin_fails
 test_stale_gitlink_fails
 test_fork_missing_rev_fails
 test_fork_divergence_without_reason_fails
+test_remerged_pins_fail
+test_unobserved_fork_surface_fails
 test_generator_manifest_check
 pass "feature manifest validates; coverage, honesty, divergence, and generator wiring behave"

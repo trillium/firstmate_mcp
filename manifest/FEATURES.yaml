@@ -23,13 +23,11 @@ upstream:
   repo: https://github.com/kunchenguid/firstmate.git
   submodule: sources/firstmate
   gitlink_at_seed: 9296f9b9d2566797b9a9aecaa5956bb8e471d2cd
-  baseline: drift/baseline.json
-  baseline_rev_at_seed: aaf67489
-  baseline_surfaces_at_seed: 163
   role: radar
   note: >-
     Upstream fingerprint for early-warning radar only: the kunchenguid pin
-    (submodule gitlink) plus the drift baseline revision/surface count.
+    (submodule gitlink). The fork inventory lives under `fork` below; the two
+    pins are never the same value (project-au6w).
     drift/shift.py watches this pin against upstream main; a shift report
     is a deliberate port decision, never an automatic merge. Nothing runs
     against this copy — see `fork` below for the working line.
@@ -56,6 +54,9 @@ fork:
   proven_date: "2026-09-17"
   proven_subject: "feat(wake): fold inbox-supervision delivery into one PR (task-z8sn4) (#160)"
   served_commit: aaf67489ec7644f3bdfd4043ba0c898ab928bcd9
+  inventory: drift/baseline.json
+  served_rev_at_seed: aaf67489
+  served_surfaces_at_seed: 163
   served_date: "2026-09-06"
   merge_base_with_upstream: 53ecbc7961ac066461ea3104c713d81d40fb32d6
   merge_base_date: 2026-08-10

@@ -24,6 +24,7 @@ Exit 0 Valid. Exit 2 Structural violation (including missing/malformed pins).
 Exit 3 Coverage, honesty, divergence, or stale-pin violation.
 """
 import json
+import os
 import re
 import subprocess
 import sys
@@ -135,11 +136,17 @@ def check_provenance(data):
         structural.append("missing 'fork' provenance block (working-copy pin)")
     if structural:
         return structural, stale
-    for field in ("repo", "submodule", "gitlink_at_seed", "baseline",
-                  "baseline_rev_at_seed", "baseline_surfaces_at_seed", "role"):
+    for field in ("repo", "submodule", "gitlink_at_seed", "role"):
         if up.get(field) in (None, ""):
             structural.append(f"upstream provenance is missing '{field}'")
-    for field in ("repo", "proven_commit", "proven_date", "served_commit", "served_date", "basis", "role"):
+    for field in ("baseline", "baseline_rev_at_seed", "baseline_surfaces_at_seed"):
+        if up.get(field) not in (None, ""):
+            structural.append(
+                f"upstream provenance carries fork-inventory field '{field}' — "
+                "the pins are merged again (project-au6w); it belongs under fork/ as served_*"
+            )
+    for field in ("repo", "proven_commit", "proven_date", "served_commit", "served_date",
+                   "inventory", "served_rev_at_seed", "served_surfaces_at_seed", "basis", "role"):
         if fork.get(field) in (None, ""):
             structural.append(f"fork provenance is missing '{field}'")
     if structural:
@@ -200,15 +207,15 @@ def check_provenance(data):
         )
     if isinstance(baseline, dict):
         rev = baseline.get("firstmate_revision", "")
-        if rev and not rev.startswith(up["baseline_rev_at_seed"]):
+        if rev and not rev.startswith(fork["served_rev_at_seed"]):
             stale.append(
-                f"upstream baseline_rev_at_seed {up['baseline_rev_at_seed']!r} is stale: "
+                f"fork served_rev_at_seed {fork['served_rev_at_seed']!r} is stale: "
                 f"drift/baseline.json records {rev!r} — re-seed the pin"
             )
         surfaces = baseline.get("surfaces", [])
-        if isinstance(surfaces, list) and len(surfaces) != up["baseline_surfaces_at_seed"]:
+        if isinstance(surfaces, list) and len(surfaces) != fork["served_surfaces_at_seed"]:
             stale.append(
-                f"upstream baseline_surfaces_at_seed {up['baseline_surfaces_at_seed']} is stale: "
+                f"fork served_surfaces_at_seed {fork['served_surfaces_at_seed']} is stale: "
                 f"drift/baseline.json carries {len(surfaces)} surfaces — re-seed the pin"
             )
     contracts = load_yaml(CONTRACTS_PATH)
@@ -218,10 +225,19 @@ def check_provenance(data):
     else:
         cup = prov.get("upstream") or {}
         cfork = prov.get("fork") or {}
+        for field in ("baseline_rev", "baseline_surfaces", "baseline"):
+            if (cup.get(field) not in (None, "")) or (up.get({
+                    "baseline_rev": "baseline_rev_at_seed",
+                    "baseline_surfaces": "baseline_surfaces_at_seed",
+                    "baseline": "baseline"}[field]) not in (None, "")):
+                stale.append(
+                    f"upstream provenance carries fork-inventory field '{field}' — "
+                    "the pins are merged again (project-au6w)"
+                )
         pairs = [
             (cup.get("gitlink"), up["gitlink_at_seed"], "upstream gitlink"),
-            (cup.get("baseline_rev"), up["baseline_rev_at_seed"], "upstream baseline_rev"),
-            (cup.get("baseline_surfaces"), up["baseline_surfaces_at_seed"], "upstream baseline_surfaces"),
+            (cfork.get("served_rev_at_seed"), fork["served_rev_at_seed"], "fork served_rev"),
+            (cfork.get("served_surfaces_at_seed"), fork["served_surfaces_at_seed"], "fork served_surfaces"),
             (cfork.get("proven_commit"), fork["proven_commit"], "fork proven_commit"),
             (cfork.get("proven_date"), fork["proven_date"], "fork proven_date"),
         ]
@@ -276,6 +292,25 @@ def main():
                 fail(2, f"fork feature '{fid}' must name 'fork_rev' commit provenance")
             if not (entry.get("fork_command") or entry.get("fork_path")):
                 fail(2, f"fork feature '{fid}' must name 'fork_command' or 'fork_path' provenance")
+            # The named fork surface must have been observed: basename present
+            # in the fork inventory (drift/baseline.json) or in the generated
+            # spine (drift/fork-spine.json). A pin to an unobserved path is how
+            # the ts:missing entries slipped through (project-au6w, project-2xqg).
+            fork_ref = entry.get("fork_command") or entry.get("fork_path") or ""
+            fork_base = os.path.basename(fork_ref)
+            try:
+                inv = json.load(open(ROOT / "drift" / "baseline.json", encoding="utf-8"))
+                observed = {s.get("name") for s in inv.get("surfaces", [])}
+            except (OSError, ValueError):
+                observed = set()
+            try:
+                spine = json.load(open(ROOT / "drift" / "fork-spine.json", encoding="utf-8"))
+                spined = {r.get("surface") for r in spine.get("rows", [])}
+            except (OSError, ValueError):
+                spined = set()
+            if fork_base not in observed and fork_base not in spined:
+                fail(2, f"fork feature '{fid}' names unobserved surface '{fork_ref}' "
+                            "(absent from drift/baseline.json and drift/fork-spine.json)")
         for side in ("py", "ts"):
             impl = entry[side]
             if not isinstance(impl, dict) or "status" not in impl:
