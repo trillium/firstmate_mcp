@@ -133,7 +133,7 @@ export interface GrantVerificationResult {
 
 // Grant store lives in ./grants/store.ts (slice 18, task-8pqjb).
 // Imported where needed and re-exported, public as before.
-import {
+export {
   grantDir,
   hashToken,
   computeGrantRef,
@@ -143,44 +143,23 @@ import {
   findGrantByIdOrRef,
   listGrants,
 } from "./grants/store.js";
-export {
-  grantDir,
-  hashToken,
-  computeGrantRef,
-  writeGrant,
-  readGrant,
-  findGrantByTokenHash,
-  findGrantByIdOrRef,
-  listGrants,
-};
 
 // Grant mint/revoke/status live in ./grants/lifecycle.ts (slice 18, task-8pqjb).
 // Imported where needed and re-exported, public as before.
-import {
+export {
   mintGrant,
   revokeGrant,
   formatGrantSummary,
   getGrantStatus,
 } from "./grants/lifecycle.js";
-export {
-  mintGrant,
-  revokeGrant,
-  formatGrantSummary,
-  getGrantStatus,
-};
 
 // Token verification + authorization live in ./grants/verify.ts (slice 18, task-8pqjb).
 // Imported where needed and re-exported, public as before.
-import {
+export {
   SENSITIVE_RELEASE_TOOLS,
   verifyGrant,
   checkAuthorization,
 } from "./grants/verify.js";
-export {
-  SENSITIVE_RELEASE_TOOLS,
-  verifyGrant,
-  checkAuthorization,
-};
 
 // --- Effect composition: Grant Service ---
 
@@ -217,6 +196,16 @@ export class GrantService extends Context.Tag("GrantService")<
   GrantApi
 >() {}
 
+import {
+  checkAuthorization,
+  verifyGrant,
+} from "./grants/verify.js";
+import {
+  getGrantStatus,
+  mintGrant,
+  revokeGrant,
+} from "./grants/lifecycle.js";
+
 export const GrantLive: Layer.Layer<GrantService> = Layer.succeed(
   GrantService,
   GrantService.of({
@@ -252,15 +241,9 @@ export const GrantLive: Layer.Layer<GrantService> = Layer.succeed(
  */
 // Per-call approval gate + release-grant helpers live in ./grants/auth-gate.ts (slice 18, task-8pqjb).
 // Imported where needed and re-exported, public as before.
-import {
-  approvalError,
-  requireAuth,
-  isReleaseGrantEnabled,
-  isReleaseAuthorized,
-} from "./grants/auth-gate.js";
 export {
   approvalError,
   requireAuth,
   isReleaseGrantEnabled,
   isReleaseAuthorized,
-};
+} from "./grants/auth-gate.js";
