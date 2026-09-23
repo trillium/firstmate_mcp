@@ -1129,19 +1129,6 @@ export {
 // under backend_select (see scripts/gen_coverage.py DENY_ALSO) rather than
 // behind an invented no-op invocation.
 
-function validPlainArg(value: unknown, max = 500): value is string {
-  return typeof value === "string" && value.length >= 1 && value.length <= max &&
-    !value.includes("\0") && !value.includes("\n") && !value.includes("\r");
-}
-
-function validSessionSource(value: unknown): value is string {
-  return typeof value === "string" && /^[A-Za-z][A-Za-z0-9-]{0,31}$/.test(value);
-}
-
-function validLabSession(value: unknown): value is string {
-  return typeof value === "string" && /^fm-lab-[A-Za-z0-9-]{1,48}$/.test(value);
-}
-
 export function homeRoot(ctx: ToolContext): string {
   return path.resolve(ctx.stateDir, "..");
 }
@@ -1153,195 +1140,41 @@ export function confineHomePath(ctx: ToolContext, relPath: string): string | nul
   return null;
 }
 
-export async function toolSessionStart(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const reemit = args["reemit"];
-  const source = args["source"];
-  if (reemit !== undefined && typeof reemit !== "boolean") {
-    return { payload: { error: "invalid reemit", expect: "boolean" }, isError: true };
-  }
-  if (source !== undefined && !validSessionSource(source)) {
-    return { payload: { error: "invalid source", expect: "short harness source slug" }, isError: true };
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const cmd = [
-    path.join(ctx.binDir, "fm-session-start.sh"),
-    ...(reemit ? ["--reemit"] : []),
-    ...(source ? ["--source", source as string] : []),
-  ];
-  return ownedCall(cmd, "session_start", ctx.run);
-}
+// Session start/run/cursor + lab live in ./tools/session-start.ts (slice 14, task-8pqjb).
+// Imported for the TOOLS registry below and re-exported, public as before.
+import {
+  toolSessionStart,
+  toolSessionstartRun,
+  toolSessionstartCursor,
+  toolHerdrLab,
+} from "./tools/session-start.js";
+export {
+  toolSessionStart,
+  toolSessionstartRun,
+  toolSessionstartCursor,
+  toolHerdrLab,
+};
 
-export async function toolSessionstartRun(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const source = args["source"];
-  if (source !== undefined && !validSessionSource(source)) {
-    return { payload: { error: "invalid source", expect: "short harness source slug" }, isError: true };
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  // --pi-prerequisite is an internal provider-preflight gate and stays out.
-  const cmd = [
-    path.join(ctx.binDir, "fm-sessionstart-run.sh"),
-    ...(source ? ["--source", source as string] : []),
-  ];
-  return ownedCall(cmd, "sessionstart_run", ctx.run);
-}
-
-export async function toolSessionstartCursor(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const source = args["source"];
-  if (!validSessionSource(source)) {
-    return { payload: { error: "invalid source", expect: "short harness source slug" }, isError: true };
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const cmd = [path.join(ctx.binDir, "fm-sessionstart-cursor.sh"), "--source", source as string];
-  return ownedCall(cmd, "sessionstart_cursor", ctx.run);
-}
-
-export async function toolHerdrLab(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const subcommand = args["subcommand"];
-  const session = args["session"];
-  const label = args["label"];
-  const action = args["action"];
-  if (typeof subcommand !== "string" || !["name", "prepare", "provision", "run", "viewer", "stop", "teardown"].includes(subcommand)) {
-    return { payload: { error: "invalid subcommand", expect: "name, prepare, provision, run, viewer, stop, or teardown" }, isError: true };
-  }
-  if (subcommand === "name") {
-    if (typeof label !== "string" || !/^[A-Za-z0-9-]{1,16}$/.test(label)) {
-      return { payload: { error: "invalid label", expect: "1..16 chars, letters/digits/dashes" }, isError: true };
-    }
-  } else {
-    if (!validLabSession(session)) {
-      return { payload: { error: "invalid session", expect: "fm-lab-<label>, never default" }, isError: true };
-    }
-    if (subcommand === "viewer" && action !== "start" && action !== "stop") {
-      return { payload: { error: "invalid action", expect: "start or stop" }, isError: true };
-    }
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  // run's trailing Herdr passthrough argv stays out: free-form Herdr
-  // server/lifecycle operations never pass the doorway.
-  let cmd: string[];
-  if (subcommand === "name") {
-    cmd = [path.join(ctx.binDir, "fm-herdr-lab.sh"), "name", label as string];
-  } else if (subcommand === "viewer") {
-    cmd = [path.join(ctx.binDir, "fm-herdr-lab.sh"), "viewer", action as string, session as string];
-  } else {
-    cmd = [path.join(ctx.binDir, "fm-herdr-lab.sh"), subcommand as string, session as string];
-  }
-  return ownedCall(cmd, "herdr_lab", ctx.run);
-}
-
-export async function toolHerdrCiCleanup(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const command = args["command"];
-  const relPath = args["path"];
-  if (command !== "snapshot" && command !== "teardown") {
-    return { payload: { error: "invalid command", expect: "snapshot or teardown" }, isError: true };
-  }
-  if (!validRelpath(relPath)) {
-    return { payload: { error: "invalid path", expect: "home-relative snapshot path, no traversal" }, isError: true };
-  }
-  const confined = confineHomePath(ctx, relPath as string);
-  if (confined === null) {
-    return { payload: { error: "invalid path", expect: "home-relative snapshot path, no traversal" }, isError: true };
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const cmd = [path.join(ctx.binDir, "fm-herdr-ci-cleanup.sh"), command as string, confined];
-  return ownedCall(cmd, "herdr_ci_cleanup", ctx.run);
-}
-
-export async function toolSessionCleanup(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const cmd = [path.join(ctx.binDir, "fm-herdr-session-cleanup.sh")];
-  return ownedCall(cmd, "session_cleanup", ctx.run);
-}
-
-export async function toolClaudeTrust(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const worktree = args["worktree"];
-  const project = args["project"];
-  const home = args["home"];
-  const id = args["id"];
-  const worktreeMode = worktree !== undefined || project !== undefined;
-  const homeMode = home !== undefined || id !== undefined;
-  if (worktreeMode === homeMode) {
-    return { payload: { error: "invalid mode", expect: "worktree+project or home+id, exactly one" }, isError: true };
-  }
-  let cmd: string[];
-  if (worktreeMode) {
-    if (!validPlainArg(worktree) || !validPlainArg(project)) {
-      return { payload: { error: "invalid worktree", expect: "worktree and project paths, 1..500 chars" }, isError: true };
-    }
-    cmd = [path.join(ctx.binDir, "fm-claude-trust.sh"), worktree as string, project as string];
-  } else {
-    if (!validPlainArg(home) || !validId(id)) {
-      return { payload: { error: "invalid home", expect: "secondmate home path plus short id" }, isError: true };
-    }
-    cmd = [path.join(ctx.binDir, "fm-claude-trust.sh"), "--secondmate-home", home as string, id as string];
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  return ownedCall(cmd, "claude_trust", ctx.run);
-}
-
-export async function toolAgyTrust(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const worktree = args["worktree"];
-  const project = args["project"];
-  if (!validPlainArg(worktree) || !validPlainArg(project)) {
-    return { payload: { error: "invalid worktree", expect: "worktree and project paths, 1..500 chars" }, isError: true };
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const cmd = [path.join(ctx.binDir, "fm-agy-trust.sh"), worktree as string, project as string];
-  return ownedCall(cmd, "agy_trust", ctx.run);
-}
-
-export async function toolClaudeStopAutoarm(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const cmd = [path.join(ctx.binDir, "fm-claude-stop-autoarm.sh")];
-  return ownedCall(cmd, "claude_stop_autoarm", ctx.run);
-}
-
-export async function toolHerdrEventwait(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const socket = args["socket"];
-  const timeoutS = args["timeout_s"];
-  const paneIds = args["pane_ids"];
-  if (!validPlainArg(socket)) {
-    return { payload: { error: "invalid socket", expect: "control socket path, 1..500 chars" }, isError: true };
-  }
-  if (typeof timeoutS !== "number" || !Number.isInteger(timeoutS) || timeoutS < 1 || timeoutS > 300) {
-    return { payload: { error: "invalid timeout_s", expect: "integer between 1 and 300" }, isError: true };
-  }
-  if (!Array.isArray(paneIds) || paneIds.length < 1 || paneIds.length > 8 ||
-    !paneIds.every((p) => typeof p === "number" && Number.isInteger(p) && p > 0 && p < 2147483647)) {
-    return { payload: { error: "invalid pane_ids", expect: "1..8 positive integer pane ids" }, isError: true };
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const cmd = [
-    path.join(ctx.binDir, "backends", "herdr-eventwait.py"),
-    socket as string,
-    String(timeoutS),
-    ...(paneIds as number[]).map(String),
-  ];
-  return ownedCall(cmd, "herdr_eventwait", ctx.run);
-}
-
-export async function toolHerdrWorkspaceMove(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const socket = args["socket"];
-  const workspaceId = args["workspace_id"];
-  const insertIndex = args["insert_index"];
-  if (!validPlainArg(socket)) {
-    return { payload: { error: "invalid socket", expect: "control socket path, 1..500 chars" }, isError: true };
-  }
-  if (typeof workspaceId !== "number" || !Number.isInteger(workspaceId) || workspaceId <= 0 || workspaceId >= 2147483647) {
-    return { payload: { error: "invalid workspace_id", expect: "positive integer workspace id" }, isError: true };
-  }
-  if (typeof insertIndex !== "number" || !Number.isInteger(insertIndex) || insertIndex < 0 || insertIndex > 1000000) {
-    return { payload: { error: "invalid insert_index", expect: "non-negative integer <= 1000000" }, isError: true };
-  }
-  if (!validApproval(args["approval"])) return { payload: approvalError(), isError: true };
-  const cmd = [
-    path.join(ctx.binDir, "backends", "herdr-workspace-move.py"),
-    socket as string,
-    String(workspaceId),
-    String(insertIndex),
-  ];
-  return ownedCall(cmd, "herdr_workspace_move", ctx.run);
-}
+// Herdr cleanup/trust/event/workspace live in ./tools/herdr-trust.ts (slice 14, task-8pqjb).
+// Imported for the TOOLS registry below and re-exported, public as before.
+import {
+  toolHerdrCiCleanup,
+  toolSessionCleanup,
+  toolClaudeTrust,
+  toolAgyTrust,
+  toolClaudeStopAutoarm,
+  toolHerdrEventwait,
+  toolHerdrWorkspaceMove,
+} from "./tools/herdr-trust.js";
+export {
+  toolHerdrCiCleanup,
+  toolSessionCleanup,
+  toolClaudeTrust,
+  toolAgyTrust,
+  toolClaudeStopAutoarm,
+  toolHerdrEventwait,
+  toolHerdrWorkspaceMove,
+};
 
 // --- Registry (schemas match the Python server's tools/list exactly) ---
 
@@ -1415,275 +1248,35 @@ export {
   toolWatchStop,
 };
 
-export async function toolTaskIntake(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const taskId = args["task_id"];
-  const project = args["project"];
-  const mode = args["mode"] !== undefined ? args["mode"] : "no-mistakes";
-  if (!validId(taskId)) {
-    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
-  }
-  if (!validProject(project)) {
-    return { payload: { error: "invalid project", expect: "bare name or projects/<name>" }, isError: true };
-  }
-  const briefRes = await toolScaffoldBrief({ task_id: taskId, project, mode, approval: args["approval"] }, ctx);
-  if (briefRes.isError) return briefRes;
-  return {
-    payload: {
-      status: "intake_complete",
-      task_id: taskId,
-      project,
-      mode,
-      brief: briefRes.payload,
-    },
-    isError: false,
-  };
-}
+// Lifecycle primitives live in ./tools/lifecycle.ts (slice 14, task-8pqjb).
+// Imported for the TOOLS registry below and re-exported, public as before.
+import {
+  toolTaskIntake,
+  toolWorktreeAllocate,
+  toolLifecycleDrive,
+  toolReviewGate,
+  toolReconcileUpstream,
+} from "./tools/lifecycle.js";
+export {
+  toolTaskIntake,
+  toolWorktreeAllocate,
+  toolLifecycleDrive,
+  toolReviewGate,
+  toolReconcileUpstream,
+};
 
-export async function toolWorktreeAllocate(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const taskId = args["task_id"];
-  const project = args["project"];
-  if (!validId(taskId)) {
-    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
-  }
-  if (!validProject(project)) {
-    return { payload: { error: "invalid project", expect: "bare name or projects/<name>" }, isError: true };
-  }
-  const wtPath = path.resolve(ctx.stateDir, "worktrees", taskId as string);
-  try {
-    fs.mkdirSync(wtPath, { recursive: true });
-    return {
-      payload: {
-        status: "allocated",
-        task_id: taskId,
-        worktree_path: wtPath,
-      },
-      isError: false,
-    };
-  } catch (err) {
-    return { payload: { error: "failed to allocate worktree", detail: String(err) }, isError: true };
-  }
-}
-
-export async function toolLifecycleDrive(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const taskId = args["task_id"];
-  const project = args["project"];
-  const mode = (args["mode"] as (typeof MODES)[number]) || "no-mistakes";
-  const yolo = (args["yolo"] as "on" | "off") || "off";
-  if (!validId(taskId)) {
-    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
-  }
-  if (!validProject(project)) {
-    return { payload: { error: "invalid project", expect: "bare name or projects/<name>" }, isError: true };
-  }
-  const spawnRes = await toolSpawnCrew({ task_id: taskId, project, mode, yolo, approval: args["approval"] }, ctx);
-  if (spawnRes.isError) return spawnRes;
-  const stateRes = await toolCrewState({ id: taskId }, ctx);
-  return {
-    payload: {
-      status: "lifecycle_driven",
-      task_id: taskId,
-      spawn: spawnRes.payload,
-      current_state: stateRes.payload,
-    },
-    isError: false,
-  };
-}
-
-export async function toolReviewGate(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const taskId = args["task_id"];
-  const verdict = args["verdict"] as (typeof VERDICTS)[number];
-  const comment = args["comment"] as string | undefined;
-  if (!validId(taskId)) {
-    return { payload: { error: "invalid task_id", expect: "short slug, no slashes" }, isError: true };
-  }
-  if (!VERDICTS.includes(verdict)) {
-    return { payload: { error: "invalid verdict", expect: `must be one of ${VERDICTS.join(", ")}` }, isError: true };
-  }
-  const diffRes = await toolReviewDiff({ id: taskId, stat: true }, ctx);
-  if (diffRes.isError) return diffRes;
-  const decRes = await toolReviewDecision({ id: taskId, verdict, comment, approval: args["approval"] }, ctx);
-  if (decRes.isError) return decRes;
-  return {
-    payload: {
-      status: "review_gate_passed",
-      task_id: taskId,
-      verdict,
-      diff: diffRes.payload,
-      decision: decRes.payload,
-    },
-    isError: false,
-  };
-}
-
-export async function toolReconcileUpstream(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const cmd = ["python3", path.join(ctx.binDir, "..", "drift", "shift.py"), "--format", "json"];
-  return ownedCall(cmd, "reconcile_upstream", ctx.run);
-}
-
-export async function toolGrantMint(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const auth = await requireAuth("grant_mint", args, ctx);
-  if (!auth.ok) return auth.result;
-
-  const grantee = args["grantee"];
-  if (typeof grantee !== "string" || !grantee.trim() || grantee.length > 64) {
-    return {
-      payload: { error: "invalid grantee", expect: "non-empty string, max 64 chars" },
-      isError: true,
-    };
-  }
-
-  const tierLimit = args["tier_limit"] !== undefined ? Number(args["tier_limit"]) : 3;
-  if (!Number.isInteger(tierLimit) || tierLimit < 1 || tierLimit > 4) {
-    return {
-      payload: { error: "invalid tier_limit", expect: "integer between 1 and 4" },
-      isError: true,
-    };
-  }
-
-  let tools: string[] | null = null;
-  if (args["tools"] !== undefined && args["tools"] !== null) {
-    if (!Array.isArray(args["tools"])) {
-      return {
-        payload: { error: "invalid tools", expect: "array of tool name strings or null" },
-        isError: true,
-      };
-    }
-    tools = [];
-    for (const t of args["tools"]) {
-      if (typeof t !== "string" || !t.trim()) {
-        return {
-          payload: { error: "invalid tools", expect: "array of tool name strings" },
-          isError: true,
-        };
-      }
-      const trimmed = t.trim();
-      if (trimmed === "*") {
-        tools.push("*");
-        continue;
-      }
-      if (tierOf(trimmed) === TIER_FORBIDDEN || (FORBIDDEN_TOOLS as readonly string[]).includes(trimmed)) {
-        return {
-          payload: { error: "cannot grant forbidden tool", tool: trimmed },
-          isError: true,
-        };
-      }
-      tools.push(trimmed);
-    }
-  }
-
-  let projects: string[] | null = null;
-  if (args["projects"] !== undefined && args["projects"] !== null) {
-    if (!Array.isArray(args["projects"])) {
-      return {
-        payload: { error: "invalid projects", expect: "array of project strings or null" },
-        isError: true,
-      };
-    }
-    projects = [];
-    for (const p of args["projects"]) {
-      if (typeof p !== "string" || !validProject(p)) {
-        return {
-          payload: { error: "invalid projects", expect: "array of valid project names" },
-          isError: true,
-        };
-      }
-      projects.push(p);
-    }
-  }
-
-  let ttlS = 3600;
-  if (args["ttl_s"] !== undefined && args["ttl_s"] !== null) {
-    const parsed = Number(args["ttl_s"]);
-    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 2592000) {
-      return {
-        payload: { error: "invalid ttl_s", expect: "integer between 1 and 2592000 seconds (max 30 days)" },
-        isError: true,
-      };
-    }
-    ttlS = parsed;
-  }
-
-  let maxUses: number | null = null;
-  if (args["max_uses"] !== undefined && args["max_uses"] !== null) {
-    const parsed = Number(args["max_uses"]);
-    if (!Number.isInteger(parsed) || parsed < 1) {
-      return {
-        payload: { error: "invalid max_uses", expect: "positive integer" },
-        isError: true,
-      };
-    }
-    maxUses = parsed;
-  }
-
-  let note: string | null = null;
-  if (args["note"] !== undefined && args["note"] !== null) {
-    if (!validNote(args["note"], 200)) {
-      return {
-        payload: { error: "invalid note", expect: "single line, 1..200 chars" },
-        isError: true,
-      };
-    }
-    note = args["note"] as string;
-  }
-
-  const issuer = (typeof args["issuer"] === "string" && args["issuer"].trim()) ? args["issuer"].trim() : "captain";
-
-  const result = mintGrant(
-    {
-      issuer,
-      grantee: grantee.trim(),
-      tier_limit: tierLimit as GrantTier,
-      tools,
-      projects,
-      ttl_s: ttlS,
-      max_uses: maxUses,
-      note,
-    },
-    ctx,
-  );
-
-  return { payload: result as unknown as Record<string, unknown>, isError: false };
-}
-
-export async function toolGrantRevoke(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const auth = await requireAuth("grant_revoke", args, ctx);
-  if (!auth.ok) return auth.result;
-
-  const grantId = args["grant_id"];
-  if (typeof grantId !== "string" || !grantId.trim()) {
-    return {
-      payload: { error: "invalid grant_id", expect: "non-empty grant ID or grant_ref" },
-      isError: true,
-    };
-  }
-
-  let reason: string | null = null;
-  if (args["reason"] !== undefined && args["reason"] !== null) {
-    if (!validNote(args["reason"], 200)) {
-      return {
-        payload: { error: "invalid reason", expect: "single line, 1..200 chars" },
-        isError: true,
-      };
-    }
-    reason = args["reason"] as string;
-  }
-
-  const res = revokeGrant(grantId.trim(), reason, ctx);
-  if ("error" in res) {
-    return { payload: res, isError: true };
-  }
-  return { payload: res, isError: false };
-}
-
-export async function toolGrantStatus(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const grantId = typeof args["grant_id"] === "string" && args["grant_id"].trim() ? args["grant_id"].trim() : null;
-  const grantee = typeof args["grantee"] === "string" && args["grantee"].trim() ? args["grantee"].trim() : null;
-  const res = getGrantStatus(grantId, grantee, ctx);
-  if ("error" in res) {
-    return { payload: res, isError: true };
-  }
-  return { payload: res, isError: false };
-}
+// Standing-grant mint/revoke/status live in ./tools/grant-tools.ts (slice 14, task-8pqjb).
+// Imported for the TOOLS registry below and re-exported, public as before.
+import {
+  toolGrantMint,
+  toolGrantRevoke,
+  toolGrantStatus,
+} from "./tools/grant-tools.js";
+export {
+  toolGrantMint,
+  toolGrantRevoke,
+  toolGrantStatus,
+};
 
 export const TOOLS: Record<string, ToolDef> = {
   fleet_snapshot: {
