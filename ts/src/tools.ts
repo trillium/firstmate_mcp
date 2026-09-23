@@ -2004,7 +2004,7 @@ async function toolDecisionHold(args: ToolArgs, ctx: ToolContext): Promise<ToolR
 }
 
 let tmpCounter = 0;
-function writeTempFile(content: string): string {
+export function writeTempFile(content: string): string {
   tmpCounter += 1;
   const tmp = path.join(
     os.tmpdir(),
@@ -2014,7 +2014,7 @@ function writeTempFile(content: string): string {
   return tmp;
 }
 
-function removeTempFile(tmp: string): void {
+export function removeTempFile(tmp: string): void {
   try {
     fs.unlinkSync(tmp);
   } catch {
@@ -2600,79 +2600,13 @@ async function toolDecisionDiverged(_args: ToolArgs, ctx: ToolContext): Promise<
   }
   return { payload, isError: true };
 }
-
-async function toolRelayReply(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const requestId = args["request_id"];
-  const text = args["text"];
-  if (!validId(requestId)) {
-    return {
-      payload: { error: "invalid request_id", expect: "short slug, no slashes or traversal" },
-      isError: true,
-    };
-  }
-  if (typeof text !== "string" || text.length < 1 || text.length > 2000) {
-    return { payload: { error: "invalid text", expect: "1..2000 chars" }, isError: true };
-  }
-  const auth = await requireAuth("relay_reply", args, ctx);
-  if (!auth.ok) return auth.result;
-  const { payload, isError } = await ownedCall(
-    argv(path.join(ctx.binDir, "fm-x-reply.sh"), requestId as string, text),
-    "relay reply refused or failed",
-    ctx.run,
-  );
-  if (!isError) return { payload: { ...payload, request_id: requestId }, isError: false };
-  return { payload, isError: true };
-}
-
-async function toolRelayDismiss(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const requestId = args["request_id"];
-  if (!validId(requestId)) {
-    return {
-      payload: { error: "invalid request_id", expect: "short slug, no slashes or traversal" },
-      isError: true,
-    };
-  }
-  const auth = await requireAuth("relay_dismiss", args, ctx);
-  if (!auth.ok) return auth.result;
-  const { payload, isError } = await ownedCall(
-    argv(path.join(ctx.binDir, "fm-x-dismiss.sh"), requestId as string),
-    "relay dismiss refused or failed",
-    ctx.run,
-  );
-  if (!isError) return { payload: { ...payload, request_id: requestId }, isError: false };
-  return { payload, isError: true };
-}
-
-async function toolRelayFollowup(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const taskId = args["task_id"];
-  const text = args["text"];
-  const final = args["final"] ?? false;
-  if (!validId(taskId)) {
-    return {
-      payload: { error: "invalid task_id", expect: "short task id, no slashes or traversal" },
-      isError: true,
-    };
-  }
-  if (typeof text !== "string" || text.length < 1 || text.length > 2000) {
-    return { payload: { error: "invalid text", expect: "1..2000 chars" }, isError: true };
-  }
-  if (typeof final !== "boolean") {
-    return { payload: { error: "invalid final", expect: "boolean" }, isError: true };
-  }
-  const auth = await requireAuth("relay_followup", args, ctx);
-  if (!auth.ok) return auth.result;
-  const tmp = writeTempFile(text);
-  try {
-    const cmd = argv(path.join(ctx.binDir, "fm-x-followup.sh"), taskId as string, "--text-file", tmp);
-    if (final) cmd.push("--final");
-    const { payload, isError } = await ownedCall(cmd, "relay followup refused or failed", ctx.run);
-    if (!isError) return { payload: { ...payload, task_id: taskId }, isError: false };
-    return { payload, isError: true };
-  } finally {
-    removeTempFile(tmp);
-  }
-}
-
+// Relay handlers live in ./tools/relay.ts (slice 5, task-8pqjb).
+// Imported for the TOOLS registry below; module-private as before.
+import {
+  toolRelayReply,
+  toolRelayDismiss,
+  toolRelayFollowup,
+} from "./tools/relay.js";
 // --- CHANGED: secondmate / remote authority writes (Tier 3, approval) ---
 
 async function toolSecondmateNudge(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
