@@ -7,7 +7,7 @@
 import path from "node:path";
 import { approvalError } from "../grants.js";
 import { ownedCall } from "../runner.js";
-import { confineHomePath } from "../tools.js";
+import { confineHomePath } from "./paths.js";
 import { validApproval, validId, validRelpath } from "../validators.js";
 import type { ToolArgs, ToolContext, ToolResult } from "../tools.js";
 

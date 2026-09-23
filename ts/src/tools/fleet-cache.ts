@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { SNAPSHOT_DIRNAME, SNAPSHOT_TTL_S } from "../constants.js";
-import { utcNow } from "../tools.js";
+import { utcNow } from "./receipts.js";
 import { validId } from "../validators.js";
 import type { ToolArgs, ToolContext, ToolResult } from "../tools.js";
 

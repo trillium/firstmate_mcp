@@ -8,13 +8,9 @@
 import path from "node:path";
 import { requireAuth } from "../grants.js";
 import { ownedCall } from "../runner.js";
-import {
-  argv,
-  isReleaseAuthorized,
-  removeTempFile,
-  sha256Text,
-  writeTempFile,
-} from "../tools.js";
+import { argv } from "../tools.js";
+import { isReleaseAuthorized } from "../grants.js";
+import { removeTempFile, sha256Text, writeTempFile } from "./tempfiles.js";
 import { validId } from "../validators.js";
 import type { ToolArgs, ToolContext, ToolResult } from "../tools.js";
 

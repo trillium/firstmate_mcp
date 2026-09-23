@@ -12,7 +12,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isRunResult, ownedCall, truncate } from "../runner.js";
-import { argv, confineHomePath, homeRoot } from "../tools.js";
+import { argv } from "../tools.js";
+import { confineHomePath, homeRoot } from "./paths.js";
 import {
   validIsolationPool,
   validProbe,

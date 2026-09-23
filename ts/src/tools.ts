@@ -349,147 +349,8 @@ import {
   toolDecisionHold,
 } from "./tools/decisions-hold.js";
 
-let tmpCounter = 0;
-export function writeTempFile(content: string): string {
-  tmpCounter += 1;
-  const tmp = path.join(
-    os.tmpdir(),
-    `fm-mcp-ts-${process.pid}-${Date.now()}-${tmpCounter}.md`,
-  );
-  fs.writeFileSync(tmp, content, "utf8");
-  return tmp;
-}
-
-export function removeTempFile(tmp: string): void {
-  try {
-    fs.unlinkSync(tmp);
-  } catch {
-    /* best effort */
-  }
-}
-
-/** Compute SHA-256 hex digest for decision text. */
-export function sha256Text(text: string): string {
-  return createHash("sha256").update(text, "utf8").digest("hex");
-}
 
 /** Check if deploy-level release grant is enabled via FM_RELEASE_GRANT. */
-export function isReleaseGrantEnabled(): boolean {
-  const grant = process.env.FM_RELEASE_GRANT;
-  if (!grant) return false;
-  const normalized = grant.trim().toLowerCase();
-  return (
-    normalized === "1" ||
-    normalized === "true" ||
-    normalized === "on" ||
-    normalized === "yes" ||
-    normalized === "all" ||
-    normalized === "enable" ||
-    normalized === "enabled"
-  );
-}
-
-/**
- * Determine if release of a hold is authorized under the SAFETY CORE:
- * Default scope permits releasing ONLY holds the calling agent opened itself.
- * Captain-opened or third-party holds refuse unless explicit deploy release grant is ON.
- */
-export async function isReleaseAuthorized(
-  callerActor: string,
-  originId: string | undefined,
-  taskId: string | undefined,
-  ctx: ToolContext,
-): Promise<{ authorized: boolean; reason?: string; author?: string | null }> {
-  if (isReleaseGrantEnabled()) {
-    return { authorized: true, author: "(grant-enabled)" };
-  }
-
-  // If originId was provided explicitly:
-  if (originId) {
-    if (callerActor === originId) {
-      return { authorized: true, author: originId };
-    }
-    return {
-      authorized: false,
-      author: originId,
-      reason: `release refused: caller '${callerActor}' did not author hold for origin '${originId}' (default scope permits self-holds only; captain-opened or third-party holds require FM_RELEASE_GRANT=1)`,
-    };
-  }
-
-  // If taskId was provided:
-  if (taskId) {
-    // Check if taskId matches <origin>-decision-<key> format:
-    const match = taskId.match(/^([a-zA-Z0-9._-]+)-decision-[a-zA-Z0-9._-]+$/);
-    if (match) {
-      const author = match[1];
-      if (callerActor === author) {
-        return { authorized: true, author };
-      }
-      return {
-        authorized: false,
-        author,
-        reason: `release refused: caller '${callerActor}' did not author hold '${taskId}' (authored by '${author}'; default scope permits self-holds only; captain-opened or third-party holds require FM_RELEASE_GRANT=1)`,
-      };
-    }
-
-    // Otherwise check if task metadata or task body carries Origin: <origin>
-    // 1. Check if state/<taskId>.meta has origin=
-    const metaPath = path.join(ctx.stateDir, `${taskId}.meta`);
-    try {
-      if (fs.existsSync(metaPath)) {
-        const content = fs.readFileSync(metaPath, "utf8");
-        const originMatch = content.match(/^origin=([a-zA-Z0-9._-]+)/m);
-        if (originMatch) {
-          const author = originMatch[1];
-          if (callerActor === author) {
-            return { authorized: true, author };
-          }
-          return {
-            authorized: false,
-            author,
-            reason: `release refused: caller '${callerActor}' did not author hold '${taskId}' (authored by '${author}'; default scope permits self-holds only; captain-opened or third-party holds require FM_RELEASE_GRANT=1)`,
-          };
-        }
-      }
-    } catch {
-      /* ignore file read error, fall through to task check */
-    }
-
-    // 2. Query task show
-    try {
-      const res = await ctx.run(argv(path.join(ctx.binDir, "fm-tasks-axi.sh"), "show", taskId, "--full"));
-      if (isRunResult(res) && res.exitCode === 0) {
-        const bodyMatch = res.stdout.match(/Origin:\s*([a-zA-Z0-9._-]+)/);
-        if (bodyMatch) {
-          const author = bodyMatch[1];
-          if (callerActor === author) {
-            return { authorized: true, author };
-          }
-          return {
-            authorized: false,
-            author,
-            reason: `release refused: caller '${callerActor}' did not author hold '${taskId}' (authored by '${author}'; default scope permits self-holds only; captain-opened or third-party holds require FM_RELEASE_GRANT=1)`,
-          };
-        }
-      }
-    } catch {
-      /* task query failed */
-    }
-
-    // No origin found -> captain-opened hold
-    return {
-      authorized: false,
-      author: null,
-      reason: `release refused: captain-opened hold '${taskId}' cannot be released by caller '${callerActor}' (default scope permits self-holds only; captain-opened holds require FM_RELEASE_GRANT=1)`,
-    };
-  }
-
-  return {
-    authorized: false,
-    author: null,
-    reason: "release refused: cannot determine hold authorship (origin_id or task id required)",
-  };
-}
 
 // Decision resolve/release live in ./tools/decisions-release.ts (slice 7, task-8pqjb).
 // Imported for the TOOLS registry below; module-private as before.
@@ -558,22 +419,15 @@ import {
 } from "./tools/testlists.js";
 // Test-run execution lives in ./tools/testrun.ts (slice 15, task-8pqjb).
 // Imported for the TOOLS registry below and re-exported, public as before.
-import {
-  toolTestRun,
-} from "./tools/testrun.js";
 export {
   toolTestRun,
-};
+} from "./tools/testrun.js";
 // Doctor read + contract resolution live in ./tools/doctor.ts (slice 15, task-8pqjb).
 // Imported for the TOOLS registry below and re-exported, public as before.
-import {
+export {
   toolDoctor,
   missingContractScript,
 } from "./tools/doctor.js";
-export {
-  toolDoctor,
-  missingContractScript,
-};
 import {
   classifyCall,
   toolPrState,
@@ -596,22 +450,16 @@ import {
 
 // Denied-by-design handlers live in ./tools/denied.ts (slice 13, task-8pqjb).
 // Imported for the TOOLS registry below; re-exported, public as before.
-import {
-  toolPublicFollowupEmit,
-  toolRelayLink,
-  toolFleetSync,
-  toolInactiveReconcile,
-} from "./tools/denied.js";
 export {
   toolPublicFollowupEmit,
   toolRelayLink,
   toolFleetSync,
   toolInactiveReconcile,
-};
+} from "./tools/denied.js";
 
 // Task-store reads + backlog receive/dispatch/nudge live in ./tools/tasks.ts (slice 13, task-8pqjb).
 // Imported for the TOOLS registry below; re-exported, public as before.
-import {
+export {
   toolTasksList,
   toolTasksShow,
   toolTasksReady,
@@ -619,14 +467,6 @@ import {
   toolDispatchResolve,
   toolSessionstartNudge,
 } from "./tools/tasks.js";
-export {
-  toolTasksList,
-  toolTasksShow,
-  toolTasksReady,
-  toolBacklogReceive,
-  toolDispatchResolve,
-  toolSessionstartNudge,
-};
 // --- Sessions gap area: denied-by-design lifecycle verbs ---
 //
 // Every verb below spawns, launches, trusts, cleans up, arms, or switches a
@@ -637,35 +477,19 @@ export {
 // under backend_select (see scripts/gen_coverage.py DENY_ALSO) rather than
 // behind an invented no-op invocation.
 
-export function homeRoot(ctx: ToolContext): string {
-  return path.resolve(ctx.stateDir, "..");
-}
-
-export function confineHomePath(ctx: ToolContext, relPath: string): string | null {
-  const home = homeRoot(ctx);
-  const resolved = path.resolve(home, relPath);
-  if (resolved !== home && resolved.startsWith(home + path.sep)) return resolved;
-  return null;
-}
 
 // Session start/run/cursor + lab live in ./tools/session-start.ts (slice 14, task-8pqjb).
 // Imported for the TOOLS registry below and re-exported, public as before.
-import {
-  toolSessionStart,
-  toolSessionstartRun,
-  toolSessionstartCursor,
-  toolHerdrLab,
-} from "./tools/session-start.js";
 export {
   toolSessionStart,
   toolSessionstartRun,
   toolSessionstartCursor,
   toolHerdrLab,
-};
+} from "./tools/session-start.js";
 
 // Herdr cleanup/trust/event/workspace live in ./tools/herdr-trust.ts (slice 14, task-8pqjb).
 // Imported for the TOOLS registry below and re-exported, public as before.
-import {
+export {
   toolHerdrCiCleanup,
   toolSessionCleanup,
   toolClaudeTrust,
@@ -674,20 +498,11 @@ import {
   toolHerdrEventwait,
   toolHerdrWorkspaceMove,
 } from "./tools/herdr-trust.js";
-export {
-  toolHerdrCiCleanup,
-  toolSessionCleanup,
-  toolClaudeTrust,
-  toolAgyTrust,
-  toolClaudeStopAutoarm,
-  toolHerdrEventwait,
-  toolHerdrWorkspaceMove,
-};
 
 // Landing-chain handlers live in ./tools/landing.ts (slice 2, task-8pqjb).
 // Imported for the TOOLS registry below and re-exported so the ./tools.js
 // public surface is unchanged.
-import {
+export {
   toolPromoteScout,
   toolTeardownCrew,
   toolArmPrCheck,
@@ -699,22 +514,10 @@ import {
   toolRepoMerge,
   toolPrOpen,
 } from "./tools/landing.js";
-export {
-  toolPromoteScout,
-  toolTeardownCrew,
-  toolArmPrCheck,
-  toolMergePr,
-  toolMergeLocal,
-  toolRepoEdit,
-  toolRepoCommit,
-  toolRepoPush,
-  toolRepoMerge,
-  toolPrOpen,
-};
 // Daemon & watch handlers live in ./tools/daemon.ts (slice 1, task-8pqjb).
 // Imported for the TOOLS registry below and re-exported so the ./tools.js
 // public surface is unchanged.
-import {
+export {
   toolDaemonRestart,
   toolDaemonStart,
   toolDaemonStatus,
@@ -722,44 +525,24 @@ import {
   toolWatchStart,
   toolWatchStop,
 } from "./tools/daemon.js";
-export {
-  toolDaemonRestart,
-  toolDaemonStart,
-  toolDaemonStatus,
-  toolDaemonStop,
-  toolWatchStart,
-  toolWatchStop,
-};
 
 // Lifecycle primitives live in ./tools/lifecycle.ts (slice 14, task-8pqjb).
 // Imported for the TOOLS registry below and re-exported, public as before.
-import {
+export {
   toolTaskIntake,
   toolWorktreeAllocate,
   toolLifecycleDrive,
   toolReviewGate,
   toolReconcileUpstream,
 } from "./tools/lifecycle.js";
-export {
-  toolTaskIntake,
-  toolWorktreeAllocate,
-  toolLifecycleDrive,
-  toolReviewGate,
-  toolReconcileUpstream,
-};
 
 // Standing-grant mint/revoke/status live in ./tools/grant-tools.ts (slice 14, task-8pqjb).
 // Imported for the TOOLS registry below and re-exported, public as before.
-import {
+export {
   toolGrantMint,
   toolGrantRevoke,
   toolGrantStatus,
 } from "./tools/grant-tools.js";
-export {
-  toolGrantMint,
-  toolGrantRevoke,
-  toolGrantStatus,
-};
 
 // Canonical registry lives in ./tools/registry/index.ts (slice 16, task-8pqjb).
 // Re-exported here so the ./tools.js public surface is unchanged.
