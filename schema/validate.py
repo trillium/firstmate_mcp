@@ -96,6 +96,8 @@ CURRENT_PINS = {
     "beads_mirror": "fm-beads.mirror.v1",
     "beads_queue": "fm-beads.queue.v1",
     "ledger_list": "fm-ledger.list.v1",
+    "reap_triage": "fm-agent-axi.v1",
+    "coderabbit_state": "fm-coderabbit.v1",
     "grant_status": "mcp-grant.v1",
     "public_followup_pending": "fm-public-followup.pending.v1",
     "public_followup_collect": "fm-public-followup-collect.drain.v1",

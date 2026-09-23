@@ -1289,3 +1289,35 @@ contracts:
       header: bin/fm-ledger.sh:1-40
       doc: docs/BEADS-STORE-CONTRACT.md
     notes: "Read-only surface only; --close/--close-all stay out (authority writes). stale-days doorway-bounded 1..30."
+  - name: reap_triage
+    command: bin/fm-agent-axi.sh
+    flags: ["--json"]
+    output:
+      format: json
+      schema_id: fm-agent-axi.v1
+      fields: ["panes", "classification"]
+    exits:
+      zero: per-pane signals plus SAFE-TO-REAP/HOLD-* classification; probes fail toward HOLD, never toward safe
+      nonzero: usage error or unreadable surface; stderr carries the reason
+    stability: stable
+    pinned: fm-agent-axi.v1
+    evidence:
+      header: bin/fm-agent-axi.sh:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Read-only by construction; no reap verb exists in the layer. Liveness is a live child process, never the UI status string."
+  - name: coderabbit_state
+    command: bin/fm-coderabbit-review-state.sh
+    flags: ["<owner>", "<repo>", "<pr>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["verdict"]
+    exits:
+      zero: one verdict word (reviewed, rate-limited, pending, absent)
+      nonzero: usage error (2) or unqueryable forge (3, reported as unknown, never as reviewed)
+    stability: stable
+    pinned: fm-coderabbit.v1
+    evidence:
+      header: bin/fm-coderabbit-review-state.sh:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Reads the reviews list, never the status check; a green check is not evidence of a review."

@@ -145,7 +145,7 @@ COMMAND_AREAS = {
     "fm-herdr-lab.sh": ("sessions", "isolated Herdr lab sessions"),
     "fm-herdr-ci-cleanup.sh": ("sessions", "CI session cleanup"),
     "fm-herdr-session-cleanup.sh": ("sessions", "session cleanup"),
-    "fm-herdr-spur.sh": ("sessions", "agent watch spur; removed upstream since pin"),
+    "fm-herdr-spur.sh": ("sessions", "external-agent finish bridge into the shared wake queue"),
     "fm-isolated-launch.sh": ("sessions", "isolated CLI launch; removed upstream since pin"),
     "fm-spawn.sh": ("sessions", "spawn one direct report under contract"),
     "fm-devin-config.sh": ("sessions", "per-worker Devin config writer (persona isolation); new since pin"),
@@ -298,6 +298,7 @@ DENY_REASONS = {
     "inherit_push": ("fm-remote-inherit-push.sh", "pushing inherited material writes into a remote home over SSH; only bootstrap and config-push convergence own inherited pushes"),
     "remote_inherit": ("fm-remote-inherit.sh", "the inherit apply path atomically replaces files and quarantines divergent records inside a home; only the remote entrypoint's propagation run owns inherit writes"),
     "reap_orphans": ("fm-remote-job-reap-orphans.sh", "reaping signals TERM then KILL across worker process trees; only the launch supervisor owns worker lifecycle"),
+    "herdr_spur": ("fm-herdr-spur.sh", "bridging external-agent finishes into the shared wake queue drives supervision continuity and blocks on a live event stream; only the watcher owns wake production"),
     "remote_worker": ("fm-remote-job-worker.sh", "the worker claims staged records and executes tracked commands as a daemon; only the LaunchAgent and restart supervisor own worker lifecycle"),
     "bootstrap": ("fm-bootstrap.sh", "running the home bootstrap refreshes and prunes fleet checkouts, nudges secondmates, and respawns agents; only session start owns bootstrap sweeps"),
     "check_register": ("fm-check-register.sh", "registering a custom watcher check writes its trust binding into state; only the watcher owner that staged the check file owns registration"),
@@ -493,11 +494,16 @@ def classify(upstream_root=UPSTREAM_BIN, spine_path=None):
         tools = mirror_tools.pop(cmd, [])
         denies = deny_cmd.get(cmd, [])
         if spine.get(cmd) in ("A", "U"):
-            status = "fork"
             removed = False
             note = re.sub(r"[; ]*removed upstream since pin[; ]*", "", note).strip("; ")
             note = ("fork extension (present in trillium/firstmate, absent upstream)"
                      + (": " + note if note else ""))
+            if denies:
+                # Denial is operative, fork origin is provenance: a denied
+                # fork extension renders denied-by-design, never as a gap.
+                status = "denied"
+            else:
+                status = "fork"
         else:
             status = "mirrored-stale" if tools else ("denied" if denies else "gap")
             removed = True

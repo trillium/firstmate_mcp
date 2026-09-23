@@ -174,7 +174,7 @@ describe("expanded surface: 66 tools", () => {
     "teardown_crew", "arm_pr_check", "merge_pr", "merge_local",
     "public_followup_emit", "relay_link", "fleet_sync", "inactive_reconcile",
     "backlog_receive", "repo_merge", "daemon_start", "daemon_stop",
-    "daemon_restart", "watch_start", "watch_stop",
+    "daemon_restart", "watch_start", "watch_stop", "herdr_spur",
   ];
 
   it("server lists every callable tool and no forbidden one", async () => {

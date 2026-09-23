@@ -131,3 +131,12 @@ export async function toolLeaseCheck(args: ToolArgs, ctx: ToolContext): Promise<
     isError: true,
   };
 }
+
+// Refused stub: herdr_spur is code-forbidden (TIER_FORBIDDEN). The
+// authorization gate refuses it before this body ever runs; the body
+// exists so the name resolves in TOOLS and refuses as forbidden,
+// never as unknown.
+export async function toolHerdrSpur(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  void ctx;
+  return { payload: { error: "forbidden" }, isError: true };
+}

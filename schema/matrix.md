@@ -83,7 +83,9 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | beads_is_closed | bin/fm-tasks-axi-lib.sh | stable | fm_beads_status, fm_beads_is_closed | bounded single-bead status + closed predicate |
 | beads_mirror | file: state/.beads-mirror-<view>.json | stable | <view> | durability mirror read with freshness age |
 | beads_queue | file: state/.beads-write-queue |
-| ledger_list | bin/fm-ledger.sh | stable | --json, --stale-days | leaked-bead safety-net read (no close verbs) | stable | (none) | write-queue count + oldest without argv |
+| ledger_list | bin/fm-ledger.sh | stable | --json, --stale-days | leaked-bead safety-net read (no close verbs) |
+| reap_triage | bin/fm-agent-axi.sh | stable | --json | fail-closed reap triage (no reap verb exists) |
+| coderabbit_state | bin/fm-coderabbit-review-state.sh | stable | <owner>, <repo>, <pr> | reviews-list verdict (never the status check) | stable | (none) | write-queue count + oldest without argv |
 
 ## How to use this view
 

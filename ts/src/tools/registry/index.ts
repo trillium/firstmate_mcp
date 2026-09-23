@@ -23,6 +23,7 @@ import { MixedRegistry } from "./mixed.js";
 import { LandingDaemonRegistry } from "./landing-daemon.js";
 import { BeadsRegistry } from "./beads.js";
 import { LifecycleGrantsRegistry } from "./lifecycle-grants.js";
+import { ReapsRegistry } from "./reaps.js";
 
 import type { ToolDef } from "./shared.js";
 
@@ -45,6 +46,7 @@ export const TOOLS: Record<string, ToolDef> = {
   ...LandingDaemonRegistry,
   ...LifecycleGrantsRegistry,
   ...BeadsRegistry,
+  ...ReapsRegistry,
 };
 
 export const TOOL_NAMES: ReadonlySet<string> = new Set(Object.keys(TOOLS));

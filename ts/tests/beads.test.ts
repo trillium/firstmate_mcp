@@ -183,3 +183,45 @@ describe("ledger envelope", () => {
     );
   });
 });
+
+describe("reap triage + forge reads", () => {
+  type RunResult = import("../src/runner.js").RunResult;
+  const stubRun =
+    (stdout: string) =>
+    async (): Promise<RunResult> => ({ stdout, stderr: "", exitCode: 0 });
+
+  function reapCtx(home: string, stdout: string): ToolContext {
+    return {
+      ...liveContext(),
+      binDir: `${home}/bin`,
+      stateDir: `${home}/state`,
+      run: stubRun(stdout),
+    };
+  }
+
+  test("reap triage passes through the owning script JSON", async () => {
+    const home = makeStubHome();
+    const scriptOut = JSON.stringify({ panes: [], classifications: [] });
+    const res = await TOOLS["reap_triage"].handler({}, reapCtx(home, scriptOut));
+    assert.equal(res.isError, false);
+    assert.ok(JSON.stringify(res.payload).includes("classifications"));
+  });
+
+  test("coderabbit state validates owner, repo, and pr", async () => {
+    const home = makeStubHome();
+    const ok = await TOOLS["coderabbit_state"].handler(
+      { owner: "trillium", repo: "firstmate", pr: 67 },
+      reapCtx(home, "reviewed"),
+    );
+    assert.equal(ok.isError, false);
+    for (const args of [
+      { owner: "../x", repo: "firstmate", pr: 67 },
+      { owner: "trillium", repo: "firstmate", pr: 0 },
+      { owner: "trillium", repo: "firstmate", pr: -3 },
+      { owner: "trillium", repo: "firstmate", pr: "x" },
+    ]) {
+      const res = await TOOLS["coderabbit_state"].handler(args, reapCtx(home, "reviewed"));
+      assert.equal(res.isError, true, JSON.stringify(args));
+    }
+  });
+});

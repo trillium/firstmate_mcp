@@ -144,6 +144,11 @@ export const TOOL_TIERS: Record<string, Tier> = {
   grant_mint: TIER_AUTHORITY,
   grant_revoke: TIER_AUTHORITY,
   grant_status: TIER_OPEN,
+  beads_mirror: TIER_OPEN,
+  beads_queue: TIER_OPEN,
+  ledger_list: TIER_OPEN,
+  reap_triage: TIER_OPEN,
+  coderabbit_state: TIER_OPEN,
 };
 
 /**
@@ -217,6 +222,9 @@ export const FORBIDDEN_TOOLS: readonly string[] = [
   "install_treehouse",
   "update",
   "workflow_lint",
+  // External-agent wake bridge: blocks on a live event stream and writes the
+  // shared wake queue; supervision continuity belongs to the watcher alone
+  "herdr_spur",
 ] as const;
 
 export const TIER_NAMES: Record<string, string> = {

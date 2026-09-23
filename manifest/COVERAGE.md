@@ -20,7 +20,7 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | --- | --- | --- | --- | --- |
 | [Fleet runs](#fleet-runs) | 3 | 2 | 1 | 3 |
 | [Supervision](#supervision) | 13 | 23 | 0 | 4 |
-| [Sessions](#sessions) | 6 | 17 | 1 | 2 |
+| [Sessions](#sessions) | 6 | 18 | 1 | 1 |
 | [Backlog / decisions](#backlog-decisions) | 5 | 1 | 0 | 7 |
 | [Secondmates / remotes](#secondmates-remotes) | 8 | 10 | 0 | 2 |
 | [PR pipeline](#pr-pipeline) | 4 | 5 | 0 | 2 |
@@ -28,7 +28,7 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 | 0 |
 | [Installs](#installs) | 10 | 10 | 0 | 3 |
-| **Total** | **65** | **70** | **2** | **23** |
+| **Total** | **65** | **71** | **2** | **22** |
 
 ## Fleet runs
 
@@ -117,7 +117,7 @@ Launching and owning agent sessions: start, harness, backends, spawn, briefs.
 | `fm-herdr-ci-cleanup.sh` | denied-by-design — `herdr_ci_cleanup` | CI session cleanup. stopping and deleting lab sessions is destructive even when scoped; only CI teardown owns it |
 | `fm-herdr-lab.sh` | denied-by-design — `herdr_lab` | isolated Herdr lab sessions. provisioning and operating lab sessions drives Herdr session lifecycle; only explicitly authorized lab work owns lab sessions |
 | `fm-herdr-session-cleanup.sh` | denied-by-design — `session_cleanup` | session cleanup. closing panes at session start mutates live presentation state; only the lock-owning session start owns cleanup |
-| `fm-herdr-spur.sh` | fork extension | fork extension (present in trillium/firstmate, absent upstream): agent watch spur |
+| `fm-herdr-spur.sh` | denied-by-design — `herdr_spur` | fork extension (present in trillium/firstmate, absent upstream): external-agent finish bridge into the shared wake queue. bridging external-agent finishes into the shared wake queue drives supervision continuity and blocks on a live event stream; only the watcher owns wake production |
 | `fm-isolated-launch.sh` | fork extension | fork extension (present in trillium/firstmate, absent upstream): isolated CLI launch |
 | `fm-project-mode.sh` | mirrored — `project_mode` (ts✔) | registered delivery posture (mode + yolo) |
 | `fm-session-start.sh` | denied-by-design — `session_start` | session bootstrap. running the session bootstrap acquires the home lock and runs mutating sweeps; only the opening session itself owns bootstrap |

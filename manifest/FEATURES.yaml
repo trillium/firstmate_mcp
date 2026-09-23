@@ -1759,3 +1759,31 @@ features:
       reason: >-
         O(1) mirror/queue reads behind Tier-1 tools; upstream has no bead
         store. Queue keeps one owner; argv never surfaces (project-s00r).
+  - id: agent_axi
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-agent-axi.sh
+    summary: Read-only fail-closed reap triage over the live agent surface with structured JSON envelope.
+    contract: schema/contracts.yaml#reap_triage
+    upstream_test: "ts/tests/conformance-remote.test.ts::remote_doctor matches direct stub"
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-agent-axi.sh\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools/reaps.ts:toolReapTriage"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Live-agent safety classification; upstream has no agent-surface
+        triage. No reap verb exists by design (project-2gvx).
+  - id: coderabbit_state
+    kind: fork
+    fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
+    fork_command: bin/fm-coderabbit-review-state.sh
+    summary: Forge read reporting whether CodeRabbit actually reviewed a PR, with unknown reported as unknown.
+    contract: schema/contracts.yaml#coderabbit_state
+    upstream_test: "ts/tests/conformance-remote.test.ts::remote_doctor matches direct stub"
+    py: {status: implemented, evidence: ["drift/baseline.json:\"fm-coderabbit-review-state.sh\""]}
+    ts: {status: implemented, evidence: ["ts/src/tools/reaps.ts:toolCoderabbitState"]}
+    divergence:
+      status: intentional
+      reason: >-
+        Reviews-list verdict instead of status-check reading; exit 3 stays
+        unknown, never reviewed (project-2gvx).
