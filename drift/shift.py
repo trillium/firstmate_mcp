@@ -183,21 +183,39 @@ def changed_scripts(pinned, upstream):
     )
 
 
+def spine_classes():
+    """Fork classes from the committed spine (project-rkk9/bx3x).
+
+    The spine tracks the OLD pin during --check, so classes describe where
+    each surface stood, not the new tree: a class-D flag means port with
+    awareness of our delta, never auto-merge."""
+    try:
+        data = json.load(open(ROOT / "drift" / "fork-spine.json", encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {r["surface"]: r["class"] for r in data.get("rows", [])}
+
+
 def build_report(pinned, upstream, how, mapping, changed):
     moved = sorted({s for s in changed if s in mapping})
     noise = sorted({s for s in changed if s not in mapping})
+    spine = spine_classes()
+    depended = [
+        {"script": s, "contract": mapping[s],
+         "spine_class": spine.get(s)} for s in moved
+    ]
+    with_delta = sum(1 for e in depended if e["spine_class"] == "D")
     return {
         "pinned": pinned,
         "upstream": upstream,
         "resolved_via": how,
         "shift": pinned != upstream,
-        "depended_on_moved": [
-            {"script": s, "contract": mapping[s]} for s in moved
-        ],
+        "depended_on_moved": depended,
         "other_changed": noise,
         "summary": {
             "depended_on_moved": len(moved),
             "other_changed": len(noise),
+            "moved_with_fork_delta": with_delta,
         },
     }
 
@@ -220,7 +238,15 @@ def to_markdown(rep):
         lines.append("## Depended-on surfaces that moved (port from here)")
         lines.append("")
         for entry in rep["depended_on_moved"]:
-            lines.append(f"- `{entry['script']}` (contract `{entry['contract']}`)")
+            cls = entry.get("spine_class")
+            extra = f" [fork delta, class {cls}]" if cls == "D" else (
+                f" [spine class {cls}]" if cls else "")
+            lines.append(f"- `{entry['script']}` (contract `{entry['contract']}`){extra}")
+        if rep["summary"].get("moved_with_fork_delta"):
+            lines.append("")
+            lines.append(f"Note: {rep['summary']['moved_with_fork_delta']} moved surface(s) "
+                         "carry a fork delta (class D) — port with awareness of the delta, "
+                         "never auto-merge.")
         lines.append("")
     if rep["other_changed"]:
         lines.append("## Other changed scripts (noise unless a pin names them)")

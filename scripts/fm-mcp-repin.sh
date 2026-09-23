@@ -101,16 +101,21 @@ PY
 
 python3 scripts/gen_coverage.py >/dev/null || fail "coverage regeneration failed" 2
 
+# Fork spine follows the pin: re-derive A/B/C/D/U against the new upstream
+# (project-rkk9: recompute every repin, never hand-maintain). Needs the fork
+# checkout, so this lives in the repin engine, not in CI.
+python3 scripts/gen_fork_spine.py >/dev/null || fail "fork spine regeneration failed" 2
+
 # Stage EVERYTHING this cycle wrote. Both provenance files and the regenerated
 # coverage view are updated with plain writes, and leaving one unstaged once put a
 # stale pin on main that its own provenance gate rejected (contracts said the old
 # sha while the manifest said the new one).
-git add sources/firstmate manifest/FEATURES.yaml schema/contracts.yaml manifest/COVERAGE.md \
+git add sources/firstmate manifest/FEATURES.yaml schema/contracts.yaml manifest/COVERAGE.md manifest/CHANGES.md drift/fork-spine.json \
   || fail "could not stage the repin changes" 2
 STAGED="$(git ls-files -s -- sources/firstmate | awk '{print $2}')"
 [ "$STAGED" = "$UPSTREAM" ] || fail "staged gitlink $STAGED does not match upstream $UPSTREAM" 2
 # Guard, not hope: nothing this script wrote may be left unstaged before the gates run.
-leftover="$(git diff --name-only -- sources/firstmate manifest/FEATURES.yaml schema/contracts.yaml manifest/COVERAGE.md)"
+leftover="$(git diff --name-only -- sources/firstmate manifest/FEATURES.yaml schema/contracts.yaml manifest/COVERAGE.md manifest/CHANGES.md drift/fork-spine.json)"
 [ -z "$leftover" ] || fail "repin left unstaged changes: $leftover" 2
 
 if [ "$RUN_GATES" -eq 1 ]; then
@@ -132,6 +137,8 @@ if [ "$RUN_GATES" -eq 1 ]; then
   run_gate "readme lists" python3 scripts/gen_readme_lists.py --check
   run_gate "contract index" python3 scripts/gen_contract_index.py --check
   run_gate "parity report" python3 scripts/gen_parity.py --check
+  run_gate "fork spine" python3 scripts/gen_fork_spine.py --check
+  run_gate "support join" bash tests/fm-support-join.test.sh
   run_gate "test provenance" python3 scripts/test_provenance.py --check
   run_gate "fm-manifest suite" bash tests/fm-manifest.test.sh
   run_gate "fm-coverage suite" bash tests/fm-coverage.test.sh

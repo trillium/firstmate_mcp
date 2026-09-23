@@ -47,7 +47,9 @@ rep = shift.build_report(
     mapping, ["fm-fleet-snapshot.sh", "fm-some-noise.sh"],
 )
 assert rep["shift"] is True
-assert rep["summary"] == {"depended_on_moved": 1, "other_changed": 1}, rep["summary"]
+assert rep["summary"] == {"depended_on_moved": 1, "other_changed": 1, "moved_with_fork_delta": 1}, rep["summary"]
+# 1, not 0: the fixture script fm-fleet-snapshot.sh genuinely carries a fork
+# delta (spine class D) — the flag it exercises is real, not stubbed.
 md = shift.to_markdown(rep)
 print(md)
 PYEOF
@@ -66,7 +68,7 @@ import drift.shift as shift
 mapping = shift.depended_on_commands()
 rep = shift.build_report("c" * 40, "c" * 40, "test:fake", mapping, [])
 assert rep["shift"] is False
-assert rep["summary"] == {"depended_on_moved": 0, "other_changed": 0}, rep["summary"]
+assert rep["summary"] == {"depended_on_moved": 0, "other_changed": 0, "moved_with_fork_delta": 0}, rep["summary"]
 print(shift.to_markdown(rep))
 PYEOF
 ) || fail "no-move report raised"
