@@ -1,0 +1,1655 @@
+{
+  "base_rev": "53ecbc7961ac066461ea3104c713d81d40fb32d6",
+  "fork_rev": "aaf67489ec7644f3bdfd4043ba0c898ab928bcd9",
+  "upstream_rev": "9296f9b9d2566797b9a9aecaa5956bb8e471d2cd",
+  "rows": [
+    {
+      "surface": "backends/herdr-clear-agent-authority.py",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "92edaadd634e",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "claude-1.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "f2ab8fea7b49",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "claude-2.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "0176a10096f7",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "claude-account.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "7ac61444f7bc",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-agent-axi.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "af1255b8de52",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-attended-start.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "6988d8da62a8",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-attended-triage-lib.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "c3afeeec4335",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-backlog-import-beads.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "6ce16157b2d8",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-bead-stamp.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "f95509b6594e",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-beads-remote-backup.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "99d8cf94676c",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-beads-resilience-lib.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "bbc920977e3d",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-brief-hooks.d/beads.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "147169c2b636",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-claim-prompt-lib.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "6b9b0e1b63b5",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-coderabbit-review-state.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "dcac185ca1a4",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-firstturn-lib.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "a999a760c95e",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-fix-no-mistakes-fork-mapping.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "5e187976d7b7",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-fork-origin-check.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "f6ab8d0a8063",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-groom-json-field.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "eefe7e25f4ec",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-groom-lib.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "11229e5f2c7e",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-groom.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "5fe7fe05d829",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-herdr-spur.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "0889995749d9",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-idea-mine.ts",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "a2154b8c4fb8",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-isolated-launch.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "e812ab11df03",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-landed-lib.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "72fde257b393",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-ledger.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "e5c6aa821f77",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-mini1-healthcheck.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "ae9847b8db45",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-nm-run-is-live.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "1b96b3761bf2",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-no-mistakes-liveness.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "a10b557cef5a",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-parlay-lib.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "ca29197e8c33",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-pool-reclaim.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "e3f4c3f002ca",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-project-dir-lib.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "40df4d946f43",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-launch.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "100c7b3a4ae8",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-review-decision.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "b41e451192fa",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-review-page.ts",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "1a10bc9b34b0",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-spawn-hooks.d/beads.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "dc669da15ba5",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-staleness-file.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "a7334a54670d",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-stat-lib.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "9105d859cc79",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-test-affected.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "771416106356",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-triage-log-lib.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "37ec115dcb6e",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-wake-memo.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "72c15866cefe",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-watch-cycle-lib.sh",
+      "class": "A",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "67c4025152fd",
+      "upstream_hash": null,
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-afk-contract.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "152149018f56",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-agent-process-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "aa9812429a6a",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-agy-trust.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "f10a4e0d54a0",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-backlog-transition-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "f54816b22e6d",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-bearings-board.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "5c0ac979d8b4",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-branch-outcome.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "d38478203353",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-branch-prompt.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "c10e99b5d0d2",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-captain-hold.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "d98639cf7523",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-check-unregister.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "2277b28c8405",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-claude-trust.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "3a7975f46710",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-contributions.jq",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "403ee4c2454c",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-contributions.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "34937277dd12",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-cursor-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "4522e864e125",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-devin-config.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "8c87cd30192f",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-dispatch-resolve.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "fedc2216d272",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-dod-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "4b7a7b64fb91",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-env-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "f5236d1f81ac",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-extension-launch-barrier.mjs",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "a928d000ad0a",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-extension.mjs",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "882ecbcd1c20",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-extension.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "81ece53ed786",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-fleet-ledger.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "4b6408618322",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-gemini-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "02ef57ee50b2",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-herdr-lab-viewer.py",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "8632eb9e03e5",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-home-summary-refresh.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "26596900ad97",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-hook-host-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "d4ec4ed6408a",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-inactive-reconcile.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "3f370f6aaa2b",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-inbox.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "9ebd8c2d786c",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-install-actionlint.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "2d58219cb106",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-lease-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "dcb741ccfe31",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-lease.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "01dabbe46af0",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-lint-workflows.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "36d72a619593",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-mail-check.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "abe2a853bfc5",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-mail.py",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "9c75014f1558",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-mail.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "1ca888697d07",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-merge-authority-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "463a294e5277",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-merge-outcome-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "5da19eef3fef",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-parent-channel-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "afcdf1b38ca2",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-pr-reviewers.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "629d4c52fd0c",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-pr-state.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "af9c1522d00d",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-procevent-extension-capture.pl",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "c29845bf2c34",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-procevent-quota.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "19b70e4bfbf8",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-procevent-when.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "c0ad96b3e5ae",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-public-followup-collect.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "62a6182ba299",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-quota-choose.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "3c7e4477e2b6",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-herdr-guard.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "070f97a986a3",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-herdr-owner-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "8a6bdb474f7a",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-secondmate-reconcile.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "d50de8b7742e",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-secondmate-restart-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "a2c665d68418",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-secondmate-restart.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "cfe61860d017",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-sessionstart-cursor.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "787459d1f296",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-task-inbox-lib.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "65053e950751",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-tasks-axi.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "9960f588227d",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-tool-update-check.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "8f4a272843ff",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-turnend-guard-cursor.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "c0b2b047abe7",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-voice-client.py",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "565925970cdc",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-voice-relay.py",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "b9ad739ab303",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-wake-grant.sh",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "2d0a040e7c5a",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm_voice_frame.py",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "3985c20f4988",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm_voice_records.py",
+      "class": "B",
+      "fork_rev": null,
+      "fork_hash": null,
+      "upstream_hash": "3df5eec7b24e",
+      "state": "not-porting"
+    },
+    {
+      "surface": "backends/cmux.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "f24bfdf1c9f2",
+      "upstream_hash": "ed2e7ebd3b44",
+      "state": "not-porting"
+    },
+    {
+      "surface": "backends/herdr.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "762c5ac62262",
+      "upstream_hash": "559811ae68e3",
+      "state": "not-porting"
+    },
+    {
+      "surface": "backends/orca.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "cc41164fbbc7",
+      "upstream_hash": "2bc3b0c31bfe",
+      "state": "not-porting"
+    },
+    {
+      "surface": "backends/tmux.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "e401d9bc2dd9",
+      "upstream_hash": "63efe34aa1d1",
+      "state": "not-porting"
+    },
+    {
+      "surface": "backends/zellij.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "121054214a25",
+      "upstream_hash": "9949964f65d6",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-afk-launch.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "2f50f9b156fe",
+      "upstream_hash": "0b1fd9f3d7b8",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-afk-return.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "fc92e7329be5",
+      "upstream_hash": "7911fb6d1445",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-afk-start.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "b4992c2f9d3c",
+      "upstream_hash": "ff10b49ec9b4",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-arm-pretool-check.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "922ce3f87c7e",
+      "upstream_hash": "f6091a9b15de",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-backend.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "4938355fa100",
+      "upstream_hash": "508007aa6a25",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-backlog-handoff.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "11e9a3eb03ba",
+      "upstream_hash": "0fa0dcdffd23",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-backlog-receive.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "379b56c45e99",
+      "upstream_hash": "75a360670275",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-bearings-snapshot.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "369a9fc11761",
+      "upstream_hash": "251aa2c83fc0",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-bootstrap.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "5a10623693ee",
+      "upstream_hash": "f46fc0aeca6b",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-brief.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "ca56db59f45d",
+      "upstream_hash": "fb8af5840dc2",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-busy-event.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "6ce8fe9f4e4e",
+      "upstream_hash": "11d3c7577ee5",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-busy-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "f2c4cb6f563e",
+      "upstream_hash": "cab28f5bb208",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-cd-pretool-check.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "27a867176c69",
+      "upstream_hash": "5920f565b466",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-check-register.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "45c20d450946",
+      "upstream_hash": "473eafa95c3e",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-classify-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "963e2a3d53c9",
+      "upstream_hash": "9bb7589b42db",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-claude-stop-autoarm.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "11e66b040f59",
+      "upstream_hash": "acec527d012e",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-composer-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "fffe337bed6b",
+      "upstream_hash": "9687feefcac7",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-config-inherit-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "dd9efc65a19d",
+      "upstream_hash": "934a364025da",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-control-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "f78e81a8b1a5",
+      "upstream_hash": "7cc7492982b4",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-control.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "a6d175d8bb48",
+      "upstream_hash": "e73b08266ba2",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-crew-state.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "ac313aa6cb3a",
+      "upstream_hash": "46445a681f08",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-decision-hold.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "287d8e985795",
+      "upstream_hash": "14144c1ad15e",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-doc-audience-check.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "9dd3a2084a59",
+      "upstream_hash": "65c879b1a00c",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-ensure-agents-md.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "e854034be882",
+      "upstream_hash": "e5eb18952862",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-ff-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "696d971a5800",
+      "upstream_hash": "d1792ae1e851",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-fleet-snapshot.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "bb5cafa6294b",
+      "upstream_hash": "efecfccfc213",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-fleet-sync.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "7c0822922acf",
+      "upstream_hash": "429cda83543c",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-fleet-view.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "f72f2032a5e0",
+      "upstream_hash": "2a3ff22b2db0",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-guard.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "fd5d067a7e74",
+      "upstream_hash": "f41d6853542a",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-harness.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "273827a7069c",
+      "upstream_hash": "195f5aa6c173",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-herdr-lab.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "5d0af2133982",
+      "upstream_hash": "3e46927b3222",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-herdr-session-cleanup.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "40c589e0ca55",
+      "upstream_hash": "3ef0f2d5ad34",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-install-shellcheck.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "1aab6fb767b5",
+      "upstream_hash": "a3cdb28bee87",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-lint.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "b39b9b0cef58",
+      "upstream_hash": "32851b16e9e7",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-lock-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "1e80187eb3e2",
+      "upstream_hash": "e8658dc6264d",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-lock.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "c76468790d3b",
+      "upstream_hash": "cf078a56ae99",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-merge-local.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "a2eeb73c620b",
+      "upstream_hash": "35441605c2a8",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-nm-run-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "d4f19e8e851b",
+      "upstream_hash": "3f62cbdb0ad8",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-on.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "b536c5fbc86a",
+      "upstream_hash": "3f8a255ab097",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-operational-input.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "b95e276a5a8b",
+      "upstream_hash": "eb936738ef1c",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-peek.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "264d2305d5d0",
+      "upstream_hash": "42f1e5199e90",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-pending-reply-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "8ff05b3b3ed2",
+      "upstream_hash": "67f664bdc215",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-pr-check.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "7375b87b85b5",
+      "upstream_hash": "68adb0a689ed",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-pr-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "f39b1c50f27d",
+      "upstream_hash": "4cd4dd641a68",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-pr-merge.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "fd5ea2adea48",
+      "upstream_hash": "4d46491db94a",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-pr-poll.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "95f1149842ac",
+      "upstream_hash": "e87aae384ec6",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-procevent-lavish.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "d98e10d38c04",
+      "upstream_hash": "c0ddcef9be6b",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-procevent-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "9b723b9dfa9d",
+      "upstream_hash": "2c4bdfcc6143",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-procevent-remote-reply.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "869814eaa3ea",
+      "upstream_hash": "4246fd38aba4",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-procevent.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "ac680eaac392",
+      "upstream_hash": "33984c586611",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-project-mode.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "60e0f23a7b54",
+      "upstream_hash": "b15e66379ad2",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-promote.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "605667c6326c",
+      "upstream_hash": "090f1d94e6ba",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-public-followup-emit.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "e7caa70439ae",
+      "upstream_hash": "ae684c4e0b69",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-public-followup-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "66fa08156d26",
+      "upstream_hash": "56ecfab51971",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-public-followup.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "d5f53e170dc4",
+      "upstream_hash": "3b8e4cf1219b",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-push-transition-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "8d23908526bf",
+      "upstream_hash": "46edc42cd83c",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-quota-axi-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "e45d80394053",
+      "upstream_hash": "8ab26790a7a3",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-delta-read.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "dbb8a3ff2a4c",
+      "upstream_hash": "64e530ed0180",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-doctor.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "e640610a88e2",
+      "upstream_hash": "78efccd6cb7a",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-entrypoint.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "343b29ada634",
+      "upstream_hash": "7b1a40404f78",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-file.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "00f46f6fa6f5",
+      "upstream_hash": "26b2ba2ba93c",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-home-seed.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "4a5c569bc84c",
+      "upstream_hash": "357893b2f296",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-inherit-push.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "f058045312ba",
+      "upstream_hash": "9450cd78d1ba",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-inherit.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "acfd8a99329c",
+      "upstream_hash": "04b53398b88f",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-job-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "f1748eba33d7",
+      "upstream_hash": "5756dc758442",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-job-worker.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "4240d5e2b38a",
+      "upstream_hash": "a89e6b0d598b",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-readiness-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "b3982a3fc6bb",
+      "upstream_hash": "e0ab0eb3f75a",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-remote-secondmate-control.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "811a9c979368",
+      "upstream_hash": "5f7fa745b18a",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-secondmate-parent-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "a46b3e5e9932",
+      "upstream_hash": "70d883d40ae0",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-secondmate-report.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "350a899f1467",
+      "upstream_hash": "2960c3760978",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-send.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "7853dd1283ef",
+      "upstream_hash": "2d45fab9fd9d",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-session-lock-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "eb0dde55c322",
+      "upstream_hash": "68e68cfdc3ff",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-session-start.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "38039f05a1ef",
+      "upstream_hash": "8b6f8449b72f",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-sessionstart-nudge.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "19d33aae4e44",
+      "upstream_hash": "948370578b9c",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-sessionstart-run.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "47429f00ea7e",
+      "upstream_hash": "4efc94564209",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-spawn.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "db72c5ec5d99",
+      "upstream_hash": "50b001be478a",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-startup-memory-budget-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "2b657b61c573",
+      "upstream_hash": "a9870453abe0",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-startup-network.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "93bccff9fb5c",
+      "upstream_hash": "b0001fcba8c0",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-subagent-pretool-check.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "6144697ba067",
+      "upstream_hash": "8218f2303fa6",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-supervise-daemon.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "93ac1328bd40",
+      "upstream_hash": "91310e1a7235",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-supervision-instructions.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "8fde5eaf7659",
+      "upstream_hash": "6eab8d8f7018",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-supervision-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "dfcb3ae0567c",
+      "upstream_hash": "e2302e86fd11",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-tangle-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "b4ffa9f4707f",
+      "upstream_hash": "2df0a821c311",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-tasks-axi-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "823d13c7b3bf",
+      "upstream_hash": "0f62946a3c27",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-teardown.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "390762569b6b",
+      "upstream_hash": "c0468242993a",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-test-isolation-proof.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "0084ca27614f",
+      "upstream_hash": "1d49404b3402",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-test-run.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "d37cea579a96",
+      "upstream_hash": "70c91fba8bdb",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-timeout-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "cb0afb1ab0c3",
+      "upstream_hash": "ab691d5ab278",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-tmux-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "a92ba66bd0f0",
+      "upstream_hash": "cc3b633db583",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-turnend-guard.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "c9a24b4986c7",
+      "upstream_hash": "79d4fbb80a18",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-update.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "91331fd915bf",
+      "upstream_hash": "8bad35d2ca30",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-wake-drain.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "5883cbb9d603",
+      "upstream_hash": "750bf985484c",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-wake-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "4b767118a082",
+      "upstream_hash": "f8688e8271ca",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-watch-arm.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "538dafbaf1f0",
+      "upstream_hash": "442564fa45b0",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-watch-checkpoint.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "7e9fdd115d2f",
+      "upstream_hash": "8d8e1839e62e",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-watch.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "9a63d2f12ce5",
+      "upstream_hash": "7c794ea398fb",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-x-followup.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "6fd17e4dfed2",
+      "upstream_hash": "5942c2a31a68",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-x-lib.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "acbbfa80a1ee",
+      "upstream_hash": "caeff5a03213",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-x-link.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "a79545ed49e8",
+      "upstream_hash": "3ba387ba23dc",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-x-poll.sh",
+      "class": "D",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "c34e01a94105",
+      "upstream_hash": "ced38e48cf87",
+      "state": "not-porting"
+    },
+    {
+      "surface": "fm-pr-check-migrate.sh",
+      "class": "U",
+      "fork_rev": "aaf67489ec76",
+      "fork_hash": "b0c28ec590dc",
+      "upstream_hash": null,
+      "state": "not-porting"
+    }
+  ]
+}
