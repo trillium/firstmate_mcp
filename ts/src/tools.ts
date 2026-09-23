@@ -4623,53 +4623,25 @@ export async function toolPrOpen(args: ToolArgs, ctx: ToolContext): Promise<Tool
   return ownedCall(cmd, "pr_open", ctx.run);
 }
 
-export async function toolDaemonStart(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const cmd = [path.join(ctx.binDir, "fm-supervise-daemon.sh")];
-  return ownedCall(cmd, "daemon_start", ctx.run);
-}
-
-export async function toolDaemonStop(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const afkPath = path.join(ctx.stateDir, ".afk");
-  try {
-    if (fs.existsSync(afkPath)) {
-      fs.unlinkSync(afkPath);
-    }
-    return { payload: { status: "stopped", afk: false }, isError: false };
-  } catch (err) {
-    return { payload: { error: "failed to stop daemon", detail: String(err) }, isError: true };
-  }
-}
-
-export async function toolDaemonRestart(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const afkPath = path.join(ctx.stateDir, ".afk");
-  try {
-    fs.writeFileSync(afkPath, "", "utf8");
-    return { payload: { status: "restarted", afk: true }, isError: false };
-  } catch (err) {
-    return { payload: { error: "failed to restart daemon", detail: String(err) }, isError: true };
-  }
-}
-
-export async function toolDaemonStatus(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const afkPath = path.join(ctx.stateDir, ".afk");
-  const isAfk = fs.existsSync(afkPath);
-  return {
-    payload: {
-      status: isAfk ? "running" : "stopped",
-      afk: isAfk,
-    },
-    isError: false,
-  };
-}
-
-export async function toolWatchStart(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  const cmd = [path.join(ctx.binDir, "fm-watch.sh")];
-  return ownedCall(cmd, "watch_start", ctx.run);
-}
-
-export async function toolWatchStop(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
-  return { payload: { status: "stopped" }, isError: false };
-}
+// Daemon & watch handlers live in ./tools/daemon.ts (slice 1, task-8pqjb).
+// Imported for the TOOLS registry below and re-exported so the ./tools.js
+// public surface is unchanged.
+import {
+  toolDaemonRestart,
+  toolDaemonStart,
+  toolDaemonStatus,
+  toolDaemonStop,
+  toolWatchStart,
+  toolWatchStop,
+} from "./tools/daemon.js";
+export {
+  toolDaemonRestart,
+  toolDaemonStart,
+  toolDaemonStatus,
+  toolDaemonStop,
+  toolWatchStart,
+  toolWatchStop,
+};
 
 export async function toolTaskIntake(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
   const taskId = args["task_id"];
