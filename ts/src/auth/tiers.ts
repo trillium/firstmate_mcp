@@ -149,6 +149,9 @@ export const TOOL_TIERS: Record<string, Tier> = {
   ledger_list: TIER_OPEN,
   reap_triage: TIER_OPEN,
   coderabbit_state: TIER_OPEN,
+  git_history: TIER_OPEN,
+  git_blame: TIER_OPEN,
+  ci_history: TIER_OPEN,
 };
 
 /**

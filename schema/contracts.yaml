@@ -1321,3 +1321,51 @@ contracts:
       header: bin/fm-coderabbit-review-state.sh:1-40
       doc: docs/BEADS-STORE-CONTRACT.md
     notes: "Reads the reviews list, never the status check; a green check is not evidence of a review."
+  - name: git_history
+    command: "native: git"
+    flags: ["log", "--oneline", "--max-count"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout", "repo", "limit"]
+    exits:
+      zero: bounded oneline log, optionally path-scoped inside the repo
+      nonzero: bad repo, bad limit/paths, or git failure; stderr carries the reason
+    stability: stable
+    pinned: git-log.v1
+    evidence:
+      header: ts/src/tools/archaeology.ts:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Repo confined under $HOME or tmpdir with .git present; paths stay inside via prefix check. git -C avoids cwd plumbing."
+  - name: git_blame
+    command: "native: git"
+    flags: ["blame", "-L", "--line-porcelain"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout", "repo", "file", "start", "end"]
+    exits:
+      zero: line-porcelain blame excerpt, at most 200 lines
+      nonzero: bad repo/file/range or git failure; stderr carries the reason
+    stability: stable
+    pinned: git-blame.v1
+    evidence:
+      header: ts/src/tools/archaeology.ts:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Range bounded 1..200 lines; file confined inside the repo."
+  - name: ci_history
+    command: "native: gh"
+    flags: ["run", "list", "--branch", "--limit", "--json"]
+    output:
+      format: json
+      schema_id: none
+      fields: ["repo", "branch", "limit", "runs"]
+    exits:
+      zero: run conclusions array, sliced to limit
+      nonzero: bad repo/branch/limit, gh failure, or non-JSON output
+    stability: stable
+    pinned: gh-run-list.v1
+    evidence:
+      header: ts/src/tools/archaeology.ts:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Default branches allowed (reading main history is the point); runs with repo cwd. Resolves gh via resolveGhBin (launchd PATH)."

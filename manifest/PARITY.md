@@ -30,12 +30,12 @@ Mirror parity is not capability parity: the denied-by-design set is the point of
 
 ## Our changes: pinned and reported, not implemented
 
-- features in `manifest/FEATURES.yaml`: **120**
+- features in `manifest/FEATURES.yaml`: **123**
   - kind `upstream-mirror`: 85
   - kind `fork`: 20
-  - kind `local`: 15
-- TypeScript status: implemented 107, missing 10, retired 3
-- divergence status: intentional 102, none 3, not-applicable 15
+  - kind `local`: 18
+- TypeScript status: implemented 110, missing 10, retired 3
+- divergence status: intentional 102, none 3, not-applicable 18
 
 ## The fork line: proof basis vs the line the fleet runs
 

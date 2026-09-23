@@ -72,6 +72,17 @@ export function validCommitMessage(value: unknown): value is string {
   return true;
 }
 
+/** A git branch name for read-only queries (history, polls). Same
+ * charset/traversal rules as validBranchName, but default branches are
+ * allowed: reading main's history is the primary use case. */
+export function validReadBranch(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length < 1 || value.length > 100) return false;
+  if (!/^[a-zA-Z0-9._/-]+$/.test(value)) return false;
+  if (value.includes("..") || value.startsWith("/") || value.endsWith("/")) return false;
+  return true;
+}
+
 export function validBranchName(value: unknown): value is string {
   if (typeof value !== "string") return false;
   if (value.length < 1 || value.length > 100) return false;

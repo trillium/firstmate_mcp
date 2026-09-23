@@ -1790,3 +1790,36 @@ features:
       reason: >-
         Reviews-list verdict instead of status-check reading; exit 3 stays
         unknown, never reviewed (project-2gvx).
+  - id: git_history_read
+    kind: local
+    local_path: ts/src/tools/archaeology.ts
+    summary: Bounded git log reads scoped to paths inside a confined repo.
+    contract: schema/contracts.yaml#git_history
+    upstream_test: "ts/tests/beads.test.ts::git history passes through bounded log output"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools/archaeology.ts:toolGitHistory"]}
+    divergence:
+      status: not-applicable
+      reason: ""
+  - id: git_blame_read
+    kind: local
+    local_path: ts/src/tools/archaeology.ts
+    summary: Line-porcelain blame excerpts bounded to 200 lines inside a confined repo.
+    contract: schema/contracts.yaml#git_blame
+    upstream_test: "ts/tests/beads.test.ts::blame validates file and range"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools/archaeology.ts:toolGitBlame"]}
+    divergence:
+      status: not-applicable
+      reason: ""
+  - id: ci_history_read
+    kind: local
+    local_path: ts/src/tools/archaeology.ts
+    summary: CI run conclusions per branch over time for flake-vs-regression verdicts.
+    contract: schema/contracts.yaml#ci_history
+    upstream_test: "ts/tests/beads.test.ts::ci history validates branch and parses runs"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools/archaeology.ts:toolCiHistory"]}
+    divergence:
+      status: not-applicable
+      reason: ""

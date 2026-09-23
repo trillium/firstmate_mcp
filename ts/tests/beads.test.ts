@@ -225,3 +225,91 @@ describe("reap triage + forge reads", () => {
     }
   });
 });
+
+describe("archaeology reads", () => {
+  type RunResult = import("../src/runner.js").RunResult;
+  const stubRun =
+    (stdout: string) =>
+    async (_argv: string[], _opts?: unknown): Promise<RunResult> => ({
+      stdout,
+      stderr: "",
+      exitCode: 0,
+    });
+
+  function archCtx(home: string, stdout: string): ToolContext {
+    return {
+      ...liveContext(),
+      binDir: `${home}/bin`,
+      stateDir: `${home}/state`,
+      run: stubRun(stdout) as ToolContext["run"],
+    };
+  }
+
+  test("git history passes through bounded log output", async () => {
+    const home = makeStubHome();
+    fs.mkdirSync(path.join(home, ".git"));
+    const res = await TOOLS["git_history"].handler(
+      { repo: home, limit: 5 },
+      archCtx(home, "abc1234 subject\n"),
+    );
+    assert.equal(res.isError, false);
+    assert.ok(JSON.stringify(res.payload).includes("abc1234"));
+  });
+
+  test("repo confinement refuses escapes", async () => {
+    const home = makeStubHome();
+    fs.mkdirSync(path.join(home, ".git"));
+    for (const repo of ["/etc", "/tmp/../etc", ""] ) {
+      void repo;
+    }
+    for (const args of [
+      { repo: "/etc" },
+      { repo: `${home}/../escape` },
+      { limit: 500 },
+      { repo: home, paths: [`../escape`] },
+      { repo: home, paths: [] },
+    ]) {
+      const res = await TOOLS["git_history"].handler(args, archCtx(home, ""));
+      assert.equal(res.isError, true, JSON.stringify(args));
+    }
+  });
+
+  test("blame validates file and range", async () => {
+    const home = makeStubHome();
+    fs.mkdirSync(path.join(home, ".git"));
+    const ok = await TOOLS["git_blame"].handler(
+      { repo: home, file: "a.ts", start: 1, end: 10 },
+      archCtx(home, "blame"),
+    );
+    assert.equal(ok.isError, false);
+    for (const args of [
+      { repo: home, file: "../x", start: 1, end: 2 },
+      { repo: home, file: "a.ts", start: 0, end: 2 },
+      { repo: home, file: "a.ts", start: 5, end: 2 },
+      { repo: home, file: "a.ts", start: 1, end: 500 },
+    ]) {
+      const res = await TOOLS["git_blame"].handler(args, archCtx(home, ""));
+      assert.equal(res.isError, true, JSON.stringify(args));
+    }
+  });
+
+  test("ci history validates branch and parses runs", async () => {
+    const home = makeStubHome();
+    fs.mkdirSync(path.join(home, ".git"));
+    const runs = JSON.stringify([{ conclusion: "success", headBranch: "main" }]);
+    const ok = await TOOLS["ci_history"].handler(
+      { repo: home, branch: "main" },
+      archCtx(home, runs),
+    );
+    assert.equal(ok.isError, false);
+    assert.equal(
+      ((ok.payload as Record<string, unknown>)["runs"] as unknown[]).length,
+      1,
+    );
+    const bad = await TOOLS["ci_history"].handler(
+      { repo: home, branch: "../x" },
+      archCtx(home, runs),
+    );
+    assert.equal(bad.isError, true);
+  });
+});
