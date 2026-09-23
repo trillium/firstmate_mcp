@@ -1,30 +1,16 @@
 # Large file allowlist — one glob pattern per line.
 # Files matching these patterns are exempt from the 250-line pre-commit warning.
 #
-# Seeded 2026-09-23 with the 12 legacy violators that predate the guard
-# (measured ts/src + ts/scripts). They stay exempt until split; anything NEW
-# over 250 lines warns. Remove entries as files are decomposed.
-ts/src/tools.ts
-ts/src/followon.ts
-ts/src/server.ts
-ts/src/validators.ts
-ts/src/grants.ts
-ts/src/http.ts
-ts/src/auth.ts
-ts/src/proof/engine.ts
-ts/src/runner.ts
-ts/src/proof/fingerprint.ts
-ts/scripts/test-runner.mjs
-ts/scripts/conformance-runner.mjs
+# Seeded 2026-09-23 with 12 legacy violators; 10 decomposed under task-8pqjb
+# (slices 1-30) and removed. The 2 below remain with dated reasons; anything
+# NEW over 250 lines warns.
 # 2026-09-23 (task-8pqjb slice 19): ts/src/followon.ts engine core (~630
 # lines) cannot split further without breaking up executeFollowOnsEffect, one
 # cohesive Effect program, or moving module-eval layer constructors
 # (FollowOnLive) across a TDZ-unsafe import cycle. Revisit only with a
 # behavior-preserving engine refactor + full receipt/envelope proof.
-ts/src/followon.ts
 # 2026-09-23 (task-8pqjb slice 22): ts/src/http.ts remainder (~400 lines) is
 # one giant closure-bodied createHttpServer + thin foundation. Splitting route
 # sections means threading ~8 shared locals through extracted closures —
 # behavior risk with no behavior gain. Revisit only with per-route
 # request/response contract tests first.
-ts/src/http.ts
