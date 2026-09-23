@@ -1828,7 +1828,7 @@ features:
     divergence:
       status: not-applicable
       reason: ""
-  - id: fleet_ledger_read
+  - id: fleet_ledger
     kind: upstream-mirror
     upstream_command: bin/fm-fleet-ledger.sh
     summary: Bounded tail reads over the opt-in fleet activity ledger.
@@ -1839,7 +1839,7 @@ features:
     divergence:
       status: none
       reason: ""
-  - id: devin_config_write
+  - id: devin_config
     kind: upstream-mirror
     upstream_command: bin/fm-devin-config.sh
     summary: Scoped per-worker Devin config writes pinned to the served home.

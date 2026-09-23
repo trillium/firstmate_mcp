@@ -35,6 +35,7 @@ script's observable output (modulo the envelope wrap).
 - `doc_audience_check` — via `fm-doc-audience-check.sh` (pinned in schema/contracts.yaml)
 - `extension_inspect` — via `fm-extension.sh` (pinned in schema/contracts.yaml)
 - `extension_list` — via `fm-extension.sh` (pinned in schema/contracts.yaml)
+- `fleet_ledger` — via `fm-fleet-ledger.sh` (pinned in schema/contracts.yaml)
 - `fleet_poll` — via `fm-fleet-snapshot.sh` (adapter-native projection)
 - `fleet_snapshot` — via `fm-fleet-snapshot.sh` (pinned in schema/contracts.yaml)
 - `fleet_view` — via `fm-fleet-view.sh` (pinned in schema/contracts.yaml)
@@ -92,6 +93,7 @@ revalidated ids/paths/text, explicit per-call approval.
 - `decision_hold` — via `fm-decision-hold.sh` (Tier 3 approval, approval required)
 - `decision_release` — via `fm-decision-hold.sh` (Tier 3 approval, approval required)
 - `decision_resolve` — via `fm-decision-hold.sh` (Tier 3 approval, approval required)
+- `devin_config` — via `fm-devin-config.sh` (Tier 3 approval, approval required)
 - `handoff_move` — via `fm-backlog-handoff.sh` (Tier 3 approval, approval required)
 - `lifecycle_exit` — via `fm-control.sh` (Tier 3 approval, approval required)
 - `lifecycle_interrupt` — via `fm-control.sh` (Tier 3 approval, approval required)
@@ -220,7 +222,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` implements the 87-tool
+- TypeScript sibling — `ts/` implements the 89-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Git history reads — `git_history`, `git_blame` and `ci_history` expose bounded repo history, blame excerpts and CI run conclusions without leaving the doorway.

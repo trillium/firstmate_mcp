@@ -14,3 +14,7 @@
 # sections means threading ~8 shared locals through extracted closures —
 # behavior risk with no behavior gain. Revisit only with per-route
 # request/response contract tests first.
+# 2026-09-23: scripts/gen_readme_lists.py (generator with embedded legacy
+# TOOLS/tiers tables) predates the guard; split only alongside a generator
+# refactor that derives those tables instead of hand-maintaining them.
+scripts/gen_readme_lists.py
