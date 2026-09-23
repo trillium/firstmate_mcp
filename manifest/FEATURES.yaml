@@ -1388,7 +1388,7 @@ features:
     upstream_test: "ts/tests/receipt.test.ts::receipt_submit detaches immediately with a pending receipt (pending submit, done retrieval, cross-home isolation) + ts/tests/receipt.test.ts::receipt_submit detaches immediately with a pending receipt"
     readme_anchor: Async receipts
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:toolReceiptSubmit", "ts/src/auth.ts:receipt_submit"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/receipts.ts:toolReceiptSubmit", "ts/src/auth.ts:receipt_submit"]}
     divergence: {status: not-applicable, reason: ""}
   - id: receipt_status
     kind: local
@@ -1398,7 +1398,7 @@ features:
     upstream_test: "ts/tests/conformance-read.test.ts::lock_status matches direct stub"
     readme_anchor: Async receipts
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/tools.ts:toolReceiptStatus", "ts/src/auth.ts:receipt_status"]}
+    ts: {status: implemented, evidence: ["ts/src/tools/receipts.ts:toolReceiptStatus", "ts/src/auth.ts:receipt_status"]}
     divergence: {status: not-applicable, reason: ""}
   - id: grant_mint
     kind: local
@@ -1408,7 +1408,7 @@ features:
     upstream_test: "ts/tests/grants.test.ts::grant_mint, grant_status, and grant_revoke execute over stdio wire + ts/tests/server.test.ts"
     readme_anchor: Standing approval grants
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/grants.ts:mintGrant", "ts/src/tools.ts:toolGrantMint", "ts/src/tools/registry/lifecycle-grants.ts:grant_mint"]}
+    ts: {status: implemented, evidence: ["ts/src/grants.ts:mintGrant", "ts/src/tools/grant-tools.ts:toolGrantMint", "ts/src/tools/registry/lifecycle-grants.ts:grant_mint"]}
     divergence: {status: not-applicable, reason: ""}
   - id: grant_revoke
     kind: local
@@ -1418,7 +1418,7 @@ features:
     upstream_test: "ts/tests/doctor.test.ts::counts only usable grants, never revoked or expired records"
     readme_anchor: Standing approval grants
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/grants.ts:revokeGrant", "ts/src/tools.ts:toolGrantRevoke", "ts/src/tools/registry/lifecycle-grants.ts:grant_revoke"]}
+    ts: {status: implemented, evidence: ["ts/src/grants.ts:revokeGrant", "ts/src/tools/grant-tools.ts:toolGrantRevoke", "ts/src/tools/registry/lifecycle-grants.ts:grant_revoke"]}
     divergence: {status: not-applicable, reason: ""}
   - id: grant_status
     kind: local
@@ -1428,7 +1428,7 @@ features:
     upstream_test: "ts/tests/grants.test.ts::grant_status returns safe metadata and never leaks secrets + ts/tests/server.test.ts"
     readme_anchor: Standing approval grants
     py: {status: retired}
-    ts: {status: implemented, evidence: ["ts/src/grants.ts:getGrantStatus", "ts/src/tools.ts:toolGrantStatus", "ts/src/tools/registry/lifecycle-grants.ts:grant_status"]}
+    ts: {status: implemented, evidence: ["ts/src/grants.ts:getGrantStatus", "ts/src/tools/grant-tools.ts:toolGrantStatus", "ts/src/tools/registry/lifecycle-grants.ts:grant_status"]}
     divergence: {status: not-applicable, reason: ""}
   - id: standing_approval
     kind: local
