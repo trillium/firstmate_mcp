@@ -236,6 +236,8 @@ jobs:
         run: bash tests/fm-coverage.test.sh
       - name: kun parity report is current
         run: python3 scripts/gen_parity.py --check
+      - name: test provenance resolves
+        run: python3 scripts/test_provenance.py --check
 
   upstream:
     name: upstream preservation
