@@ -16,11 +16,6 @@
 #     `manifest/validate.py` spot-checks every `implemented` evidence pointer
 #     against the tree.
 #
-# Fork and local extensions are tracked as beads in the brain store, epic
-# brain-df9nd (owner directive 2026-09-22: the basis of this data lives in beads,
-# not markdown — each such feature below carries its `bead:` id, and this file is
-# becoming a view of them rather than the record).
-#
 # Validate: python3 manifest/validate.py
 # Human view: manifest/README.md
 version: v1
@@ -93,7 +88,7 @@ features:
     upstream_command: bin/fm-fleet-snapshot.sh
     upstream_flags: ["--json"]
     contract: schema/contracts.yaml#fleet_snapshot
-    upstream_test: "ts/tests/conformance.test.ts::test_fleet_snapshot_matches_direct (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-read.test.ts::fleet_snapshot matches direct"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:fleet_snapshot"]}
     divergence: {status: none, reason: ""}
@@ -103,7 +98,7 @@ features:
     upstream_command: "derived: fleet_snapshot (bin/fm-fleet-snapshot.sh --json)"
     upstream_flags: ["--json"]
     contract: schema/contracts.yaml#backlog
-    upstream_test: "ts/tests/conformance.test.ts::test_backlog_derives_counts_from_same_snapshot"
+    upstream_test: "ts/tests/conformance-read.test.ts::backlog derives counts from the same snapshot"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:backlog"]}
     divergence: {status: none, reason: ""}
@@ -113,7 +108,7 @@ features:
     upstream_command: bin/fm-crew-state.sh
     upstream_flags: ["<id>"]
     contract: schema/contracts.yaml#crew_state
-    upstream_test: "ts/tests/conformance.test.ts::test_crew_state_unknown_matches_direct_line"
+    upstream_test: "ts/tests/conformance-read.test.ts::crew_state unknown matches direct line"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:crew_state"]}
     divergence: {status: none, reason: ""}
@@ -123,7 +118,7 @@ features:
     upstream_command: "file: state/<id>.status"
     upstream_flags: ["<id>", "lines=1..50"]
     contract: schema/contracts.yaml#status_tail
-    upstream_test: "ts/tests/conformance.test.ts::test_status_tail_matches_file_tail (plus traversal-refusal proof)"
+    upstream_test: "ts/tests/conformance-read.test.ts::status_tail matches file tail"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:status_tail"]}
     divergence:
@@ -138,7 +133,7 @@ features:
     upstream_command: bin/fm-send.sh
     upstream_flags: ["<target>", "<text>"]
     contract: schema/contracts.yaml#send_message
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof; writes never dispatch in conformance by design — ts/tests/conformance.test.ts::test_write_tools_never_dispatch)"
+    upstream_test: "ts/tests/server.test.ts::send_message fail-closed stays structured"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:send_message"]}
     divergence:
@@ -153,7 +148,7 @@ features:
     upstream_command: bin/fm-fleet-snapshot.sh
     upstream_flags: ["--json"]
     contract: ts/src/tools.ts#fleet_poll (poll projection over the fleet_snapshot contract)
-    upstream_test: "ts/tests/conformance.test.ts::test_fleet_poll_agrees_with_snapshot"
+    upstream_test: "ts/tests/conformance-read.test.ts::fleet_poll agrees with snapshot"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:fleet_poll"]}
     divergence:
@@ -168,7 +163,7 @@ features:
     upstream_command: bin/fm-peek.sh
     upstream_flags: ["<target>", "lines=1..100"]
     contract: schema/contracts.yaml#peek
-    upstream_test: "ts/tests/conformance.test.ts::TestPeekEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-read.test.ts::peek matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:peek"]}
     divergence:
@@ -182,7 +177,7 @@ features:
     upstream_command: bin/fm-fleet-view.sh
     upstream_flags: ["<none>"]
     contract: schema/contracts.yaml#fleet_view
-    upstream_test: "ts/tests/conformance.test.ts::TestFleetViewEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-read.test.ts::fleet_view matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:fleet_view"]}
     divergence:
@@ -196,7 +191,7 @@ features:
     upstream_command: bin/fm-review-diff.sh
     upstream_flags: ["<task-id>", "--stat"]
     contract: schema/contracts.yaml#review_diff
-    upstream_test: "ts/tests/conformance.test.ts::TestReviewDiffEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-read.test.ts::review_diff matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:review_diff"]}
     divergence:
@@ -210,7 +205,7 @@ features:
     upstream_command: bin/fm-bearings-snapshot.sh
     upstream_flags: ["--json"]
     contract: schema/contracts.yaml#bearings_snapshot
-    upstream_test: "ts/tests/conformance.test.ts::TestBearingsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/server.test.ts::bearings_snapshot returns fm-bearings.v1"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:bearings_snapshot"]}
     divergence:
@@ -224,7 +219,7 @@ features:
     upstream_command: bin/fm-wake-drain.sh
     upstream_flags: ["<none>"]
     contract: schema/contracts.yaml#wake_drain
-    upstream_test: "ts/tests/conformance.test.ts::TestWakeDrainEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-read.test.ts::wake_drain matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:wake_drain"]}
     divergence:
@@ -238,7 +233,7 @@ features:
     upstream_command: bin/fm-guard.sh
     upstream_flags: ["<none>"]
     contract: schema/contracts.yaml#guard_check
-    upstream_test: "ts/tests/conformance.test.ts::TestGuardCheckEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-read.test.ts::guard_check matches direct stub read-only"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:guard_check"]}
     divergence:
@@ -252,7 +247,7 @@ features:
     upstream_command: bin/fm-remote-doctor.sh
     upstream_flags: ["<none>"]
     contract: schema/contracts.yaml#remote_doctor
-    upstream_test: "ts/tests/conformance.test.ts::TestRemoteDoctorEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::remote_doctor matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:remote_doctor"]}
     divergence:
@@ -266,7 +261,7 @@ features:
     upstream_command: bin/fm-remote-file.sh
     upstream_flags: ["get", "<relative-path>", "<max-bytes>"]
     contract: schema/contracts.yaml#remote_file
-    upstream_test: "ts/tests/conformance.test.ts::TestRemoteFileEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::remote_file get matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:remote_file"]}
     divergence:
@@ -281,7 +276,7 @@ features:
     upstream_command: bin/fm-remote-delta-read.sh
     upstream_flags: ["<relative-log>", "<offset>", "<prefix-sha256>"]
     contract: schema/contracts.yaml#remote_delta
-    upstream_test: "ts/tests/conformance.test.ts::TestRemoteDeltaEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::remote_delta matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:remote_delta"]}
     divergence:
@@ -328,7 +323,7 @@ features:
     upstream_command: "file: data/handoff/<id>.outbox.md"
     upstream_flags: ["<id>", "lines=1..20"]
     contract: schema/contracts.yaml#handoff_status
-    upstream_test: "ts/tests/conformance.test.ts::TestHandoffStatusEquivalence (adapter-vs-file equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::handoff_status detail matches file tail"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:handoff_status"]}
     divergence:
@@ -343,7 +338,7 @@ features:
     upstream_command: bin/fm-dispatch-resolve.sh
     upstream_flags: ["<brief>", "--project"]
     contract: schema/contracts.yaml#dispatch_resolve
-    upstream_test: "ts/tests/conformance-system.test.ts::sessions equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-system.test.ts::dispatch_resolve matches direct stub on the canonical brief (adapter-vs-script equivalence under a scratch FM_HOME)"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:dispatch_resolve"]}
     divergence:
@@ -362,7 +357,7 @@ features:
     upstream_command: bin/fm-sessionstart-nudge.sh
     upstream_flags: []
     contract: schema/contracts.yaml#sessionstart_nudge
-    upstream_test: "ts/tests/conformance-system.test.ts::sessions equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-system.test.ts::sessionstart_nudge matches direct stub with fired projection (adapter-vs-script equivalence under a scratch FM_HOME)"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:sessionstart_nudge"]}
     divergence:
@@ -377,7 +372,7 @@ features:
     upstream_command: bin/fm-harness.sh
     upstream_flags: ["own", "crew", "secondmate", "secondmate-model", "secondmate-effort"]
     contract: schema/contracts.yaml#harness_detect
-    upstream_test: "ts/tests/conformance.test.ts::TestHarnessEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-read.test.ts::harness_detect echoes the mode and the script line"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:harness_detect"]}
     divergence:
@@ -392,7 +387,7 @@ features:
     upstream_command: bin/fm-project-mode.sh
     upstream_flags: ["<project>"]
     contract: schema/contracts.yaml#project_mode
-    upstream_test: "ts/tests/conformance.test.ts::TestProjectModeEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-read.test.ts::project_mode matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:project_mode"]}
     divergence:
@@ -407,7 +402,7 @@ features:
     upstream_command: bin/fm-lock.sh
     upstream_flags: ["status"]
     contract: schema/contracts.yaml#lock_status
-    upstream_test: "ts/tests/conformance.test.ts::TestLockStatusEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-read.test.ts::lock_status matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:lock_status"]}
     divergence:
@@ -422,7 +417,7 @@ features:
     upstream_command: bin/fm-lease.sh
     upstream_flags: ["check", "<task>"]
     contract: schema/contracts.yaml#lease_check
-    upstream_test: "ts/tests/conformance.test.ts::TestLeaseCheckEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-read.test.ts::lease_check projects held and unleased"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:lease_check"]}
     divergence:
@@ -438,7 +433,7 @@ features:
     upstream_command: bin/fm-bearings-board.sh
     upstream_flags: ["path"]
     contract: schema/contracts.yaml#bearings_board_path
-    upstream_test: "ts/tests/conformance.test.ts::TestBearingsBoardEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::bearings_board_path matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:bearings_board_path"]}
     divergence:
@@ -453,7 +448,7 @@ features:
     upstream_command: bin/fm-inbox.sh
     upstream_flags: ["status"]
     contract: schema/contracts.yaml#inbox_status
-    upstream_test: "ts/tests/conformance.test.ts::TestInboxEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::inbox_status and inbox_list match direct stubs"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:inbox_status"]}
     divergence:
@@ -468,7 +463,7 @@ features:
     upstream_command: bin/fm-inbox.sh
     upstream_flags: ["list"]
     contract: schema/contracts.yaml#inbox_list
-    upstream_test: "ts/tests/conformance.test.ts::TestInboxEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/server.test.ts::inbox_list reads the queued notes"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:inbox_list"]}
     divergence:
@@ -482,7 +477,7 @@ features:
     upstream_command: "file: state/home-summary.json"
     upstream_flags: ["<none>"]
     contract: schema/contracts.yaml#home_summary
-    upstream_test: "ts/tests/conformance.test.ts::TestHomeSummaryEquivalence (adapter-vs-ledger equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::home_summary_refresh matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:home_summary"]}
     divergence:
@@ -498,7 +493,7 @@ features:
     upstream_command: bin/fm-home-summary-refresh.sh
     upstream_flags: ["--best-effort"]
     contract: schema/contracts.yaml#home_summary_refresh
-    upstream_test: "ts/tests/conformance.test.ts::TestHomeSummaryRefreshEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::home_summary_refresh matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:home_summary_refresh"]}
     divergence:
@@ -513,7 +508,7 @@ features:
     upstream_command: bin/fm-contributions.sh
     upstream_flags: ["snapshot", "<contribution-input>", "--all"]
     contract: schema/contracts.yaml#contributions_snapshot
-    upstream_test: "ts/tests/conformance.test.ts::TestContributionsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::contributions_snapshot stages contribution-input"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:contributions_snapshot"]}
     divergence:
@@ -529,7 +524,7 @@ features:
     upstream_command: bin/fm-contributions.sh
     upstream_flags: ["pending"]
     contract: schema/contracts.yaml#contributions_pending
-    upstream_test: "ts/tests/conformance.test.ts::TestContributionsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::contributions_pending matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:contributions_pending"]}
     divergence:
@@ -543,7 +538,7 @@ features:
     upstream_command: bin/fm-mail.sh
     upstream_flags: ["status"]
     contract: schema/contracts.yaml#mail_status
-    upstream_test: "ts/tests/conformance.test.ts::TestMailEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::mail_status matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:mail_status"]}
     divergence:
@@ -558,7 +553,7 @@ features:
     upstream_command: bin/fm-mail.sh
     upstream_flags: ["read"]
     contract: schema/contracts.yaml#mail_read
-    upstream_test: "ts/tests/conformance.test.ts::TestMailEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::mail_read matches direct stub with a never-marks-seen warning"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:mail_read"]}
     divergence:
@@ -590,7 +585,7 @@ features:
     upstream_command: bin/fm_voice_records.py
     upstream_flags: ["status", "--scope"]
     contract: schema/contracts.yaml#voice_status
-    upstream_test: "ts/tests/conformance.test.ts::TestVoiceEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::voice_status defaults to counts"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:voice_status"]}
     divergence:
@@ -607,7 +602,7 @@ features:
     upstream_command: bin/fm-lint.sh
     upstream_flags: ["--required-version"]
     contract: schema/contracts.yaml#lint_versions
-    upstream_test: "ts/tests/conformance.test.ts::TestInstallsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-system.test.ts::lint_versions returns both required pins"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:lint_versions"]}
     divergence:
@@ -621,7 +616,7 @@ features:
     upstream_command: bin/fm-tool-update-check.sh
     upstream_flags: ["check"]
     contract: schema/contracts.yaml#tool_update_check
-    upstream_test: "ts/tests/conformance.test.ts::TestInstallsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-system.test.ts::tool_update_check matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:tool_update_check"]}
     divergence:
@@ -635,7 +630,7 @@ features:
     upstream_command: bin/fm-vendor-auth-probe.sh
     upstream_flags: ["<probe>"]
     contract: schema/contracts.yaml#vendor_auth_probe
-    upstream_test: "ts/tests/conformance.test.ts::TestInstallsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-system.test.ts::vendor_auth_probe matches direct stub with probe echoed"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:vendor_auth_probe"]}
     divergence:
@@ -650,7 +645,7 @@ features:
     upstream_command: bin/fm-startup-memory-budget.sh
     upstream_flags: ["read", "report"]
     contract: schema/contracts.yaml#startup_memory
-    upstream_test: "ts/tests/conformance.test.ts::TestInstallsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-system.test.ts::startup_memory defaults to read with mode echoed"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:startup_memory"]}
     divergence:
@@ -740,7 +735,7 @@ features:
     upstream_command: bin/fm-test-run.sh
     upstream_flags: ["--all", "--family", "--changed", "--lane", "--proven-isolated"]
     contract: schema/contracts.yaml#test_run
-    upstream_test: "none upstream for the wrapper; the runner is upstream-owned and our surface is covered by ts/tests/test-run.test.ts"
+    upstream_test: "ts/tests/test-run.test.ts::builds --all"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:test_run"]}
     divergence:
@@ -770,7 +765,7 @@ features:
     upstream_command: bin/fm-pr-state.sh
     upstream_flags: ["<pr-url>"]
     contract: schema/contracts.yaml#pr_state
-    upstream_test: "ts/tests/conformance.test.ts::TestSmallGapsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-system.test.ts::pr_state matches direct stub with url echoed"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:pr_state"]}
     divergence:
@@ -891,7 +886,7 @@ features:
     upstream_command: bin/fm-x-poll.sh
     upstream_flags: ["<none>"]
     contract: schema/contracts.yaml#relay_poll
-    upstream_test: "ts/tests/conformance.test.ts::TestSmallGapsEquivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-system.test.ts::relay_poll matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:relay_poll"]}
     divergence:
@@ -935,7 +930,7 @@ features:
     upstream_command: bin/fm-tasks-axi.sh
     upstream_flags: ["list", "--state", "--repo", "--kind", "--blocked", "--limit", "--fields"]
     contract: schema/contracts.yaml#tasks_list
-    upstream_test: "ts/tests/conformance-system.test.ts::tasks-axi equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub (adapter-vs-script equivalence under a scratch FM_HOME)"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:tasks_list"]}
     divergence:
@@ -949,7 +944,7 @@ features:
     upstream_command: bin/fm-tasks-axi.sh
     upstream_flags: ["show", "<id>", "--full"]
     contract: schema/contracts.yaml#tasks_show
-    upstream_test: "ts/tests/conformance-system.test.ts::tasks-axi equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks_show matches direct stub (adapter-vs-script equivalence under a scratch FM_HOME)"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:tasks_show"]}
     divergence:
@@ -963,7 +958,7 @@ features:
     upstream_command: bin/fm-tasks-axi.sh
     upstream_flags: ["ready", "--repo", "--include-held"]
     contract: schema/contracts.yaml#tasks_ready
-    upstream_test: "ts/tests/conformance-system.test.ts::tasks-axi equivalence (adapter-vs-script equivalence under a scratch FM_HOME)"
+    upstream_test: "ts/tests/conformance-system.test.ts::tasks_ready matches direct stub (adapter-vs-script equivalence under a scratch FM_HOME)"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:tasks_ready"]}
     divergence:
@@ -978,7 +973,7 @@ features:
     upstream_command: bin/fm-control.sh
     upstream_flags: ["<id>", "interrupt"]
     contract: ts/src/tools.ts#lifecycle_interrupt (safe verb subset + approval gate)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/http.test.ts::Streamable HTTP Transport: Session Lifecycle & MCP Protocol"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_interrupt"]}
     divergence:
@@ -993,7 +988,7 @@ features:
     upstream_command: bin/fm-control.sh
     upstream_flags: ["<id>", "exit"]
     contract: ts/src/tools.ts#lifecycle_exit (safe verb subset + approval gate)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/http.test.ts::Streamable HTTP Transport: Session Lifecycle & MCP Protocol"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_exit"]}
     divergence:
@@ -1008,7 +1003,7 @@ features:
     upstream_command: bin/fm-control.sh
     upstream_flags: ["<id>", "relaunch"]
     contract: ts/src/tools.ts#lifecycle_relaunch (safe verb subset + approval gate)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/http.test.ts::Streamable HTTP Transport: Session Lifecycle & MCP Protocol"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_relaunch"]}
     divergence:
@@ -1023,7 +1018,7 @@ features:
     upstream_command: bin/fm-control.sh
     upstream_flags: ["<id>", "suspend"]
     contract: ts/src/tools.ts#lifecycle_suspend (safe verb subset + approval gate)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/http.test.ts::Streamable HTTP Transport: Session Lifecycle & MCP Protocol"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_suspend"]}
     divergence:
@@ -1038,7 +1033,7 @@ features:
     upstream_command: bin/fm-control.sh
     upstream_flags: ["<id>", "resume"]
     contract: ts/src/tools.ts#lifecycle_resume (safe verb subset + approval gate)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/http.test.ts::Streamable HTTP Transport: Session Lifecycle & MCP Protocol"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:lifecycle_resume"]}
     divergence:
@@ -1053,7 +1048,7 @@ features:
     upstream_command: bin/fm-spawn.sh
     upstream_flags: ["<task-id>", "<project>", "--mode", "--yolo"]
     contract: schema/contracts.yaml#spawn_crew
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/conformance-read.test.ts::crew_state unknown matches direct line"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:spawn_crew"]}
     divergence:
@@ -1068,7 +1063,7 @@ features:
     upstream_command: bin/fm-brief.sh
     upstream_flags: ["<task-id>", "<repo>", "--mode/--scout"]
     contract: schema/contracts.yaml#scaffold_brief
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/conformance-system.test.ts::dispatch_resolve matches direct stub on the canonical brief"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:scaffold_brief"]}
     divergence:
@@ -1083,7 +1078,7 @@ features:
     upstream_command: bin/fm-decision-hold.sh
     upstream_flags: ["hold", "<origin-id>", "<decision-key>"]
     contract: ts/src/tools.ts#decision_hold (safe subcommand subset + approval gate)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/auth.test.ts::allow line records decision_digest when provided"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_hold"]}
     divergence:
@@ -1098,7 +1093,7 @@ features:
     upstream_command: bin/fm-decision-hold.sh
     upstream_flags: ["resolve", "<origin-id>", "<decision-key>"]
     contract: ts/src/tools.ts#decision_resolve (safe subcommand subset + approval gate)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/conformance-system.test.ts::dispatch_resolve matches direct stub on the canonical brief"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_resolve"]}
     divergence:
@@ -1113,7 +1108,7 @@ features:
     upstream_command: bin/fm-decision-hold.sh
     upstream_flags: ["resolve", "<origin-id>", "<decision-key>"]
     contract: ts/src/tools.ts#decision_release (safe resolve/release subset + approval gate + self-holds default)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + ts/tests/server.test.ts::decision_release records decision_digest in audit log"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_release"]}
     divergence:
@@ -1128,7 +1123,7 @@ features:
     upstream_command: bin/fm-captain-hold.sh
     upstream_flags: ["complete", "<origin-id>"]
     contract: ts/src/tools.ts#decision_complete (attestation write + approval gate)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/auth.test.ts::allow line records decision_digest when provided"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_complete"]}
     divergence:
@@ -1142,7 +1137,7 @@ features:
     upstream_command: bin/fm-captain-hold.sh
     upstream_flags: ["verify", "<origin-id>"]
     contract: ts/src/tools.ts#decision_verify (open-read attestation query)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof); read tool with structured status response."
+    upstream_test: "ts/tests/auth.test.ts::allow line records decision_digest when provided"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_verify"]}
     divergence:
@@ -1155,7 +1150,7 @@ features:
     upstream_command: bin/fm-captain-hold.sh
     upstream_flags: ["open", "<task-id>"]
     contract: ts/src/tools.ts#decision_open (open-read predicate query)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof); read tool with structured status response."
+    upstream_test: "ts/tests/auth.test.ts::tier 1 is open reads"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_open"]}
     divergence:
@@ -1168,7 +1163,7 @@ features:
     upstream_command: bin/fm-captain-hold.sh
     upstream_flags: ["diverged"]
     contract: ts/src/tools.ts#decision_diverged (open-read divergence query)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof); read tool with structured status response."
+    upstream_test: "ts/tests/auth.test.ts::allow line records decision_digest when provided"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:decision_diverged"]}
     divergence:
@@ -1181,7 +1176,7 @@ features:
     upstream_command: bin/fm-captain-hold.sh
     upstream_flags: ["answer", "<id>", "--decision-file"]
     contract: ts/src/tools.ts#review_decision (safe verdict subset + approval gate)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/conformance-read.test.ts::review_diff matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:review_decision"]}
     divergence:
@@ -1199,7 +1194,7 @@ features:
     upstream_command: bin/fm-x-reply.sh
     upstream_flags: ["<target>", "<text>"]
     contract: ts/src/tools.ts#relay_reply (approval + external relay consent)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/conformance-system.test.ts::relay_poll matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:relay_reply"]}
     divergence:
@@ -1214,7 +1209,7 @@ features:
     upstream_command: bin/fm-x-dismiss.sh
     upstream_flags: ["<target>"]
     contract: ts/src/tools.ts#relay_dismiss (approval + external relay consent)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/conformance-system.test.ts::relay_poll matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:relay_dismiss"]}
     divergence:
@@ -1229,7 +1224,7 @@ features:
     upstream_command: bin/fm-x-followup.sh
     upstream_flags: ["<target>", "<text>"]
     contract: ts/src/tools.ts#relay_followup (approval + external relay consent)
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/conformance-system.test.ts::relay_poll matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:relay_followup"]}
     divergence:
@@ -1244,7 +1239,7 @@ features:
     upstream_command: bin/fm-secondmate-reconcile.sh
     upstream_flags: ["notify"]
     contract: schema/contracts.yaml#secondmate_nudge
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/conformance-system.test.ts::sessionstart_nudge matches direct stub with fired projection"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:secondmate_nudge"]}
     divergence:
@@ -1260,7 +1255,7 @@ features:
     upstream_command: bin/fm-secondmate-restart.sh
     upstream_flags: ["<secondmate-id>..."]
     contract: schema/contracts.yaml#secondmate_restart
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/conformance-remote.test.ts::secondmate-remote-read equivalence"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:secondmate_restart"]}
     divergence:
@@ -1276,7 +1271,7 @@ features:
     upstream_command: bin/fm-secondmate-report.sh
     upstream_flags: ["<verb>", "<corr>", "<note>"]
     contract: schema/contracts.yaml#secondmate_report
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/conformance-system.test.ts::startup_network_report matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:secondmate_report"]}
     divergence:
@@ -1293,7 +1288,7 @@ features:
     upstream_command: bin/fm-remote-secondmate-control.sh
     upstream_flags: ["<verb>", "<id>"]
     contract: schema/contracts.yaml#remote_control
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/conformance-remote.test.ts::remote_doctor matches direct stub"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:remote_control"]}
     divergence:
@@ -1311,7 +1306,7 @@ features:
     upstream_command: bin/fm-backlog-handoff.sh
     upstream_flags: ["<secondmate-id>", "<item-key>..."]
     contract: schema/contracts.yaml#handoff_move
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/conformance-remote.test.ts::handoff_status detail matches file tail"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:handoff_move"]}
     divergence:
@@ -1327,7 +1322,7 @@ features:
     upstream_command: bin/fm_voice_records.py
     upstream_flags: ["queue", "<text>"]
     contract: schema/contracts.yaml#voice_queue
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + ts/tests/server.test.ts::voice_queue refuses without approval"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:voice_queue"]}
     divergence:
@@ -1343,7 +1338,7 @@ features:
     upstream_command: bin/fm-mail.sh
     upstream_flags: ["send", "<to>", "<subject>", "-"]
     contract: schema/contracts.yaml#mail_send
-    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + tests/fm-mcp-authz.test.sh (approval gate); no output-equivalence replay — writes never dispatch in conformance."
+    upstream_test: "ts/tests/server.test.ts (stub-home server proof) + ts/tests/server.test.ts::mail_send refuses without approval"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:mail_send"]}
     divergence:
@@ -1356,166 +1351,151 @@ features:
         stay firstmate-owned.
   # ---- NEW: local-only Trillium extensions (survive upstream reconciliation) ----
   - id: drift_detection
-    bead: brain-df9nd.8
     kind: local
     summary: Observed-surface drift detection seeded from the live fleet; diffs feature drift from behavior drift.
     local_path: drift/
     contract: drift/check.py (snapshot-compare CLI over drift/baseline.json)
-    upstream_test: "n/a (local) — proof: tests/drift-check.test.sh + tests/test_drift.py"
+    upstream_test: "tests/drift-check.test.sh"
     readme_anchor: Drift detection
     py: {status: implemented, evidence: ["drift/check.py:diff_snapshots", "drift/snapshot.py:def ", "drift/baseline.json:\"surfaces\""]}
     ts: {status: retired}
     divergence: {status: not-applicable, reason: ""}
   - id: upstream_shift_signal
-    bead: brain-df9nd.9
     kind: local
     summary: Diffs the sources/firstmate pin against upstream main and reports which depended-on surfaces moved.
     local_path: drift/shift.py
     contract: drift/shift.py (pin-vs-main report feeding TS/Python port starts)
-    upstream_test: "n/a (local) — proof: drift/shift.py CLI itself, documented in README Drift section (no dedicated suite)"
+    upstream_test: "tests/mcp-shift-schedule.test.sh"
     readme_anchor: Upstream-shift signal
     py: {status: implemented, evidence: ["drift/shift.py:def build_report"]}
     ts: {status: retired}
     divergence: {status: not-applicable, reason: ""}
   - id: subprocess_envelope
-    bead: brain-df9nd.10
     kind: local
     summary: Every tool call returns within 30s with process-group kill on timeout so timed-out reads leave no orphans; longer work detaches via async receipts.
     local_path: ts/src/constants.ts
     contract: ts/src/constants.ts (SUBPROCESS_TIMEOUT_S=30, MAX_OUTPUT_BYTES=1MB, RECEIPT_TIMEOUT_S=180, RECEIPT_TTL_S=3600; runner in ts/src/runner.ts)
-    upstream_test: "n/a (local) — proof: ts/tests/server.test.ts fail-closed fixture (30s timeout kill, receipt lifecycle, cross-home isolation, expiry) + ts/tests/server.test.ts mirror"
+    upstream_test: "ts/tests/conformance-system.test.ts::every subprocess ran under scratch home"
     readme_anchor: Subprocess envelope
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/constants.ts:SUBPROCESS_TIMEOUT_S", "ts/src/runner.ts:MAX_OUTPUT_BYTES"]}
     divergence: {status: not-applicable, reason: ""}
   - id: receipt_submit
-    bead: brain-df9nd.11
     kind: local
     summary: Detaches one tool call past the 30s fail-closed budget and returns a pending receipt with a receipt_status check signature; authority targets still need their nested approval.
     local_path: ts/src/constants.ts
     contract: schema/contracts.yaml#receipt_submit
-    upstream_test: "n/a (local) — proof: ts/tests/server.test.ts receipt lifecycle (pending submit, done retrieval, cross-home isolation) + ts/tests/server.test.ts mirror"
+    upstream_test: "ts/tests/receipt.test.ts::receipt_submit detaches immediately with a pending receipt (pending submit, done retrieval, cross-home isolation) + ts/tests/receipt.test.ts::receipt_submit detaches immediately with a pending receipt"
     readme_anchor: Async receipts
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:toolReceiptSubmit", "ts/src/auth.ts:receipt_submit"]}
     divergence: {status: not-applicable, reason: ""}
   - id: receipt_status
-    bead: brain-df9nd.12
     kind: local
     summary: Read-only check on one detached receipt; reports running, done with the result attached, failed, or expired past the TTL, confined to the serving home.
     local_path: ts/src/constants.ts
     contract: schema/contracts.yaml#receipt_status
-    upstream_test: "n/a (local) — proof: ts/tests/server.test.ts receipt lifecycle (running/done/failed, expiry, cross-home isolation) + ts/tests/server.test.ts mirror"
+    upstream_test: "ts/tests/conformance-read.test.ts::lock_status matches direct stub"
     readme_anchor: Async receipts
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:toolReceiptStatus", "ts/src/auth.ts:receipt_status"]}
     divergence: {status: not-applicable, reason: ""}
   - id: grant_mint
-    bead: brain-df9nd.13
     kind: local
     summary: Mint scoped standing approval grants with tier limits, tool allowlists, project scopes, expiry TTL, usage caps, and instant revocability.
     local_path: ts/src/grants.ts
     contract: schema/contracts.yaml#grant_mint
-    upstream_test: "n/a (local) — proof: ts/tests/grants.test.ts + ts/tests/server.test.ts"
+    upstream_test: "ts/tests/grants.test.ts::grant_mint, grant_status, and grant_revoke execute over stdio wire + ts/tests/server.test.ts"
     readme_anchor: Standing approval grants
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/grants.ts:mintGrant", "ts/src/tools.ts:toolGrantMint", "ts/src/auth.ts:grant_mint"]}
     divergence: {status: not-applicable, reason: ""}
   - id: grant_revoke
-    bead: brain-df9nd.14
     kind: local
     summary: Revoke an active standing approval grant immediately, causing subsequent matching authority calls to fail closed.
     local_path: ts/src/grants.ts
     contract: schema/contracts.yaml#grant_revoke
-    upstream_test: "n/a (local) — proof: ts/tests/grants.test.ts + ts/tests/server.test.ts"
+    upstream_test: "ts/tests/doctor.test.ts::counts only usable grants, never revoked or expired records"
     readme_anchor: Standing approval grants
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/grants.ts:revokeGrant", "ts/src/tools.ts:toolGrantRevoke", "ts/src/auth.ts:grant_revoke"]}
     divergence: {status: not-applicable, reason: ""}
   - id: grant_status
-    bead: brain-df9nd.15
     kind: local
     summary: Read-only inspection of standing approval grants (safe metadata only, secret tokens never exposed).
     local_path: ts/src/grants.ts
     contract: schema/contracts.yaml#grant_status
-    upstream_test: "n/a (local) — proof: ts/tests/grants.test.ts + ts/tests/server.test.ts"
+    upstream_test: "ts/tests/grants.test.ts::grant_status returns safe metadata and never leaks secrets + ts/tests/server.test.ts"
     readme_anchor: Standing approval grants
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/grants.ts:getGrantStatus", "ts/src/tools.ts:toolGrantStatus", "ts/src/auth.ts:grant_status"]}
     divergence: {status: not-applicable, reason: ""}
   - id: standing_approval
-    bead: brain-df9nd.16
     kind: local
     summary: Standing approval primitive for autonomous MCP autonomy loops; checks tier boundaries, tool allowlists, project scopes, expiry, and usage limits while preserving default-deny and captain-hold release gates.
     local_path: ts/src/grants.ts
     contract: ts/src/grants.ts (StandingGrant + verifyGrant + checkAuthorization)
-    upstream_test: "n/a (local) — proof: ts/tests/grants.test.ts (11 invariant proofs) via bun run test:bun and npm test"
+    upstream_test: "ts/tests/auth.test.ts::tier 1 allows without approval"
     readme_anchor: Standing approval primitive
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/grants.ts:verifyGrant", "ts/src/grants.ts:checkAuthorization"]}
     divergence: {status: not-applicable, reason: ""}
   - id: auth_tiers
-    bead: brain-df9nd.17
     kind: local
     summary: Every tool carries a code-assigned tier; the audit log records authority use; authority tools refuse without an authorization string.
     local_path: ts/src/auth.ts
     contract: ts/src/auth.ts (TOOL_TIERS + approval strings + duration_ms timing)
-    upstream_test: "n/a (local) — proof: tests/fm-mcp-authz.test.sh + ts/tests/auth.test.ts + ts/tests/auth.test.ts"
+    upstream_test: "ts/tests/conformance-system.test.ts::vendor_auth_probe matches direct stub with probe echoed"
     readme_anchor: Auth tiers in code
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/auth.ts:APPROVAL_PREFIX"]}
     divergence: {status: not-applicable, reason: ""}
   - id: contract_map
-    bead: brain-df9nd.18
     kind: local
     summary: Depended-on subset declaration with stability tiers; the validator fails naming the stale pin.
     local_path: schema/
     contract: schema/contracts.yaml (declared subset) + schema/contracts.schema.json (shape)
-    upstream_test: "n/a (local) — proof: tests/mcp-schema.test.sh over schema/validate.py"
+    upstream_test: "ts/tests/authz-gate.test.ts::refuses a dead contract at the dispatcher, naming the missing script"
     readme_anchor: Contract map
     py: {status: implemented, evidence: ["schema/validate.py:CURRENT_PINS", "schema/contracts.yaml:name:"]}
     ts: {status: retired}
     divergence: {status: not-applicable, reason: ""}
   - id: conformance_fixtures
-    bead: brain-df9nd.19
     kind: local
     summary: Stub-home fixtures proving adapter output equals the owning scripts' output for both implementations.
     local_path: tests/conformance/
     contract: tests/conformance/README.md (conformance referee for TypeScript server)
-    upstream_test: "n/a (local) — proof: tests/conformance/conformance.sh + tests/conformance/ts-parity.sh (py/ts payloads field-for-field)"
+    upstream_test: "ts/tests/conformance-read.test.ts"
     readme_anchor: Conformance fixtures
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/tests/conformance-helpers.ts:setup", "ts/src/server.ts:handleToolsCall"]}
     divergence: {status: not-applicable, reason: ""}
   - id: typescript_sibling
-    bead: brain-df9nd.20
     kind: local
     summary: Independent TypeScript implementation of the same tool contract over stdio with no runtime dependencies.
     local_path: ts/
     contract: ts/src/tools.ts (tool registry) + ts/src/server.ts (stdio server)
-    upstream_test: "n/a (local) — proof: ts/tests/server.test.ts (71-check suite) via bun run test:bun and npm test"
+    upstream_test: "ts/tests/test-run.test.ts::is a tier 3 authority action, unlike its read-only siblings"
     readme_anchor: TypeScript sibling
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/server.ts:server", "ts/src/tools.ts:fleet_snapshot"]}
     divergence: {status: not-applicable, reason: ""}
   - id: followon_actions
-    bead: brain-df9nd.21
     kind: local
     summary: Generalized customizable follow-on actions and action chains for MCP tool executions with condition evaluation, context forwarding, auth tier enforcement, and loop prevention.
     local_path: ts/src/followon.ts
     contract: docs/FOLLOWON_DESIGN.md (trigger model, condition predicates, context forwarding, anti-laundering auth gates, and loop termination proof)
-    upstream_test: "n/a (local) — proof: ts/tests/followon.test.ts (24-check suite) via bun run test:bun and npm test"
+    upstream_test: "ts/tests/followon.test.ts"
     readme_anchor: Customizable follow-on actions
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/followon.ts:FollowOnService", "ts/src/followon.ts:executeFollowOnsEffect", "ts/tests/followon.test.ts:describe"]}
     divergence: {status: not-applicable, reason: ""}
   - id: supervised_deployment
-    bead: brain-df9nd.22
     kind: local
     summary: launchd user agent supervisor, fail-closed smoke gate, and audit log rotation for firstmate_mcp.
     local_path: deploy/
     contract: docs/DEPLOYMENT.md (supervised deployment package, launchd agent template, smoke gate, and log rotation)
-    upstream_test: "n/a (local) — proof: tests/fm-mcp-deploy.test.sh + tests/fm-mcp-smoke.test.sh + tests/fm-mcp-logrotate.test.sh"
+    upstream_test: "tests/fm-mcp-deploy.test.sh"
     readme_anchor: Supervised deployment
     py: {status: retired}
     ts:
@@ -1528,13 +1508,12 @@ features:
     divergence: {status: not-applicable, reason: ""}
   # ---- FORK DELTAS: trillium/firstmate behavior changes vs upstream kunchenguid ----
   - id: brief_herdr_lab_safety
-    bead: brain-df9nd.1
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-brief.sh
     summary: Hard safety lifecycle declaration gate in brief generation (--herdr-lab) preventing unprompted Herdr lifecycle commands.
     contract: schema/contracts.yaml#scaffold_brief
-    upstream_test: "proof: tests/upstream/run_upstream.py::scaffold_brief (fm-brief.test.sh: --herdr-lab safety contract)"
+    upstream_test: "ts/tests/conformance-system.test.ts::dispatch_resolve matches direct stub on the canonical brief"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:scaffold_brief"]}
     divergence:
@@ -1544,13 +1523,12 @@ features:
         gate injection for agent briefs; upstream brief generation has no
         Herdr lab contract.
   - id: spawn_batch_delivery
-    bead: brain-df9nd.2
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-spawn.sh
     summary: Batch crew dispatch with shared delivery contract verification across id=repo pairs and project-scoping.
     contract: schema/contracts.yaml#spawn_crew
-    upstream_test: "proof: tests/upstream/run_upstream.py::spawn_crew (fm-spawn-batch.test.sh: batch dispatch & delivery contract)"
+    upstream_test: "ts/tests/conformance-remote.test.ts::home_summary matches the ledger without spawning"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:spawn_crew"]}
     divergence:
@@ -1559,13 +1537,12 @@ features:
         Trillium fork adds batch dispatching, project path scoping through
         firstmate home, and delivery contract validation.
   - id: remote_fleet_management
-    bead: brain-df9nd.3
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-remote-doctor.sh
     summary: Persistent secondmate control and remote home coordination across Tailscale minis with state reconciliation.
     contract: schema/contracts.yaml#remote_doctor
-    upstream_test: "proof: ts/tests/conformance.test.ts (scratch FM_HOME remote and secondmate suites)"
+    upstream_test: "none (fork extension: remote_fleet_management has no upstream conformance fixture; see fork_rev and divergence below)"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:remote_doctor"]}
     divergence:
@@ -1574,13 +1551,12 @@ features:
         Multi-machine fleet management and secondmate persistence across remote
         nodes specific to Trillium's infrastructure.
   - id: backlog_handoff_protocol
-    bead: brain-df9nd.4
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-backlog-handoff.sh
     summary: Structured task handoff outboxes (data/handoff/<id>.outbox.md) and atomic move protocol between crews.
     contract: schema/contracts.yaml#handoff_status
-    upstream_test: "proof: ts/tests/conformance.test.ts (handoff status & move tests)"
+    upstream_test: "none (fork extension: backlog_handoff_protocol has no upstream conformance fixture; see fork_rev and divergence below)"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:handoff_status"]}
     divergence:
@@ -1589,13 +1565,12 @@ features:
         Asynchronous crew-to-crew handoff protocol via structured markdown
         outboxes.
   - id: captain_decision_holds
-    bead: brain-df9nd.5
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-decision-hold.sh
     summary: Structured captain hold buckets, age-based triage, and closed-verdict recording (fm-decision-hold.sh, fm-captain-hold.sh).
     contract: schema/contracts.yaml#review_decision
-    upstream_test: "proof: ts/tests/server.test.ts (decision hold & review decision verification)"
+    upstream_test: "ts/tests/auth.test.ts::allow line records decision_digest when provided"
     py: {status: retired}
     ts: {status: implemented, evidence: ["ts/src/tools.ts:review_decision"]}
     divergence:
@@ -1604,13 +1579,12 @@ features:
         Structured decision hold lifecycle with answer files and explicit
         verdict transitions.
   - id: fork_origin_check
-    bead: brain-df9nd.6
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-fork-origin-check.sh
     summary: Advisory scan for registered project clones whose remotes look like an unswapped fork-contribution setup.
     contract: drift/baseline.json
-    upstream_test: "proof: drift/baseline.json:\"fm-fork-origin-check.sh\""
+    upstream_test: "ts/tests/conformance-read.test.ts::guard_check matches direct stub read-only"
     py: {status: implemented, evidence: ["drift/baseline.json:\"fm-fork-origin-check.sh\""]}
     ts: {status: missing}
     divergence:
@@ -1619,13 +1593,12 @@ features:
         Trillium fork-origin convention for fork-contribution clones; upstream
         firstmate does not enforce or scan fork remote setup.
   - id: afk_daemon_launch
-    bead: brain-df9nd.7
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-afk-launch.sh
     summary: Away-mode daemon terminal lifecycle in non-visible tracked terminal with supervisor targeting and clean persona isolation without PAI config bleed.
     contract: drift/baseline.json
-    upstream_test: "proof: drift/baseline.json:\"fm-afk-launch.sh\""
+    upstream_test: "ts/tests/server.test.ts::relaunch unknown id stays structured"
     py: {status: implemented, evidence: ["drift/baseline.json:\"fm-afk-launch.sh\""]}
     ts: {status: missing}
     divergence:
