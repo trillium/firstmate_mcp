@@ -33,6 +33,13 @@ Mirror parity is not capability parity: the denied-by-design set is the point of
 - TypeScript status: implemented 102, missing 2, retired 3
 - divergence status: intentional 89, none 3, not-applicable 15
 
+## The fork line: proof basis vs the line the fleet runs
+
+- proof basis (`proven_commit`): `86c035336bf9e136dd44d76e7d46e16d260fac8f` (2026-09-17)
+- served line (`served_commit`): `aaf67489ec7644f3bdfd4043ba0c898ab928bcd9` (2026-09-06)
+
+They are different revs: the proof basis is when CUTOVER-PROOF.md and UPSTREAM-RESULTS.md were produced; the served line is what `FM_HOME` actually runs. `manifest/validate.py` fails loudly if the served line and `drift/baseline.json` disagree, and `schema/validate.py` fails if the two files state different served revs. Keeping the fleet on a current line is operational (`project-2od.13`), not a doorway concern.
+
 ## Served-line parity (the dimension surface parity does not cover)
 
 Run with `--fm-home PATH` to report which declared contracts that home can run.

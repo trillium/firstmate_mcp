@@ -197,6 +197,10 @@ def main():
         (norm(cup.get("baseline_surfaces")), norm(fup.get("baseline_surfaces_at_seed")), "upstream baseline_surfaces"),
         (norm(cfork.get("proven_commit")), norm(ffork.get("proven_commit")), "fork proven_commit"),
         (norm(cfork.get("proven_date")), norm(ffork.get("proven_date")), "fork proven_date"),
+        # Two revs by design: proven_commit is the proof basis, served_commit is the
+        # line the fleet runs. Both must be stated in both files and agree.
+        (norm(cfork.get("served_commit")), norm(ffork.get("served_commit")), "fork served_commit"),
+        (norm(cfork.get("served_date")), norm(ffork.get("served_date")), "fork served_date"),
     ]
     for got, want, label in pairs:
         if got in (None, "") or want in (None, "") or got != want:

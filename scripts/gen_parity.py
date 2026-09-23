@@ -152,6 +152,24 @@ def build(fm_home: str | None) -> str:
     out.append("- divergence status: " + ", ".join(f"{k} {v}" for k, v in sorted(divergences.items())))
     out.append("")
 
+    # The fork block carries two revs on purpose; a reader asking "what are we
+    # pinned at" was previously unable to tell them apart (owner asked 2026-09-22).
+    fork = (yaml.safe_load(FEATURES.read_text(encoding="utf-8")) or {}).get("fork") or {}
+    out.append("## The fork line: proof basis vs the line the fleet runs\n")
+    if fork:
+        out.append(f"- proof basis (`proven_commit`): `{fork.get('proven_commit')}` ({fork.get('proven_date')})")
+        out.append(f"- served line (`served_commit`): `{fork.get('served_commit')}` ({fork.get('served_date')})")
+        out.append(
+            "\nThey are different revs: the proof basis is when CUTOVER-PROOF.md and "
+            "UPSTREAM-RESULTS.md were produced; the served line is what `FM_HOME` actually "
+            "runs. `manifest/validate.py` fails loudly if the served line and "
+            "`drift/baseline.json` disagree, and `schema/validate.py` fails if the two "
+            "files state different served revs. Keeping the fleet on a current line is "
+            "operational (`project-2od.13`), not a doorway concern.\n"
+        )
+    else:
+        out.append("(no fork provenance block found)\n")
+
     served = served_line_report(fm_home)
     out.append("## Served-line parity (the dimension surface parity does not cover)\n")
     if served is None:
