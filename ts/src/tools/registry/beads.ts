@@ -6,6 +6,7 @@
  * canonical order.
  */
 import {
+  toolBeadsBackup,
   toolBeadsMirror,
   toolBeadsQueue,
   toolLedgerList,
@@ -56,5 +57,15 @@ export const BeadsRegistry: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolLedgerList,
+  },
+  beads_backup: {
+    description:
+      "Read-only verify of the fleet task store off-box copy: reachable and correctly wired, or the named reason it is not. Repair stays out.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+    handler: toolBeadsBackup,
   },
 };

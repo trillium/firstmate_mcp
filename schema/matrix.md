@@ -96,6 +96,7 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | fork_origin_check | bin/fm-fork-origin-check.sh | stable | (none) | advisory unswapped-origin scan, never gates |
 | promote_scout | bin/fm-promote.sh | stable | <task-id>, --mode, --yolo | scout-to-ship promotion in place |
 | arm_pr_check | bin/fm-arm-pretool-check.sh | stable | --command | watcher PR check arming |
+| beads_backup | bin/fm-beads-remote-backup.sh | stable | --verify | off-box copy verify (repair stays out) |
 
 ## How to use this view
 

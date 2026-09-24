@@ -62,7 +62,7 @@ const TIER4_TOOLS = Object.entries(TOOL_TIERS)
 
 describe("tier assignments", () => {
   it("covers every tool", () => {
-    assert.equal(Object.keys(TOOL_TIERS).length, 133);
+    assert.equal(Object.keys(TOOL_TIERS).length, 134);
   });
   it("tier 1 is open reads", () => {
     for (const tool of TIER1_TOOLS) assert.equal(tierOf(tool), TIER_OPEN, tool);

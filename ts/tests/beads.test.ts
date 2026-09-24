@@ -403,3 +403,24 @@ describe("fork advisory reads", () => {
     assert.ok(JSON.stringify(res.payload).includes("MISCONFIGURED"));
   });
 });
+
+describe("beads backup verify", () => {
+  type RunResult = import("../src/runner.js").RunResult;
+
+  test("verify passes through BEADS_BACKUP lines", async () => {
+    const home = makeStubHome();
+    const scriptOut = "BEADS_BACKUP: reachable mini1/tasks rev abc123\n";
+    const run = async (): Promise<RunResult> => ({ stdout: scriptOut, stderr: "", exitCode: 0 });
+    const res = await TOOLS["beads_backup"].handler(
+      {},
+      {
+        ...liveContext(),
+        binDir: `${home}/bin`,
+        stateDir: `${home}/state`,
+        run,
+      },
+    );
+    assert.equal(res.isError, false);
+    assert.ok(JSON.stringify(res.payload).includes("BEADS_BACKUP"));
+  });
+});

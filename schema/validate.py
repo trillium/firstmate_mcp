@@ -103,6 +103,7 @@ CURRENT_PINS = {
     "ci_history": "gh-run-list.v1",
     "fleet_ledger": "fm-fleet-ledger.v1",
     "devin_config": "fm-devin-config.v1",
+    "beads_backup": "fm-beads-backup.v1",
     "promote_scout": "fm-promote.v1",
     "arm_pr_check": "fm-arm-pr-check.v1",
     "fork_origin_check": "fm-fork-origin.v1",

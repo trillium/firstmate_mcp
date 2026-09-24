@@ -1449,3 +1449,19 @@ contracts:
       header: bin/fm-arm-pretool-check.sh:1-40
       doc: docs/BEADS-STORE-CONTRACT.md
     notes: "Authority write behind approval (Tier 3). Readiness gate for the landing chain; merge itself stays separate."
+  - name: beads_backup
+    command: bin/fm-beads-remote-backup.sh
+    flags: ["--verify"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: reachable and correctly wired backup copy
+      nonzero: needs an operator, named by the last BEADS_BACKUP line
+    stability: stable
+    pinned: fm-beads-backup.v1
+    evidence:
+      header: bin/fm-beads-remote-backup.sh:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Verify-only surface; --repair (rewiring, commits, pushes) stays out."

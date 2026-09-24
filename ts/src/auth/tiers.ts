@@ -157,6 +157,7 @@ export const TOOL_TIERS: Record<string, Tier> = {
   fleet_ledger: TIER_OPEN,
   devin_config: TIER_AUTHORITY,
   fork_origin_check: TIER_OPEN,
+  beads_backup: TIER_OPEN,
 };
 
 /**

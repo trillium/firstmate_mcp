@@ -1643,10 +1643,10 @@ features:
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-beads-remote-backup.sh
     summary: Off-box Dolt backup verify/repair for the beads store.
-    contract: drift/baseline.json
+    contract: schema/contracts.yaml#beads_backup
     upstream_test: "ts/tests/conformance-read.test.ts::backlog derives counts from the same snapshot"
     py: {status: implemented, evidence: ["drift/baseline.json:\"fm-beads-remote-backup.sh\""]}
-    ts: {status: missing}
+    ts: {status: implemented, evidence: ["ts/src/tools/beads.ts:toolBeadsBackup"]}
     divergence:
       status: intentional
       reason: >-

@@ -119,3 +119,10 @@ export async function toolLedgerList(args: ToolArgs, ctx: ToolContext): Promise<
   ];
   return ownedCall(cmd, "ledger list failed", ctx.run);
 }
+
+export async function toolBeadsBackup(_args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const cmd = [path.join(ctx.binDir, "fm-beads-remote-backup.sh"), "--verify"];
+  const { payload, isError } = await ownedCall(cmd, "beads backup verify failed", ctx.run);
+  if (isError) return { payload, isError: true };
+  return { payload: { ...payload }, isError: false };
+}

@@ -9,6 +9,7 @@
     "arm_policy_check": "bin/fm-arm-pretool-check.sh",
     "arm_pr_check": "bin/fm-arm-pretool-check.sh",
     "beads_backend": "bin/fm-tasks-axi-lib.sh",
+    "beads_backup": "bin/fm-beads-remote-backup.sh",
     "beads_is_closed": "bin/fm-tasks-axi-lib.sh",
     "beads_scope": "bin/fm-tasks-axi-lib.sh",
     "bearings_board_path": "bin/fm-bearings-board.sh",
