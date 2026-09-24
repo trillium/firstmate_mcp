@@ -105,6 +105,7 @@ CURRENT_PINS = {
     "devin_config": "fm-devin-config.v1",
     "beads_backup": "fm-beads-backup.v1",
     "backlog_import": "fm-backlog-import.v1",
+    "staleness_file": "fm-staleness-file.v1",
     "promote_scout": "fm-promote.v1",
     "arm_pr_check": "fm-arm-pr-check.v1",
     "fork_origin_check": "fm-fork-origin.v1",

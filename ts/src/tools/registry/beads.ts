@@ -12,6 +12,7 @@ import {
   toolBeadsQueue,
   toolLedgerList,
 } from "../beads.js";
+import { toolStalenessFile } from "../staleness.js";
 import type { ToolDef } from "./shared.js";
 
 export const BeadsRegistry: Record<string, ToolDef> = {
@@ -93,5 +94,29 @@ export const BeadsRegistry: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolBacklogImport,
+  },
+  staleness_file: {
+    description:
+      "Authority write: file a triage bead for reclaimed-unlanded work. Fail-open filing discipline; approval required.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        task_id: { type: "string" },
+        purpose: { type: "string" },
+        worktree: { type: "string" },
+        branch: { type: "string" },
+        project: { type: "string" },
+        harness: { type: "string" },
+        idle_since: { type: "integer", minimum: 0 },
+        summary: { type: "string" },
+        approval: {
+          type: "string",
+          description: "Explicit authorization starting with 'I authorize'",
+        },
+      },
+      required: ["task_id", "worktree", "idle_since", "approval"],
+      additionalProperties: false,
+    },
+    handler: toolStalenessFile,
   },
 };

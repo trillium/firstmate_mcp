@@ -1481,3 +1481,19 @@ contracts:
       header: bin/fm-backlog-import-beads.sh:1-40
       doc: docs/BEADS-STORE-CONTRACT.md
     notes: "Authority write behind approval (Tier 3). Dry run by default; --apply performs writes. Backlog path confined to the home."
+  - name: staleness_file
+    command: bin/fm-staleness-file.sh
+    flags: ["<task-id>", "<purpose>", "<worktree>", "<branch>", "<project>", "<harness>", "<idle-since>", "<summary>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout", "task_id"]
+    exits:
+      zero: triage bead filed (or warning-skipped fail-open when store/CLI absent)
+      nonzero: bad identifiers, escapes, or bounds; stderr carries the reason
+    stability: stable
+    pinned: fm-staleness-file.v1
+    evidence:
+      header: bin/fm-staleness-file.sh:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Authority write behind approval (Tier 3). Fail-open filing discipline: worktree confined to the home, summary bounded 2000 chars."

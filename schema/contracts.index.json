@@ -84,6 +84,7 @@
     "send_message": "bin/fm-send.sh",
     "sessionstart_nudge": "bin/fm-sessionstart-nudge.sh",
     "spawn_crew": "bin/fm-spawn.sh",
+    "staleness_file": "bin/fm-staleness-file.sh",
     "startup_memory": "bin/fm-startup-memory-budget.sh",
     "startup_network_report": "bin/fm-startup-network.sh",
     "stow_cascade": "bin/fm-stow-cascade.sh",

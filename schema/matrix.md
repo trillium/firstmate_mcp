@@ -98,6 +98,7 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | arm_pr_check | bin/fm-arm-pretool-check.sh | stable | --command | watcher PR check arming |
 | beads_backup | bin/fm-beads-remote-backup.sh | stable | --verify | off-box copy verify (repair stays out) |
 | backlog_import | bin/fm-backlog-import-beads.sh | stable | --backlog, --apply | one-time import, dry run default |
+| staleness_file | bin/fm-staleness-file.sh | stable | 8 positional args, worktree confined | triage filing, fail-open |
 
 ## How to use this view
 

@@ -466,3 +466,55 @@ describe("backlog import", () => {
     }
   });
 });
+
+describe("staleness file", () => {
+  type RunResult = import("../src/runner.js").RunResult;
+  const stubRun =
+    (stdout: string) =>
+    async (): Promise<RunResult> => ({ stdout, stderr: "", exitCode: 0 });
+
+  function staleCtx(home: string, stdout = ""): ToolContext {
+    return {
+      ...liveContext(),
+      binDir: `${home}/bin`,
+      stateDir: `${home}/state`,
+      run: stubRun(stdout),
+    };
+  }
+
+  const good = {
+    task_id: "task-9",
+    purpose: "reclaim",
+    worktree: "wt-1",
+    branch: "main",
+    project: "proj",
+    harness: "claude",
+    idle_since: 99,
+    summary: "landed elsewhere",
+    approval: "I authorize",
+  };
+
+  test("valid filing dispatches with confined worktree", async () => {
+    const home = makeStubHome();
+    const res = await TOOLS["staleness_file"].handler(good, staleCtx(home, "filed"));
+    assert.equal(res.isError, false);
+  });
+
+  test("bad identifiers, escapes, and bounds refused", async () => {
+    const home = makeStubHome();
+    const cases = [
+      { ...good, task_id: "../x" },
+      { ...good, worktree: "../escape" },
+      { ...good, worktree: "/etc/passwd" },
+      { ...good, branch: "../x" },
+      { ...good, idle_since: -1 },
+      { ...good, idle_since: 1.5 },
+      { ...good, purpose: "x".repeat(65) },
+      { ...good, summary: "x".repeat(2001) },
+    ];
+    for (const args of cases) {
+      const res = await TOOLS["staleness_file"].handler(args, staleCtx(home, ""));
+      assert.equal(res.isError, true, JSON.stringify(args).slice(0, 60));
+    }
+  });
+});

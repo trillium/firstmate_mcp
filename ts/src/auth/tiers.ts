@@ -159,6 +159,7 @@ export const TOOL_TIERS: Record<string, Tier> = {
   fork_origin_check: TIER_OPEN,
   beads_backup: TIER_OPEN,
   backlog_import: TIER_AUTHORITY,
+  staleness_file: TIER_AUTHORITY,
 };
 
 /**

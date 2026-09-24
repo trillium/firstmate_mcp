@@ -1698,10 +1698,10 @@ features:
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-staleness-file.sh
     summary: Triage-bead filer for ship tasks reclaimed unlanded by staleness auto-close.
-    contract: drift/baseline.json
+    contract: schema/contracts.yaml#staleness_file
     upstream_test: "ts/tests/conformance-system.test.ts::tasks_list matches direct stub"
     py: {status: implemented, evidence: ["drift/baseline.json:\"fm-staleness-file.sh\""]}
-    ts: {status: missing}
+    ts: {status: implemented, evidence: ["ts/src/tools/staleness.ts:toolStalenessFile"]}
     divergence:
       status: intentional
       reason: >-

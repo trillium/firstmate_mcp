@@ -1,11 +1,7 @@
 /**
- * Beads durability reads: mirror + write queue (s00r port, task-8pqjb pattern).
- *
- * Both read plain home-state files owned by bin/fm-beads-resilience-lib.sh —
- * no TS reimplementation of queue semantics, no script dispatch. Mirror
- * freshness uses the lib's 900s default max age. Absent/unreadable files
- * return typed degraded state ({present: false} / {pending: 0}), never an
- * error. Pending-write argv never surfaces (mutations shown, never executed).
+ * Beads reads + Tier-3 writes (s00r/pv66/n9o3 ports). Reads serve owning
+ * state files; writes dispatch owning scripts behind approval. Degraded
+ * states are typed, never errors; pending-write argv never surfaces.
  */
 import fs from "node:fs";
 import path from "node:path";
