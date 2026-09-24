@@ -164,14 +164,14 @@ describe("expanded surface: 66 tools", () => {
     "receipt_status", "repo_edit", "repo_commit", "repo_push",
     "daemon_status", "task_intake", "worktree_allocate", "lifecycle_drive",
     "review_gate", "reconcile_upstream", "grant_mint", "grant_revoke",
-    "grant_status",
+    "grant_status", "promote_scout", "arm_pr_check",
   ];
   // Registered so the dispatcher can refuse them by name, never advertised.
   const HIDDEN = [
     "session_start", "sessionstart_run", "sessionstart_cursor", "herdr_lab",
     "herdr_ci_cleanup", "session_cleanup", "claude_trust", "agy_trust",
-    "claude_stop_autoarm", "herdr_eventwait", "herdr_workspace_move", "promote_scout",
-    "teardown_crew", "arm_pr_check", "merge_pr", "merge_local",
+    "claude_stop_autoarm", "herdr_eventwait", "herdr_workspace_move",
+    "teardown_crew", "merge_pr", "merge_local",
     "public_followup_emit", "relay_link", "fleet_sync", "inactive_reconcile",
     "backlog_receive", "repo_merge", "daemon_start", "daemon_stop",
     "daemon_restart", "watch_start", "watch_stop", "herdr_spur",

@@ -1401,3 +1401,51 @@ contracts:
       header: bin/fm-devin-config.sh:1-40
       doc: docs/BEADS-STORE-CONTRACT.md
     notes: "Authority write behind approval. Divergence: upstream takes arbitrary state-dir; doorway pins served home."
+  - name: fork_origin_check
+    command: bin/fm-fork-origin-check.sh
+    flags: ["<none>"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout"]
+    exits:
+      zero: always; findings (if any) on stdout, one per line
+      nonzero: script failure; stderr carries the reason
+    stability: stable
+    pinned: fm-fork-origin.v1
+    evidence:
+      header: bin/fm-fork-origin-check.sh:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Advisory scan only; never blocks a spawn, edits a remote, or fails the build."
+  - name: promote_scout
+    command: bin/fm-promote.sh
+    flags: ["<task-id>", "--mode", "--yolo"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout", "task_id", "mode", "yolo"]
+    exits:
+      zero: scout promoted to ship task in place
+      nonzero: bad id/mode/yolo or promotion failure; stderr carries the reason
+    stability: stable
+    pinned: fm-promote.v1
+    evidence:
+      header: bin/fm-promote.sh:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Authority write behind approval (Tier 3). Promotes within the task store; launching stays separate."
+  - name: arm_pr_check
+    command: bin/fm-arm-pretool-check.sh
+    flags: ["--command"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout", "task_id"]
+    exits:
+      zero: watcher PR check armed for the task
+      nonzero: bad id or arming failure; stderr carries the reason
+    stability: stable
+    pinned: fm-arm-pr-check.v1
+    evidence:
+      header: bin/fm-arm-pretool-check.sh:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Authority write behind approval (Tier 3). Readiness gate for the landing chain; merge itself stays separate."

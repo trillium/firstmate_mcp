@@ -258,9 +258,7 @@ COMMAND_AREAS = {
 # DENY_LIST name -> (upstream command or "policy: ..." row, reason).
 # Every adapter DENY_LIST entry must appear here; the gate enforces it.
 DENY_REASONS = {
-    "promote_scout": ("fm-promote.sh", "code-writing path: scouts report, ships launch separately"),
     "teardown_crew": ("fm-teardown.sh", "discards endpoint, worktree, and uncommitted work"),
-    "arm_pr_check": ("fm-pr-check.sh", "arming a merge poll mutates CI/landing state"),
     "merge_pr": ("fm-pr-merge.sh", "landing merges belong to the configured merge authority"),
     "merge_local": ("fm-merge-local.sh", "local landing merges belong to the merge authority"),
     "daemon_start": ("fm-supervise-daemon.sh", "shared daemon serves every lane; only firstmate manages it"),

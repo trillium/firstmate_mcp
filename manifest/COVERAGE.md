@@ -23,12 +23,12 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Sessions](#sessions) | 7 | 18 | 0 | 1 |
 | [Backlog / decisions](#backlog-decisions) | 5 | 2 | 0 | 6 |
 | [Secondmates / remotes](#secondmates-remotes) | 8 | 10 | 0 | 2 |
-| [PR pipeline](#pr-pipeline) | 4 | 5 | 0 | 2 |
+| [PR pipeline](#pr-pipeline) | 5 | 3 | 1 | 2 |
 | [Relay](#relay) | 6 | 2 | 0 | 0 |
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 | 0 |
 | [Installs](#installs) | 10 | 10 | 0 | 3 |
-| **Total** | **67** | **72** | **0** | **21** |
+| **Total** | **68** | **70** | **1** | **21** |
 
 ## Fleet runs
 
@@ -57,7 +57,7 @@ Control and data planes for live crews: daemon, lifecycle verbs, steer, wakes, g
 | `fm-afk-launch.sh` | denied-by-design — `afk_launch` | non-visible terminal launch for the daemon. entry and exit own the away-mode daemon terminal lifecycle and posture record; only the away-mode entry path owns launches |
 | `fm-afk-return.sh` | denied-by-design — `afk_return` | away-mode return catch-up gate. the return shuts the daemon down and owns the catch-up gate; only the return path owns returns |
 | `fm-afk-start.sh` | denied-by-design — `afk_start` | away-mode daemon foreground. starting execs the supervise daemon in the foreground; only harness-tracked launch owns daemon starts |
-| `fm-arm-pretool-check.sh` | mirrored — `arm_policy_check` (ts✔) | PreToolUse command-policy hook |
+| `fm-arm-pretool-check.sh` | mirrored — `arm_policy_check` (ts✔), `arm_pr_check` (ts✔) | PreToolUse command-policy hook |
 | `fm-attended-start.sh` | fork extension | fork extension (present in trillium/firstmate, absent upstream): attended triage daemon |
 | `fm-branch-outcome.sh` | denied-by-design — `branch_outcome` | supervision-branch outcome store. the append-only outcome store with its read-cursor and processed-marker protocol is the branch's private channel; only the Pi branch extension and session-start replay own it |
 | `fm-branch-prompt.sh` | denied-by-design — `branch_prompt` | supervision-branch system prompt emitter. the branch system prompt carries the branch's authority context; only the branch host owns prompt construction |
@@ -182,12 +182,12 @@ Check arming, polls, reviews, and landing: the code-adjacent surface that stays 
 | `fm-coderabbit-review-state.sh` | fork extension | fork extension (present in trillium/firstmate, absent upstream): CodeRabbit review state |
 | `fm-merge-local.sh` | denied-by-design — `merge_local` | local landing merge; same refusal as merge_pr. local landing merges belong to the merge authority |
 | `fm-pr-check-migrate.sh` | fork extension | fork extension (present in trillium/firstmate, absent upstream): PR check migration |
-| `fm-pr-check.sh` | denied-by-design — `arm_pr_check` | record PR-ready task + arm merge poll. arming a merge poll mutates CI/landing state |
+| `fm-pr-check.sh` | gap | record PR-ready task + arm merge poll |
 | `fm-pr-merge.sh` | denied-by-design — `merge_pr` | landing merge; merge authority owns this, never MCP. landing merges belong to the configured merge authority |
 | `fm-pr-poll.sh` | mirrored — `pr_poll` (ts✔) | merge-poll check source; unmirrored read |
 | `fm-pr-reviewers.sh` | mirrored — `pr_reviewers` (ts✔) | reviewer assignment; unmirrored |
 | `fm-pr-state.sh` | mirrored — `pr_state` (ts✔) | PR state read; unmirrored |
-| `fm-promote.sh` | denied-by-design — `promote_scout` | promote scout to ship; code-writing path stays out. code-writing path: scouts report, ships launch separately |
+| `fm-promote.sh` | mirrored — `promote_scout` (ts✔) | promote scout to ship; code-writing path stays out |
 | `fm-review-diff.sh` | mirrored — `review_diff` (ts✔) | branch-vs-base review diff; unmirrored read |
 | `policy: repo-mutation` | denied-by-design — `repo_edit`, `repo_commit`, `repo_push`, `repo_merge` | project changes belong to workers behind merge authority |
 

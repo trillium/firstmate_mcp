@@ -144,6 +144,8 @@ export const TOOL_TIERS: Record<string, Tier> = {
   grant_mint: TIER_AUTHORITY,
   grant_revoke: TIER_AUTHORITY,
   grant_status: TIER_OPEN,
+  promote_scout: TIER_AUTHORITY,
+  arm_pr_check: TIER_AUTHORITY,
   beads_mirror: TIER_OPEN,
   beads_queue: TIER_OPEN,
   ledger_list: TIER_OPEN,
@@ -154,6 +156,7 @@ export const TOOL_TIERS: Record<string, Tier> = {
   ci_history: TIER_OPEN,
   fleet_ledger: TIER_OPEN,
   devin_config: TIER_AUTHORITY,
+  fork_origin_check: TIER_OPEN,
 };
 
 /**
@@ -174,9 +177,7 @@ export const TOOL_TIERS: Record<string, Tier> = {
  */
 export const FORBIDDEN_TOOLS: readonly string[] = [
   // Code-writing and landing surfaces the captain keeps
-  "promote_scout",
   "teardown_crew",
-  "arm_pr_check",
   "merge_pr",
   "merge_local",
   "repo_merge",

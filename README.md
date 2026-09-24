@@ -89,6 +89,7 @@ script's observable output (modulo the envelope wrap).
 Same owning scripts, narrower surface: safe flag subsets only,
 revalidated ids/paths/text, explicit per-call approval.
 
+- `arm_pr_check` — via `fm-arm-pretool-check.sh` (Tier 3 approval, approval required)
 - `decision_complete` — via `fm-captain-hold.sh` (Tier 3 approval, approval required)
 - `decision_hold` — via `fm-decision-hold.sh` (Tier 3 approval, approval required)
 - `decision_release` — via `fm-decision-hold.sh` (Tier 3 approval, approval required)
@@ -101,6 +102,7 @@ revalidated ids/paths/text, explicit per-call approval.
 - `lifecycle_resume` — via `fm-control.sh` (Tier 3 approval, approval required)
 - `lifecycle_suspend` — via `fm-control.sh` (Tier 3 approval, approval required)
 - `mail_send` — via `fm-mail.sh` (Tier 4 approval+relay, approval required)
+- `promote_scout` — via `fm-promote.sh` (Tier 3 approval, approval required)
 - `relay_dismiss` — via `fm-x-dismiss.sh` (Tier 4 approval+relay, approval required)
 - `relay_followup` — via `fm-x-followup.sh` (Tier 4 approval+relay, approval required)
 - `relay_reply` — via `fm-x-reply.sh` (Tier 4 approval+relay, approval required)
@@ -222,7 +224,7 @@ Refused by the adapter deny-list (no tool, answered unknown):
   (upstream reference skips cleanly without a checkout); verdicts
   seeded in `UPSTREAM-RESULTS.md`, divergences explicit in
   `tests/upstream/divergences.json`.
-- TypeScript sibling — `ts/` implements the 89-tool
+- TypeScript sibling — `ts/` implements the 91-tool
   contract over stdio as the sole server (zero runtime dependencies beyond Effect);
   `tests/conformance/ts-parity.sh` runs multi-runtime conformance fixtures under bun and node.
 - Git history reads — `git_history`, `git_blame` and `ci_history` expose bounded repo history, blame excerpts and CI run conclusions without leaving the doorway.
@@ -271,7 +273,7 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | Sessions | 7 | 18 | 0 | 1 |
 | Backlog / decisions | 5 | 2 | 0 | 6 |
 | Secondmates / remotes | 8 | 10 | 0 | 2 |
-| PR pipeline | 4 | 5 | 0 | 2 |
+| PR pipeline | 5 | 3 | 1 | 2 |
 | Relay | 6 | 2 | 0 | 0 |
 | Voice / mail | 4 | 0 | 0 | 0 |
 | Digests | 6 | 0 | 0 | 0 |

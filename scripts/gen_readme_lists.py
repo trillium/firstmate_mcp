@@ -214,6 +214,8 @@ TOOLS = {
     "subagent_policy_check": ("fm-subagent-pretool-check.sh", None, False),
     "supervision_instructions": ("fm-supervision-instructions.sh", None, False),
     "quota_choose": ("fm-quota-choose.sh", None, False),
+    "promote_scout": ("fm-promote.sh", None, True),
+    "arm_pr_check": ("fm-arm-pretool-check.sh", None, True),
     "fleet_ledger": ("fm-fleet-ledger.sh", None, False),
     "devin_config": ("fm-devin-config.sh", None, True),
 }
@@ -242,6 +244,8 @@ TOOL_TIERS = {
     "quota_choose": 1,
     "fleet_ledger": 1,
     "devin_config": 3,
+    "promote_scout": 3,
+    "arm_pr_check": 3,
     "receipt_submit": 1, "receipt_status": 1, "grant_status": 1,
     "decision_verify": 1, "decision_open": 1, "decision_diverged": 1,
     "send_message": 2,

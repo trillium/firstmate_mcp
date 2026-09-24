@@ -1584,17 +1584,16 @@ features:
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-fork-origin-check.sh
     summary: Advisory scan for registered project clones whose remotes look like an unswapped fork-contribution setup.
-    contract: drift/fork-spine.json
+    contract: schema/contracts.yaml#fork_origin_check
     upstream_test: "ts/tests/conformance-read.test.ts::guard_check matches direct stub read-only"
     py: {status: implemented, evidence: ["drift/baseline.json:\"fm-fork-origin-check.sh\""]}
-    ts: {status: missing}
+    ts: {status: implemented, evidence: ["ts/src/tools/fork-checks.ts:toolForkOriginCheck"]}
     divergence:
       status: intentional
       reason: >-
         Trillium fork-origin convention for fork-contribution clones; upstream
-        firstmate does not enforce or scan fork remote setup. Verdict:
-        not-planned (no denial — simply unbuilt; needs separate authorization
-        to port as an advisory Tier-1 read).
+        firstmate does not enforce or scan fork remote setup. Ported Tier-1
+        under mirror-first scope (decision-fnn).
   - id: afk_daemon_launch
     kind: fork
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
@@ -1852,3 +1851,25 @@ features:
       reason: >-
         Doorway pins state_dir to the served home; upstream accepts an
         arbitrary state directory. Authority write behind approval.
+  - id: promote_scout
+    kind: upstream-mirror
+    upstream_command: bin/fm-promote.sh
+    summary: Scout-to-ship promotion in place behind approval.
+    contract: schema/contracts.yaml#promote_scout
+    upstream_test: "ts/tests/server.test.ts::tool present: promote_scout"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools/landing.ts:toolPromoteScout"]}
+    divergence:
+      status: none
+      reason: ""
+  - id: arm_pr_check
+    kind: upstream-mirror
+    upstream_command: bin/fm-arm-pretool-check.sh
+    summary: Watcher PR check arming behind approval.
+    contract: schema/contracts.yaml#arm_pr_check
+    upstream_test: "ts/tests/server.test.ts::tool present: arm_pr_check"
+    py: {status: retired}
+    ts: {status: implemented, evidence: ["ts/src/tools/landing.ts:toolArmPrCheck"]}
+    divergence:
+      status: none
+      reason: ""

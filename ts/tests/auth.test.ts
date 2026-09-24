@@ -62,7 +62,7 @@ const TIER4_TOOLS = Object.entries(TOOL_TIERS)
 
 describe("tier assignments", () => {
   it("covers every tool", () => {
-    assert.equal(Object.keys(TOOL_TIERS).length, 130);
+    assert.equal(Object.keys(TOOL_TIERS).length, 133);
   });
   it("tier 1 is open reads", () => {
     for (const tool of TIER1_TOOLS) assert.equal(tierOf(tool), TIER_OPEN, tool);
@@ -71,13 +71,13 @@ describe("tier assignments", () => {
     assert.equal(tierOf("send_message"), TIER_STEER);
   });
   it("tier 3 is authority writes", () => {
-    assert.equal(TIER3_TOOLS.length, 50);
+    assert.equal(TIER3_TOOLS.length, 52);
     for (const tool of TIER3_TOOLS) assert.equal(tierOf(tool), TIER_AUTHORITY, tool);
   });
   it("code-forbidden tools carry no tier entry and read as forbidden", () => {
     // The invariant: a forbidden surface is absent from TOOL_TIERS, so no stale
     // entry can shadow it, and tierOf still answers forbidden for it.
-    for (const tool of ["merge_pr", "promote_scout", "teardown_crew", "repo_merge", "daemon_start"]) {
+    for (const tool of ["merge_pr", "teardown_crew", "repo_merge", "daemon_start"]) {
       assert.equal(TOOL_TIERS[tool], undefined, `${tool} must have no tier entry`);
       assert.equal(tierOf(tool), TIER_FORBIDDEN, tool);
     }

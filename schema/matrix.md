@@ -93,6 +93,9 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | git_history | native: git | stable | log, --oneline, --max-count | bounded repo log, path-scoped, confined |
 | git_blame | native: git | stable | blame, -L, --line-porcelain | line-range excerpt, max 200 lines |
 | ci_history | native: gh | stable | run, list, --branch, --limit, --json | run conclusions per branch |
+| fork_origin_check | bin/fm-fork-origin-check.sh | stable | (none) | advisory unswapped-origin scan, never gates |
+| promote_scout | bin/fm-promote.sh | stable | <task-id>, --mode, --yolo | scout-to-ship promotion in place |
+| arm_pr_check | bin/fm-arm-pretool-check.sh | stable | --command | watcher PR check arming |
 
 ## How to use this view
 
