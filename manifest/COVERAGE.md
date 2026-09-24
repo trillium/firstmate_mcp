@@ -8,7 +8,7 @@ Every firstmate command area with its mirror status: **mirrored**
 upstream — classified by the git-derived spine, `drift/fork-spine.json`),
 or **unmirrored gap**. Captain area order.
 
-Upstream enumeration: `bin/fm-*.sh top-level + backends/` at the pinned submodule `9296f9b`.
+Upstream enumeration: `bin/fm-*.sh top-level + backends/` at the pinned submodule `31c47af`.
 Fork inventory `drift/baseline.json` (rev `aaf67489`, 163 surfaces) is the submodule-absent fallback
 and the existence proof for fork-extension rows (spine `drift/fork-spine.json`).
 Backends ship per-harness session adapters; voice helpers outside `fm-*.sh`
@@ -19,8 +19,8 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | Area | Mirrored | Denied | Gap | Fork |
 | --- | --- | --- | --- | --- |
 | [Fleet runs](#fleet-runs) | 4 | 2 | 0 | 3 |
-| [Supervision](#supervision) | 13 | 23 | 0 | 4 |
-| [Sessions](#sessions) | 7 | 18 | 0 | 1 |
+| [Supervision](#supervision) | 13 | 25 | 0 | 4 |
+| [Sessions](#sessions) | 7 | 18 | 1 | 1 |
 | [Backlog / decisions](#backlog-decisions) | 5 | 2 | 0 | 6 |
 | [Secondmates / remotes](#secondmates-remotes) | 8 | 10 | 0 | 2 |
 | [PR pipeline](#pr-pipeline) | 5 | 3 | 1 | 2 |
@@ -28,7 +28,7 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 | 0 |
 | [Installs](#installs) | 10 | 10 | 0 | 3 |
-| **Total** | **68** | **70** | **1** | **21** |
+| **Total** | **68** | **72** | **2** | **21** |
 
 ## Fleet runs
 
@@ -61,6 +61,7 @@ Control and data planes for live crews: daemon, lifecycle verbs, steer, wakes, g
 | `fm-attended-start.sh` | fork extension | fork extension (present in trillium/firstmate, absent upstream): attended triage daemon |
 | `fm-branch-outcome.sh` | denied-by-design — `branch_outcome` | supervision-branch outcome store. the append-only outcome store with its read-cursor and processed-marker protocol is the branch's private channel; only the Pi branch extension and session-start replay own it |
 | `fm-branch-prompt.sh` | denied-by-design — `branch_prompt` | supervision-branch system prompt emitter. the branch system prompt carries the branch's authority context; only the branch host owns prompt construction |
+| `fm-branch-report.sh` | denied-by-design — `branch_outcome` | supervision-branch report surface; records into the branch-private outcome store, denied by design. the append-only outcome store with its read-cursor and processed-marker protocol is the branch's private channel; only the Pi branch extension and session-start replay own it |
 | `fm-busy-event.sh` | denied-by-design — `busy_event` | sole writer of the busy-state contract. the sole writer of the semantic busy-state contract; only adapter wiring and the owning spawn own busy writes |
 | `fm-cd-pretool-check.sh` | mirrored — `cd_policy_check` (ts✔) | cwd-change policy hook |
 | `fm-control.sh` | mirrored — `lifecycle_interrupt` (ts✔), `lifecycle_exit` (ts✔), `lifecycle_relaunch` (ts✔), `lifecycle_suspend` (ts✔), `lifecycle_resume` (ts✔) | lifecycle verbs behind approval |
@@ -81,6 +82,7 @@ Control and data planes for live crews: daemon, lifecycle verbs, steer, wakes, g
 | `fm-send.sh` | mirrored — `send_message` (ts✔) | data plane: prose steer for one crew |
 | `fm-subagent-pretool-check.sh` | mirrored — `subagent_policy_check` (ts✔) | subagent policy hook |
 | `fm-supervise-daemon.sh` | denied-by-design — `daemon_start`, `daemon_stop`, `daemon_restart` | the shared daemon binary. shared daemon serves every lane; only firstmate manages it |
+| `fm-supervision-host.sh` | denied-by-design — `watch_start`, `watch_stop` | watcher-cycle owner + headless engine host; arm replacement that parks — watcher control stays out, denied by design. watcher control would fork shared supervision state |
 | `fm-supervision-instructions.sh` | mirrored — `supervision_instructions` (ts✔) | supervisor prompt surface |
 | `fm-teardown.sh` | denied-by-design — `teardown_crew` | endpoint + worktree teardown. discards endpoint, worktree, and uncommitted work |
 | `fm-turnend-guard-cursor.sh` | denied-by-design — `turnend_guard_cursor` | cursor turn-end guard. the Cursor stop-hook park holds the turn boundary open until a watcher wake; only Cursor's stop step owns the park |
@@ -113,6 +115,7 @@ Launching and owning agent sessions: start, harness, backends, spawn, briefs.
 | `fm-claude-trust.sh` | denied-by-design — `claude_trust` | workspace-trust preregistration for spawns. pre-registering workspace trust writes the operator trust store on a spawn's behalf; only the launching spawn path owns trust |
 | `fm-devin-config.sh` | mirrored — `devin_config` (ts✔) | per-worker Devin config writer (persona isolation); new since pin |
 | `fm-dispatch-resolve.sh` | mirrored — `dispatch_resolve` (ts✔) | resolve one concrete dispatch |
+| `fm-forge-detect.sh` | gap | forge binding proposal for project-add intake; proposal-only read, unmirrored |
 | `fm-harness.sh` | mirrored — `harness_detect` (ts✔) | harness detection for the process tree |
 | `fm-herdr-ci-cleanup.sh` | denied-by-design — `herdr_ci_cleanup` | CI session cleanup. stopping and deleting lab sessions is destructive even when scoped; only CI teardown owns it |
 | `fm-herdr-lab.sh` | denied-by-design — `herdr_lab` | isolated Herdr lab sessions. provisioning and operating lab sessions drives Herdr session lifecycle; only explicitly authorized lab work owns lab sessions |

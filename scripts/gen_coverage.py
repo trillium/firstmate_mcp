@@ -135,6 +135,8 @@ COMMAND_AREAS = {
     "fm-subagent-pretool-check.sh": ("supervision", "subagent policy hook"),
     "fm-branch-outcome.sh": ("supervision", "supervision-branch outcome store"),
     "fm-branch-prompt.sh": ("supervision", "supervision-branch system prompt emitter"),
+    "fm-branch-report.sh": ("supervision", "supervision-branch report surface; records into the branch-private outcome store, denied by design"),
+    "fm-supervision-host.sh": ("supervision", "watcher-cycle owner + headless engine host; arm replacement that parks — watcher control stays out, denied by design"),
     # ---- sessions ----
     "fm-session-start.sh": ("sessions", "session bootstrap"),
     "fm-sessionstart-nudge.sh": ("sessions", "session-start nudge"),
@@ -152,6 +154,7 @@ COMMAND_AREAS = {
     "fm-brief.sh": ("sessions", "scaffold one crewmate brief; launches nothing"),
     "fm-dispatch-resolve.sh": ("sessions", "resolve one concrete dispatch"),
     "fm-project-mode.sh": ("sessions", "registered delivery posture (mode + yolo)"),
+    "fm-forge-detect.sh": ("sessions", "forge binding proposal for project-add intake; proposal-only read, unmirrored"),
     "fm-claude-trust.sh": ("sessions", "workspace-trust preregistration for spawns"),
     "fm-agy-trust.sh": ("sessions", "Antigravity workspace-trust preregistration"),
     "fm-claude-stop-autoarm.sh": ("sessions", "disable auto-arm in claude sessions"),
@@ -337,6 +340,8 @@ DENY_LIST = frozenset(DENY_REASONS.keys())
 # than one owning script). Reasons are shared with DENY_REASONS.
 DENY_ALSO = {
     "fm-watch-arm.sh": ("watch_start", "watch_stop"),
+    "fm-supervision-host.sh": ("watch_start", "watch_stop"),
+    "fm-branch-report.sh": ("branch_outcome",),
     "backends/tmux.sh": ("backend_select",),
     "backends/herdr.sh": ("backend_select",),
     "backends/zellij.sh": ("backend_select",),
