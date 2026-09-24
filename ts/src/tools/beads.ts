@@ -126,3 +126,42 @@ export async function toolBeadsBackup(_args: ToolArgs, ctx: ToolContext): Promis
   if (isError) return { payload, isError: true };
   return { payload: { ...payload }, isError: false };
 }
+
+export async function toolBacklogImport(args: ToolArgs, ctx: ToolContext): Promise<ToolResult> {
+  const apply = args["apply"] ?? false;
+  if (typeof apply !== "boolean") {
+    return {
+      payload: { error: "invalid apply", expect: "boolean, default false (dry run)" },
+      isError: true,
+    };
+  }
+  const cmd = [path.join(ctx.binDir, "fm-backlog-import-beads.sh")];
+  const backlog = args["backlog"];
+  if (backlog !== undefined) {
+    if (typeof backlog !== "string" || backlog.length === 0 || backlog.length > 256) {
+      return {
+        payload: { error: "invalid backlog", expect: "home-relative .md path, no traversal" },
+        isError: true,
+      };
+    }
+    const resolved = path.normalize(path.join(ctx.stateDir, "..", backlog));
+    const home = path.normalize(path.join(ctx.stateDir, ".."));
+    if (resolved !== home && !resolved.startsWith(home + path.sep)) {
+      return {
+        payload: { error: "invalid backlog", expect: "path must stay inside the home" },
+        isError: true,
+      };
+    }
+    if (!resolved.endsWith(".md")) {
+      return {
+        payload: { error: "invalid backlog", expect: "a markdown backlog file" },
+        isError: true,
+      };
+    }
+    cmd.push("--backlog", resolved);
+  }
+  if (apply) cmd.push("--apply");
+  const { payload, isError } = await ownedCall(cmd, "backlog import failed", ctx.run);
+  if (isError) return { payload, isError: true };
+  return { payload: { ...payload, apply }, isError: false };
+}

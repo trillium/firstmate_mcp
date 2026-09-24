@@ -1685,10 +1685,10 @@ features:
     fork_rev: 86c035336bf9e136dd44d76e7d46e16d260fac8f
     fork_command: bin/fm-backlog-import-beads.sh
     summary: One-time backlog.md importer into the beads store.
-    contract: drift/baseline.json
+    contract: schema/contracts.yaml#backlog_import
     upstream_test: "ts/tests/conformance-read.test.ts::backlog derives counts from the same snapshot"
     py: {status: implemented, evidence: ["drift/baseline.json:\"fm-backlog-import-beads.sh\""]}
-    ts: {status: missing}
+    ts: {status: implemented, evidence: ["ts/src/tools/beads.ts:toolBacklogImport"]}
     divergence:
       status: intentional
       reason: >-

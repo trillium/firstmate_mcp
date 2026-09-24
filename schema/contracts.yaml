@@ -1465,3 +1465,19 @@ contracts:
       header: bin/fm-beads-remote-backup.sh:1-40
       doc: docs/BEADS-STORE-CONTRACT.md
     notes: "Verify-only surface; --repair (rewiring, commits, pushes) stays out."
+  - name: backlog_import
+    command: bin/fm-backlog-import-beads.sh
+    flags: ["--backlog", "--apply"]
+    output:
+      format: text
+      schema_id: none
+      fields: ["stdout", "apply"]
+    exits:
+      zero: preview (dry run) or idempotent import performed; re-runs resolve, never duplicate
+      nonzero: bad path/flag or import failure; stderr carries the reason
+    stability: stable
+    pinned: fm-backlog-import.v1
+    evidence:
+      header: bin/fm-backlog-import-beads.sh:1-40
+      doc: docs/BEADS-STORE-CONTRACT.md
+    notes: "Authority write behind approval (Tier 3). Dry run by default; --apply performs writes. Backlog path confined to the home."

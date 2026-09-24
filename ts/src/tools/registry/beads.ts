@@ -6,6 +6,7 @@
  * canonical order.
  */
 import {
+  toolBacklogImport,
   toolBeadsBackup,
   toolBeadsMirror,
   toolBeadsQueue,
@@ -67,5 +68,30 @@ export const BeadsRegistry: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     handler: toolBeadsBackup,
+  },
+  backlog_import: {
+    description:
+      "One-time forward import from a backlog file into the beads store. Dry run by default; --apply performs idempotent writes (resolves, never duplicates). Approval required.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        backlog: {
+          type: "string",
+          description: "Home-relative .md backlog path (default: home data/backlog.md), no traversal",
+        },
+        apply: {
+          type: "boolean",
+          default: false,
+          description: "Perform the import; without it, preview only",
+        },
+        approval: {
+          type: "string",
+          description: "Explicit authorization starting with 'I authorize'",
+        },
+      },
+      required: ["approval"],
+      additionalProperties: false,
+    },
+    handler: toolBacklogImport,
   },
 };

@@ -8,6 +8,7 @@
   "contracts": {
     "arm_policy_check": "bin/fm-arm-pretool-check.sh",
     "arm_pr_check": "bin/fm-arm-pretool-check.sh",
+    "backlog_import": "bin/fm-backlog-import-beads.sh",
     "beads_backend": "bin/fm-tasks-axi-lib.sh",
     "beads_backup": "bin/fm-beads-remote-backup.sh",
     "beads_is_closed": "bin/fm-tasks-axi-lib.sh",

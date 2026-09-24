@@ -424,3 +424,45 @@ describe("beads backup verify", () => {
     assert.ok(JSON.stringify(res.payload).includes("BEADS_BACKUP"));
   });
 });
+
+describe("backlog import", () => {
+  type RunResult = import("../src/runner.js").RunResult;
+  const stubRun =
+    (stdout: string) =>
+    async (): Promise<RunResult> => ({ stdout, stderr: "", exitCode: 0 });
+
+  function importCtx(home: string, stdout = ""): ToolContext {
+    return {
+      ...liveContext(),
+      binDir: `${home}/bin`,
+      stateDir: `${home}/state`,
+      run: stubRun(stdout),
+    };
+  }
+
+  test("dry run is the default and passes through preview", async () => {
+    const home = makeStubHome();
+    const res = await TOOLS["backlog_import"].handler({}, importCtx(home, "would create 3 beads"));
+    assert.equal(res.isError, false);
+    assert.equal((res.payload as Record<string, unknown>)["apply"], false);
+  });
+
+  test("apply flag and backlog path validate", async () => {
+    const home = makeStubHome();
+    const ok = await TOOLS["backlog_import"].handler(
+      { apply: true, approval: "I authorize" },
+      importCtx(home, "imported"),
+    );
+    assert.equal(ok.isError, false);
+    assert.equal((ok.payload as Record<string, unknown>)["apply"], true);
+    for (const args of [
+      { apply: "yes" },
+      { backlog: "../escape.md" },
+      { backlog: "/etc/passwd" },
+      { backlog: "notes.txt" },
+    ]) {
+      const res = await TOOLS["backlog_import"].handler(args, importCtx(home, ""));
+      assert.equal(res.isError, true, JSON.stringify(args));
+    }
+  });
+});

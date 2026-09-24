@@ -62,7 +62,7 @@ const TIER4_TOOLS = Object.entries(TOOL_TIERS)
 
 describe("tier assignments", () => {
   it("covers every tool", () => {
-    assert.equal(Object.keys(TOOL_TIERS).length, 134);
+    assert.equal(Object.keys(TOOL_TIERS).length, 135);
   });
   it("tier 1 is open reads", () => {
     for (const tool of TIER1_TOOLS) assert.equal(tierOf(tool), TIER_OPEN, tool);
@@ -71,7 +71,7 @@ describe("tier assignments", () => {
     assert.equal(tierOf("send_message"), TIER_STEER);
   });
   it("tier 3 is authority writes", () => {
-    assert.equal(TIER3_TOOLS.length, 52);
+    assert.equal(TIER3_TOOLS.length, 53);
     for (const tool of TIER3_TOOLS) assert.equal(tierOf(tool), TIER_AUTHORITY, tool);
   });
   it("code-forbidden tools carry no tier entry and read as forbidden", () => {

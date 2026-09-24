@@ -180,7 +180,7 @@ describe("receipt path authorization", () => {
  * every one of them was reachable with an approval string (project-2od.20).
  */
 describe("code-forbidden tools", () => {
-  const FORBIDDEN_SAMPLE = ["merge_pr", "promote_scout", "teardown_crew", "repo_merge", "daemon_start"];
+  const FORBIDDEN_SAMPLE = ["merge_pr", "merge_local", "teardown_crew", "repo_merge", "daemon_start"];
 
   it("refuses a forbidden tool at the dispatcher before any handler runs", async () => {
     for (const tool of FORBIDDEN_SAMPLE) {

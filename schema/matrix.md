@@ -97,6 +97,7 @@ Rows marked depended-on break the superset when they change; observed-only rows 
 | promote_scout | bin/fm-promote.sh | stable | <task-id>, --mode, --yolo | scout-to-ship promotion in place |
 | arm_pr_check | bin/fm-arm-pretool-check.sh | stable | --command | watcher PR check arming |
 | beads_backup | bin/fm-beads-remote-backup.sh | stable | --verify | off-box copy verify (repair stays out) |
+| backlog_import | bin/fm-backlog-import-beads.sh | stable | --backlog, --apply | one-time import, dry run default |
 
 ## How to use this view
 
