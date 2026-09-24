@@ -131,10 +131,15 @@ Personal software, one owner, no external users. Standing owner instruction:
 
 ## Build, test, and envelope
 
-- Server proof: `cd ts && bun test` (or `pnpm test`) is the full standalone
+- Server proof: `cd ts && pnpm test` is the full standalone
   proof of the TypeScript MCP server (validators, envelope, auth with duration_ms timing and decision_digest audit logging,
   standing approval grants, 85-tool server suite, and conformance fixtures); run it before shipping server changes.
   It includes fixtures covering >30s timeout kill, >128KB snapshots, and receipt lifecycle.
+  Bare `bun test` is NOT the proof: it runs the raw TS sources instead of the
+  compiled `testbuild/` suite and fails on type-only imports (`export 'Tier'
+  not found`, measured 2026-09-24: 28 fail that way while `pnpm test` was
+  760 pass, 0 fail). Always use the `pnpm run test:*` scripts, which build
+  (`tsc` + `build:tests`) before running.
   Other suites: `bash tests/mcp-adapter.test.sh`, `tests/fm-mcp-authz.test.sh`,
   `tests/mcp-schema.test.sh`, `tests/drift-check.test.sh`,
   `tests/fm-manifest.test.sh` (`manifest/validate.py` validates dual provenance,
@@ -235,8 +240,8 @@ Personal software, one owner, no external users. Standing owner instruction:
   `state/mcp-receipts/`, `RECEIPT_TIMEOUT_S=180`, `RECEIPT_TTL_S=3600`,
   per-home confinement).
 - TypeScript server (`ts/`, stdio sole server, Effect composition): pnpm is the
-  package manager (`pnpm install`), bun is the sole runtime (`bun test` / `pnpm test`
-  is the full TS proof). Test runner is native Bun test.
+  package manager (`pnpm install`), bun is the sole runtime (`pnpm test`
+  is the full TS proof — never bare `bun test`). Test runner is native Bun test.
 - Decision-closing release & attestation mechanics (`ts/src/tools.ts`, `AUTH.md`):
   `decision_release`, `decision_resolve`, and `review_decision` (with `--release`)
   enforce the SAFETY CORE: default scope allows releasing/resolving ONLY holds the calling agent
@@ -271,7 +276,7 @@ Personal software, one owner, no external users. Standing owner instruction:
   unpaginated calls preserve canonical backwards compatibility.
 - Test runner: `pnpm run test:dev` selectively reruns
   recorded failing test files during local development, while CI and PR
-  always run the full suite (`bun test` / `pnpm test`).
+  always run the full suite (`pnpm test`).
 - A cascade of `NotImplementedError: describe() inside another test()` across many
   test files means **one earlier file failed**, not a concurrency problem — I got
   this wrong once and wrote the wrong cause here. Bun's node:test compatibility
