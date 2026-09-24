@@ -382,3 +382,24 @@ describe("fleet activity ledger + devin config", () => {
     }
   });
 });
+
+describe("fork advisory reads", () => {
+  type RunResult = import("../src/runner.js").RunResult;
+
+  test("fork origin check passes through the owning script", async () => {
+    const home = makeStubHome();
+    const scriptOut = "MISCONFIGURED: demo - origin (git@github.com:other/demo) is not trillium\n";
+    const run = async (): Promise<RunResult> => ({ stdout: scriptOut, stderr: "", exitCode: 0 });
+    const res = await TOOLS["fork_origin_check"].handler(
+      {},
+      {
+        ...liveContext(),
+        binDir: `${home}/bin`,
+        stateDir: `${home}/state`,
+        run,
+      },
+    );
+    assert.equal(res.isError, false);
+    assert.ok(JSON.stringify(res.payload).includes("MISCONFIGURED"));
+  });
+});

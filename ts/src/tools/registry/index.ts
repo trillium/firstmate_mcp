@@ -26,6 +26,7 @@ import { LifecycleGrantsRegistry } from "./lifecycle-grants.js";
 import { ReapsRegistry } from "./reaps.js";
 import { ArchaeologyRegistry } from "./archaeology.js";
 import { ActivityRegistry } from "./activity.js";
+import { ForkChecksRegistry } from "./fork-checks.js";
 
 import type { ToolDef } from "./shared.js";
 
@@ -51,6 +52,7 @@ export const TOOLS: Record<string, ToolDef> = {
   ...ReapsRegistry,
   ...ArchaeologyRegistry,
   ...ActivityRegistry,
+  ...ForkChecksRegistry,
 };
 
 export const TOOL_NAMES: ReadonlySet<string> = new Set(Object.keys(TOOLS));
