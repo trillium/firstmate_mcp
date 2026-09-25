@@ -71,7 +71,7 @@ test_manifest_and_deny_appear() {
     daemon_start daemon_stop daemon_restart watch_start watch_stop \
     repo_edit repo_commit repo_push repo_merge public_followup_emit relay_link \
     fleet_sync inactive_reconcile backlog_receive session_start sessionstart_run sessionstart_cursor \
-    herdr_lab herdr_ci_cleanup session_cleanup claude_trust agy_trust claude_stop_autoarm \
+    herdr_lab lab_home herdr_ci_cleanup session_cleanup claude_trust agy_trust claude_stop_autoarm \
     herdr_eventwait herdr_workspace_move backend_select \
     on_execute config_push remote_entrypoint remote_herdr_guard remote_provision \
     remote_seed inherit_push remote_inherit reap_orphans remote_worker \

@@ -22,7 +22,7 @@ version: v1
 upstream:
   repo: https://github.com/kunchenguid/firstmate.git
   submodule: sources/firstmate
-  gitlink_at_seed: 31c47af563fab3d9a8e574a6a5d76281b92552e4
+  gitlink_at_seed: 1a814e4943b69db555cc93ce0f42ef6db685c567
   role: radar
   note: >-
     Upstream fingerprint for early-warning radar only: the kunchenguid pin

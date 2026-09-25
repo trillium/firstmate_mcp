@@ -8,7 +8,7 @@ Every firstmate command area with its mirror status: **mirrored**
 upstream — classified by the git-derived spine, `drift/fork-spine.json`),
 or **unmirrored gap**. Captain area order.
 
-Upstream enumeration: `bin/fm-*.sh top-level + backends/` at the pinned submodule `31c47af`.
+Upstream enumeration: `bin/fm-*.sh top-level + backends/` at the pinned submodule `1a814e4`.
 Fork inventory `drift/baseline.json` (rev `aaf67489`, 163 surfaces) is the submodule-absent fallback
 and the existence proof for fork-extension rows (spine `drift/fork-spine.json`).
 Backends ship per-harness session adapters; voice helpers outside `fm-*.sh`
@@ -20,7 +20,7 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | --- | --- | --- | --- | --- |
 | [Fleet runs](#fleet-runs) | 4 | 2 | 0 | 3 |
 | [Supervision](#supervision) | 13 | 25 | 0 | 4 |
-| [Sessions](#sessions) | 7 | 18 | 1 | 1 |
+| [Sessions](#sessions) | 7 | 19 | 1 | 1 |
 | [Backlog / decisions](#backlog-decisions) | 5 | 2 | 0 | 6 |
 | [Secondmates / remotes](#secondmates-remotes) | 8 | 10 | 0 | 2 |
 | [PR pipeline](#pr-pipeline) | 5 | 3 | 1 | 2 |
@@ -28,7 +28,7 @@ are noted, not enumerated. `-lib.sh` helpers are owned by their commands.
 | [Voice / mail](#voice-mail) | 4 | 0 | 0 | 0 |
 | [Digests](#digests) | 6 | 0 | 0 | 0 |
 | [Installs](#installs) | 10 | 10 | 0 | 3 |
-| **Total** | **68** | **72** | **2** | **21** |
+| **Total** | **68** | **73** | **2** | **21** |
 
 ## Fleet runs
 
@@ -122,6 +122,7 @@ Launching and owning agent sessions: start, harness, backends, spawn, briefs.
 | `fm-herdr-session-cleanup.sh` | denied-by-design — `session_cleanup` | session cleanup. closing panes at session start mutates live presentation state; only the lock-owning session start owns cleanup |
 | `fm-herdr-spur.sh` | denied-by-design — `herdr_spur` | fork extension (present in trillium/firstmate, absent upstream): external-agent finish bridge into the shared wake queue. bridging external-agent finishes into the shared wake queue drives supervision continuity and blocks on a live event stream; only the watcher owns wake production |
 | `fm-isolated-launch.sh` | fork extension | fork extension (present in trillium/firstmate, absent upstream): isolated CLI launch |
+| `fm-lab-home.sh` | denied-by-design — `lab_home` | disposable lab-home minter for gate agents; minting stays out, denied by design. minting a marked lab home lets a gate agent drive fleet lifecycle entrypoints past the gate refusal; only explicitly authorized lab work owns lab homes |
 | `fm-project-mode.sh` | mirrored — `project_mode` (ts✔) | registered delivery posture (mode + yolo) |
 | `fm-session-start.sh` | denied-by-design — `session_start` | session bootstrap. running the session bootstrap acquires the home lock and runs mutating sweeps; only the opening session itself owns bootstrap |
 | `fm-sessionstart-cursor.sh` | denied-by-design — `sessionstart_cursor` | cursor session-start path. cursor session-open transport around the digest runner; only Cursor's sessionStart step owns it |

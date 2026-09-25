@@ -270,7 +270,7 @@ by command area with its mirror status. Full view: `manifest/COVERAGE.md`
 | --- | --- | --- | --- | --- |
 | Fleet runs | 4 | 2 | 0 | 3 |
 | Supervision | 13 | 25 | 0 | 4 |
-| Sessions | 7 | 18 | 1 | 1 |
+| Sessions | 7 | 19 | 1 | 1 |
 | Backlog / decisions | 5 | 2 | 0 | 6 |
 | Secondmates / remotes | 8 | 10 | 0 | 2 |
 | PR pipeline | 5 | 3 | 1 | 2 |
