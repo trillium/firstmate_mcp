@@ -25,8 +25,20 @@ No promote-to-ship paths exist in this layer.
 
 Audit log format:
 Every allow and every refuse appends exactly one JSON object per line.
-Each line carries these keys: `v` (format version, currently 1), `ts` (UTC `YYYY-MM-DDTHH:MM:SSZ`), `actor` (invoking identity), `tool` (requested tool name), `tier` (1, 2, 3, 4, `forbidden`, or null when unknown), `decision` (`allow` or `refuse`), `reason` (`ok`, `approval-required`, `approval-invalid`, `validation-failed`, `unknown-tool`, or `forbidden`), `approval_ref` (16 hex chars of the token hash, or null when no token was presented), `target` (primary id or null), and `duration_ms` (integer execution time in ms from call start to envelope close, or null).
-Example: `{"actor": "local", "approval_ref": null, "decision": "allow", "duration_ms": 142, "reason": "ok", "target": null, "tier": 1, "tool": "fleet_snapshot", "ts": "2026-09-19T10:00:00Z", "v": 1}`.
+Each line carries these keys: `v` (format version, currently 1), `ts` (UTC `YYYY-MM-DDTHH:MM:SSZ`), `actor` (invoking identity), `tool` (requested tool name), `tier` (1, 2, 3, 4, `forbidden`, or null when unknown), `decision` (`allow` or `refuse`), `reason` (`ok`, `approval-required`, `approval-invalid`, `validation-failed`, `unknown-tool`, or `forbidden`), `approval_ref` (16 hex chars of the token hash, or null when no token was presented), `target` (primary id or null), `duration_ms` (integer execution time in ms from call start to envelope close, or null), and `transport` (`"stdio"` or `"http"`).
+Example: `{"actor": "local", "approval_ref": null, "decision": "allow", "duration_ms": 142, "reason": "ok", "target": null, "tier": 1, "tool": "fleet_snapshot", "transport": "stdio", "ts": "2026-09-19T10:00:00Z", "v": 1}`.
+
+Streamable HTTP transport (AUDIT control plane):
+An additive Streamable HTTP transport exists alongside stdio so external audit systems can inspect fleet states, crew states, audit trails, guard checks, bearings, and receipts over HTTP (JSON-RPC / SSE stream) without operating the fleet.
+1. Localhost-first binding: Binds to `127.0.0.1` by default; stdio remains untouched and default.
+2. Origin & Host validation: Strict DNS-rebinding and CSRF mitigation. Rejects non-localhost/unapproved `Origin` and `Host` headers with `403 Forbidden`.
+3. Authentication mechanism: Requires an RFC 6750 Bearer token in the `Authorization` header (`Authorization: Bearer <token>`). Tokens are verified in constant time (`crypto.timingSafeEqual`) to prevent side-channel timing leaks. Bearer token auth was chosen because:
+   - It is the standard authentication model for HTTP API / MCP transports.
+   - Tokens reside exclusively in HTTP headers and are never leaked via URLs, query strings, or browser histories.
+   - Immune to ambient browser credential attacks (unlike cookies); combined with Origin and Host header validation, this provides defense-in-depth against CSRF, DNS rebinding, and unauthorized intranet reach-in.
+   - Programmatic audit clients, proxies, and monitoring systems natively support Authorization headers.
+4. MCP Spec Session handling: `Mcp-Session-Id` header lifecycle, session store with TTL expiry, and `DELETE /mcp` termination.
+5. Auth Tier Parity: Does not widen any write permissions. The exact same tiers, per-action `I authorize` approvals, and deny posture apply identically over HTTP.
 
 Safety notes that survive the smarts-only trim.
 The MCP layer never reimplements policy: every tool shells to the owning `bin/` script and the script still fails closed.
